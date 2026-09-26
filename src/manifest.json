@@ -1,0 +1,161 @@
+{
+  "package": "com.application.watch.evbox",
+  "name": "EvBox工具箱",
+  "versionName": "1.0.6",
+  "versionCode": 7,
+  "minPlatformVersion": 1050,
+  "icon": "/logo.png",
+  "deviceTypeList": [
+    "watch"
+  ],
+  "features": [
+    {
+      "name": "system.router"
+    },
+    {
+      "name": "system.storage"
+    },
+    {
+      "name": "system.prompt"
+    },
+    {
+      "name": "system.device"
+    },
+    {
+      "name": "system.vibrator"
+    },
+    {
+      "name": "system.request"
+    },
+    {
+      "name": "system.app"
+    },
+    {
+      "name": "system.clipboard"
+    },
+    {
+      "name": "system.file"
+    }
+  ],
+  "permissions": [
+    {
+      "name": "hapjs.permission.DEVICE_INFO"
+    }
+  ],
+  "config": {
+    "logLevel": "log",
+    "designWidth": "device-width"
+  },
+  "router": {
+    "entry": "pages/welcome",
+    "_groups": {
+      "核心主流程": "welcome, index, tools",
+      "实用工具": "countdown-manage, lunar-calendar, calculator, qrcode-generator, vibration-lab, vibration-lab-v2, chinese-input",
+      "设置与系统": "settings, homepage-settings, pinned-pages, backup-restore, activation, device-info, template-picker",
+      "实验室工具": "device-id-diagnosis, black-screen-check",
+      "其他": "donate"
+    },
+    "pages": {
+      "pages/welcome": {
+        "component": "welcome",
+        "group": "核心主流程",
+        "name_cn": "欢迎页"
+      },
+      "pages/index": {
+        "component": "index",
+        "group": "核心主流程",
+        "name_cn": "首页"
+      },
+      "pages/tools": {
+        "component": "tools",
+        "group": "核心主流程",
+        "name_cn": "工具"
+      },
+      "pages/countdown-manage": {
+        "component": "countdown-manage",
+        "group": "实用工具",
+        "name_cn": "倒数日管理"
+      },
+      "pages/lunar-calendar": {
+        "component": "lunar-calendar",
+        "group": "实用工具",
+        "name_cn": "农历"
+      },
+      "pages/calculator": {
+        "component": "calculator",
+        "group": "实用工具",
+        "name_cn": "计算器"
+      },
+      "pages/qrcode-generator": {
+        "component": "qrcode-generator",
+        "group": "实用工具",
+        "name_cn": "二维码生成"
+      },
+      "pages/vibration-lab": {
+        "component": "vibration-lab",
+        "group": "实用工具",
+        "name_cn": "震动实验室"
+      },
+      "pages/vibration-lab-v2": {
+        "component": "vibration-lab-v2",
+        "group": "实用工具",
+        "name_cn": "震动实验室V2"
+      },
+      "pages/chinese-input": {
+        "component": "chinese-input",
+        "group": "实用工具",
+        "name_cn": "中文输入"
+      },
+      "pages/settings": {
+        "component": "settings",
+        "group": "设置与系统",
+        "name_cn": "设置"
+      },
+      "pages/homepage-settings": {
+        "component": "homepage-settings",
+        "group": "设置与系统",
+        "name_cn": "首页设置"
+      },
+      "pages/pinned-pages": {
+        "component": "pinned-pages",
+        "group": "设置与系统",
+        "name_cn": "已钉页面"
+      },
+      "pages/backup-restore": {
+        "component": "backup-restore",
+        "group": "设置与系统",
+        "name_cn": "备份恢复"
+      },
+      "pages/activation": {
+        "component": "activation",
+        "group": "设置与系统",
+        "name_cn": "激活"
+      },
+      "pages/device-info": {
+        "component": "device-info",
+        "group": "设置与系统",
+        "name_cn": "设备信息"
+      },
+      "pages/template-picker": {
+        "component": "template-picker",
+        "group": "设置与系统",
+        "name_cn": "模板选择"
+      },
+      "pages/device-id-diagnosis": {
+        "component": "device-id-diagnosis",
+        "group": "实验室工具",
+        "name_cn": "设备ID诊断"
+      },
+      "pages/black-screen-check": {
+        "component": "black-screen-check",
+        "group": "实验室工具",
+        "name_cn": "黑屏检测"
+      },
+      "pages/donate": {
+        "component": "donate",
+        "group": "其他",
+        "name_cn": "打赏支持"
+      }
+    }
+  }
+}

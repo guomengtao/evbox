@@ -1,0 +1,376 @@
+<template>
+  <div class="page" style="background-color: {{ theme.bg }}">
+    <div class="header">
+      <div class="back-btn-wrapper" onclick="goBack" style="background-color: {{ theme.card }}">
+        <image class="back-btn-icon" src="/common/icons/{{ iconTheme }}/icon_back.png"></image>
+      </div>
+      <text class="header-title" style="color: {{ theme.text }}">设备信息</text>
+      <div class="header-placeholder"></div>
+    </div>
+
+    <div class="loading" if="{{ loading }}" style="background-color: {{ theme.card }}">
+      <text class="loading-icon">⬡</text>
+      <text class="loading-text" style="color: {{ theme.textMuted }}">获取中...</text>
+    </div>
+
+    <div class="error-card" if="{{ errorMsg }}" style="background-color: {{ theme.card }}">
+      <text class="error-icon">⚠</text>
+      <text class="error-text" style="color: #e74c3c">{{ errorMsg }}</text>
+      <input class="retry-btn" type="button" value="重试" onclick="fetchDeviceInfo" style="background-color: {{ theme.accent }}; color: {{ theme.bg }}" />
+    </div>
+
+    <div class="info-section" if="{{ !loading && !errorMsg }}">
+      <div class="menu-item" for="{{ infoList }}" style="background-color: {{ theme.card }}">
+        <text class="menu-label" style="color: {{ theme.text }}">{{ $item.label }}</text>
+        <text class="menu-value" style="color: {{ theme.textMuted }}">{{ $item.value || '未知' }}</text>
+      </div>
+    </div>
+
+    <div class="pin-row">
+      <text class="pin-link" onclick="pinToHome" style="color: {{ theme.textMuted }}">钉首页</text>
+    </div>
+  </div>
+</template>
+
+<script>
+import router from "@system.router"
+var pinHelper = require("../../data/pin-helper.js")
+import device from "@system.device"
+const store = require("../../data/store.js")
+
+var screenShapeMap = {
+  "rect": "方形屏",
+  "circle": "圆形屏",
+  "pill-shaped": "胶囊形屏"
+}
+
+var deviceTypeMap = {
+  "watch": "手表",
+  "band": "手环",
+  "smartspeaker": "智能音箱"
+}
+
+function formatStorage(bytes) {
+  if (bytes == null) return "未知"
+  if (bytes >= 1073741824) return (bytes / 1073741824).toFixed(2) + " GB"
+  if (bytes >= 1048576) return (bytes / 1048576).toFixed(2) + " MB"
+  if (bytes >= 1024) return (bytes / 1024).toFixed(2) + " KB"
+  return bytes + " B"
+}
+
+export default {
+  private: {
+    iconTheme: "dark",
+    theme: {
+      bg: '#1a1a2e',
+      card: '#16213e',
+      accent: '#7ec8e3',
+      text: '#ffffff',
+      textSecondary: '#888899',
+      textMuted: '#555566'
+    },
+    loading: true,
+    errorMsg: "",
+    infoList: []
+  },
+
+  onInit() {
+    var self = this
+    store.getTheme(function(t, themeName) {
+      self.theme = t
+      self.iconTheme = (themeName === 'light' || themeName === 'warm') ? 'light' : 'dark'
+    })
+    this.fetchDeviceInfo()
+  },
+
+  onShow() {
+    var self = this
+    store.getTheme(function(t, themeName) {
+      self.theme = t
+      self.iconTheme = (themeName === 'light' || themeName === 'warm') ? 'light' : 'dark'
+    })
+  },
+
+  fetchDeviceInfo() {
+    var self = this
+    self.loading = true
+    self.errorMsg = ""
+
+    device.getInfo({
+      success: function(ret) {
+        self.infoList = [
+          { label: "设备型号", value: ret.model },
+          { label: "设备品牌", value: ret.brand },
+          { label: "制造商", value: ret.manufacturer },
+          { label: "设备代号", value: ret.product },
+          { label: "设备类型", value: deviceTypeMap[ret.deviceType] || ret.deviceType },
+          { label: "操作系统", value: ret.osType },
+          { label: "系统版本名称", value: ret.osVersionName },
+          { label: "系统版本号", value: ret.osVersionCode },
+          { label: "平台版本名称", value: ret.platformVersionName },
+          { label: "平台版本号", value: ret.platformVersionCode },
+          { label: "API Level", value: ret.APILevel },
+          { label: "屏幕宽度", value: ret.screenWidth ? ret.screenWidth + "px" : "" },
+          { label: "屏幕高度", value: ret.screenHeight ? ret.screenHeight + "px" : "" },
+          { label: "屏幕密度", value: ret.screenDensity },
+          { label: "屏幕形状", value: screenShapeMap[ret.screenShape] || ret.screenShape },
+          { label: "系统语言", value: ret.language },
+          { label: "系统地区", value: ret.region }
+        ]
+        self.loading = false
+      },
+      fail: function(data, code) {
+        self.errorMsg = "获取设备信息失败，错误码：" + code
+        self.loading = false
+      }
+    })
+
+    device.getDeviceId({
+      success: function(data) {
+        self.infoList.push({ label: "设备ID", value: data.deviceId })
+      },
+      fail: function(data, code) {
+        self.infoList.push({ label: "设备ID", value: "获取失败(" + code + ")" })
+      }
+    })
+
+    device.getSerial({
+      success: function(data) {
+        self.infoList.push({ label: "序列号", value: data.serial })
+      },
+      fail: function(data, code) {
+        self.infoList.push({ label: "序列号", value: "获取失败(" + code + ")" })
+      }
+    })
+
+    device.getTotalStorage({
+      success: function(data) {
+        self.infoList.push({ label: "总存储空间", value: formatStorage(data.totalStorage) })
+      },
+      fail: function() {
+        self.infoList.push({ label: "总存储空间", value: "获取失败" })
+      }
+    })
+
+    device.getAvailableStorage({
+      success: function(data) {
+        self.infoList.push({ label: "可用存储空间", value: formatStorage(data.availableStorage) })
+      },
+      fail: function() {
+        self.infoList.push({ label: "可用存储空间", value: "获取失败" })
+      }
+    })
+  },
+
+  goBack() {
+    router.back()
+  },
+
+  pinToHome() {
+    pinHelper.pinPage("设备信息", "/pages/device-info")
+  }
+}
+</script>
+
+<style>
+@import '../../common/header.css';
+
+.page {
+  flex-direction: column;
+  padding: 38px 8px 10px 8px;
+  width: 100%;
+  height: 100%;
+}
+
+.info-section {
+  flex-direction: column;
+}
+
+.menu-item {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  border-radius: 10px;
+  padding: 10px 10px;
+  margin-bottom: 6px;
+}
+
+.menu-label {
+  font-size: 24px;
+  line-height: 32px;
+  lines: 1;
+  flex-shrink: 0;
+}
+
+.menu-value {
+  font-size: 22px;
+  text-align: right;
+  margin-left: 8px;
+  line-height: 30px;
+  lines: 1;
+}
+
+.pin-row {
+  flex-direction: row;
+  justify-content: center;
+  padding: 10px 0 6px 0;
+}
+
+.pin-link {
+  text-align: center;
+  font-size: 22px;
+  line-height: 30px;
+  lines: 1;
+}
+
+.loading {
+  flex-direction: column;
+  border-radius: 10px;
+  padding: 40px 16px;
+  align-items: center;
+}
+
+.loading-icon {
+  font-size: 28px;
+  margin-bottom: 8px;
+  line-height: 36px;
+}
+
+.loading-text {
+  font-size: 24px;
+  line-height: 32px;
+  lines: 1;
+}
+
+.error-card {
+  flex-direction: column;
+  border-radius: 10px;
+  padding: 16px 14px;
+  margin-bottom: 6px;
+  align-items: center;
+}
+
+.error-icon {
+  font-size: 28px;
+  margin-bottom: 6px;
+  line-height: 36px;
+}
+
+.error-text {
+  font-size: 24px;
+  text-align: center;
+  margin-bottom: 8px;
+  line-height: 32px;
+  lines: 1;
+}
+
+.retry-btn {
+  width: 72px;
+  height: 32px;
+  border-radius: 16px;
+  font-size: 22px;
+  text-align: center;
+  line-height: 30px;
+}
+
+/*
+ * Capsule screen width budget (192px screen):
+ *   192 - 16*2(page padding) = 160px content area
+ *   160 - 12*2(menu-item padding) = 136px inner width
+ *
+ *   Horizontal layout fails: shortest label "品牌"(2ch*22px=44px)
+ *   leaves only 136-44-8(gap)=84px for value; longest label
+ *   "平台版本名称"(6ch*22px=132px) leaves just 136-132-8=-4px.
+ *   Most device info values (model names, IDs, versions) exceed 84px.
+ *
+ *   Solution: stacked vertical layout, label on top, value wraps below.
+ */
+@media (shape: capsule), (shape: pill-shaped) {
+  .page {
+    padding: 30px 16px 30px 16px;
+  }
+  .menu-item {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+  }
+  .menu-label {
+    font-size: 22px;
+    line-height: 30px;
+    margin-bottom: 2px;
+  }
+  .menu-value {
+    font-size: 20px;
+    line-height: 28px;
+    text-align: left;
+    margin-left: 0;
+    lines: 0;
+  }
+  .retry-btn {
+    height: 38px;
+    font-size: 24px;
+    line-height: 32px;
+  }
+  .pin-link {
+    font-size: 24px;
+    line-height: 32px;
+  }
+}
+
+@media (shape: circle) {
+  .page {
+    padding: 38px 36px 44px 36px;
+  }
+  .menu-item {
+    padding: 12px 12px;
+    margin-bottom: 8px;
+  }
+  .menu-label {
+    font-size: 26px;
+    line-height: 34px;
+  }
+  .menu-value {
+    font-size: 24px;
+    line-height: 32px;
+  }
+  .loading-text {
+    font-size: 26px;
+    line-height: 34px;
+  }
+  .error-text {
+    font-size: 26px;
+    line-height: 34px;
+  }
+  .retry-btn {
+    height: 36px;
+    font-size: 24px;
+    line-height: 32px;
+  }
+  .pin-link {
+    font-size: 24px;
+    line-height: 32px;
+  }
+}
+
+@media (shape: rect) {
+  .page {
+    padding: 6px 10px 12px 10px;
+  }
+  .menu-item {
+    padding: 12px 12px;
+  }
+  .menu-label {
+    font-size: 28px;
+    line-height: 36px;
+  }
+  .menu-value {
+    font-size: 26px;
+    line-height: 34px;
+  }
+  .pin-link {
+    font-size: 24px;
+    line-height: 32px;
+  }
+}
+</style>

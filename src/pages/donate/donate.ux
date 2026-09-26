@@ -1,0 +1,344 @@
+<template>
+  <div class="page-root" style="background-color: {{ theme.bg }}">
+
+    <div class="header">
+      <div class="back-btn-wrapper" onclick="goBack" style="background-color: {{ theme.card }}">
+        <image class="back-btn-icon" src="/common/icons/{{ iconTheme }}/icon_back.png"></image>
+      </div>
+      <text class="header-title" style="color: {{ theme.text }}">打赏支持</text>
+      <div class="header-placeholder"></div>
+    </div>
+
+    <!-- 二维码放大到可用宽度 100% 后，三张卡片总高远超屏幕，需要纵向滚动才能全部看到 -->
+    <scroll class="content-area" scroll-y="true">
+      <div class="qr-card" for="{{ platforms }}" style="background-color: {{ theme.card }}">
+        <text class="platform-name" style="color: {{ $item.color }}">{{ $item.name }}</text>
+        <div class="qr-wrapper">
+          <qrcode value="{{ $item.url }}"
+                  style="width: {{ qrSize }}px; height: {{ qrSize }}px; color: #000000; background-color: #ffffff;"></qrcode>
+        </div>
+        <text class="scan-hint" style="color: {{ theme.textSecondary }}">请使用 {{ $item.name }} 扫码</text>
+      </div>
+    </scroll>
+
+    <div class="thanks-section">
+      <text class="thanks-icon" style="color: {{ theme.accent }}">♥</text>
+      <text class="thanks-text" style="color: {{ theme.textSecondary }}">感谢您的支持</text>
+    </div>
+
+  </div>
+</template>
+
+<script>
+import router from "@system.router"
+import device from "@system.device"
+const store = require("../../data/store.js")
+
+var WECHAT_URL = "wxp://f2f0i7FYfQ5xBhxQtXDwsQpkyGZLB7UsjrRjsrXn02Qx8NQHjn8WlZEnozT2BURX_JRy"
+var ALIPAY_URL = "https://qr.alipay.com/fkx11582syvbdeymczggr3c"
+var AFDIAN_URL = "https://ifdian.net/a/peipeijin/plan"
+
+var PLATFORMS = [
+  { name: "微信",   color: "#07C160", url: WECHAT_URL },
+  { name: "支付宝", color: "#1677FF", url: ALIPAY_URL },
+  { name: "爱发电", color: "#FF6B35", url: AFDIAN_URL }
+]
+
+var QR_PADDINGS = {
+  capsule: { sum: 0, max: 200 },
+  rect: { sum: 12 + 16 + 8, max: 280 },
+  circle: { sum: 28 + 10 + 5, max: 280 }
+}
+
+export default {
+  private: {
+    iconTheme: "dark",
+    theme: {
+      bg: "#1a1a2e",
+      card: "#16213e",
+      accent: "#7ec8e3",
+      text: "#ffffff",
+      textSecondary: "#9a9ab0"
+    },
+    platforms: PLATFORMS,
+    qrSize: 120
+  },
+
+  onInit() {
+    var self = this
+    store.getTheme(function (t, themeName) {
+      self.theme = t
+      self.updateIconSrc(themeName)
+    })
+    self.calcQrSize()
+  },
+
+  onShow() {
+    var self = this
+    store.getTheme(function (t, themeName) {
+      self.theme = t
+      self.updateIconSrc(themeName)
+    })
+    self.calcQrSize()
+  },
+
+  updateIconSrc: function(themeName) {
+    this.iconTheme = (themeName === "light" || themeName === "warm") ? "light" : "dark"
+  },
+
+  computeQrSize(w, shape) {
+    var conf
+    if (shape === "capsule" || shape === "pill-shaped") {
+      conf = QR_PADDINGS.capsule
+    } else if (shape === "rect") {
+      conf = QR_PADDINGS.rect
+    } else if (shape === "circle") {
+      conf = QR_PADDINGS.circle
+    } else {
+      // 未识别屏型：按宽度保守回落，沿用原有分档逻辑
+      if (w > 300) return Math.floor(w - 12 * 2 - 16 * 2 - 8 * 2 - 4)
+      if (w > 200) return Math.floor(w - 10 * 2 - 14 * 2 - 7 * 2 - 4)
+      return Math.floor(w - 8 * 2 - 12 * 2 - 6 * 2 - 4)
+    }
+    var size = Math.floor(w - conf.sum * 2)
+    if (size > conf.max) size = conf.max
+    if (size < 80) size = 80
+    return size
+  },
+
+  calcQrSize() {
+    var self = this
+    device.getInfo({
+      success: function (info) {
+        var w = info.screenWidth || 192
+        var shape = info.screenShape || ""
+        var size = self.computeQrSize(w, shape)
+        console.log("[qr] w=" + w + " shape=" + shape + " qrSize=" + size)
+        self.qrSize = size
+      },
+      fail: function () {
+        console.log("[qr] getInfo failed")
+        self.qrSize = 120
+      }
+    })
+  },
+
+  goBack() {
+    router.back()
+  }
+}
+</script>
+
+<style>
+@import '../../common/header.css';
+
+.header-title {
+  font-size: 32px;
+  font-weight: bold;
+  line-height: 42px;
+  lines: 1;
+  text-overflow: ellipsis;
+}
+
+.page-root {
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  padding: 44px 8px 20px 8px;
+}
+
+.content-area {
+  flex-direction: column;
+  flex: 1;
+  margin-top: 8px;
+}
+
+.qr-card {
+  flex-direction: column;
+  align-items: center;
+  border-radius: 16px;
+  padding: 14px 12px;
+  margin-bottom: 10px;
+}
+
+.platform-name {
+  font-size: 26px;
+  font-weight: bold;
+  line-height: 34px;
+  lines: 1;
+  margin-bottom: 10px;
+}
+
+.qr-wrapper {
+  padding: 6px;
+  background-color: #ffffff;
+  border-radius: 12px;
+  margin-bottom: 10px;
+}
+
+.scan-hint {
+  font-size: 20px;
+  line-height: 28px;
+  text-align: center;
+  lines: 1;
+}
+
+.thanks-section {
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  flex-shrink: 0;
+  margin-top: 6px;
+}
+
+.thanks-icon {
+  font-size: 20px;
+  line-height: 28px;
+  margin-right: 6px;
+}
+
+.thanks-text {
+  font-size: 20px;
+  line-height: 28px;
+  lines: 1;
+}
+
+@media (shape: capsule), (shape: pill-shaped) {
+  .header-title {
+    font-size: 24px;
+    font-weight: bold;
+    line-height: 32px;
+    lines: 1;
+    text-overflow: ellipsis;
+  }
+
+  .header {
+    padding: 0 6px;
+    margin-bottom: 8px;
+  }
+  .page-root {
+    padding: 40px 0 16px 0;
+  }
+  .qr-card {
+    width: 100%;
+    padding: 10px 0;
+    border-radius: 0;
+    margin-bottom: 10px;
+    align-items: center;
+  }
+  .platform-name {
+    font-size: 26px;
+    line-height: 34px;
+  }
+  .qr-wrapper {
+    padding: 0;
+    border-radius: 0;
+    width: 100%;
+    align-items: center;
+    justify-content: center;
+  }
+  .scan-hint {
+    font-size: 20px;
+    line-height: 28px;
+  }
+  .thanks-section {
+    height: 28px;
+    margin-top: 6px;
+  }
+  .thanks-icon {
+    font-size: 20px;
+    line-height: 28px;
+  }
+  .thanks-text {
+    font-size: 20px;
+    line-height: 28px;
+  }
+}
+
+@media (shape: rect) {
+  .header-title {
+    font-size: 32px;
+    font-weight: bold;
+    line-height: 42px;
+    lines: 1;
+    text-overflow: ellipsis;
+  }
+
+  .page-root {
+    padding: 6px 12px 20px 12px;
+  }
+  .qr-card {
+    padding: 18px 16px;
+    border-radius: 18px;
+    margin-bottom: 12px;
+  }
+  .platform-name {
+    font-size: 28px;
+    line-height: 38px;
+  }
+  .qr-wrapper {
+    padding: 8px;
+    border-radius: 14px;
+  }
+  .scan-hint {
+    font-size: 22px;
+    line-height: 30px;
+  }
+  .thanks-section {
+    height: 32px;
+    margin-top: 8px;
+  }
+  .thanks-icon {
+    font-size: 22px;
+    line-height: 32px;
+  }
+  .thanks-text {
+    font-size: 22px;
+    line-height: 32px;
+  }
+}
+
+@media (shape: circle) {
+  .header-title {
+    font-size: 34px;
+    font-weight: bold;
+    line-height: 44px;
+    lines: 1;
+    text-overflow: ellipsis;
+  }
+
+  .page-root {
+    padding: 50px 28px 36px 28px;
+  }
+  .qr-card {
+    padding: 12px 10px;
+    border-radius: 14px;
+    margin-bottom: 8px;
+  }
+  .platform-name {
+    font-size: 24px;
+    line-height: 32px;
+  }
+  .qr-wrapper {
+    padding: 5px;
+    border-radius: 10px;
+  }
+  .scan-hint {
+    font-size: 20px;
+    line-height: 28px;
+  }
+  .thanks-section {
+    height: 28px;
+    margin-top: 4px;
+  }
+  .thanks-icon {
+    font-size: 20px;
+    line-height: 28px;
+  }
+  .thanks-text {
+    font-size: 20px;
+    line-height: 28px;
+  }
+}
+</style>

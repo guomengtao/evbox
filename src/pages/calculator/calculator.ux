@@ -1,0 +1,701 @@
+<template>
+  <div class="page" style="background-color: {{ theme.bg }}">
+    <div class="top-bar">
+      <div class="back-btn" onclick="goBack" style="background-color: {{ theme.card }}">
+        <image class="back-btn-icon" src="/common/icons/{{ iconTheme }}/icon_back.png"></image>
+      </div>
+      <text class="hist-btn" onclick="toggleHistory" style="color: {{ theme.textSecondary }}">历史</text>
+    </div>
+
+    <div class="display" style="background-color: {{ theme.card }}" @longpress="copyResult">
+      <text class="expr-text" style="color: {{ theme.textMuted }}">{{ exprText }}</text>
+      <scroll class="result-scroll" scroll-x="{{ true }}">
+        <text class="result-text" style="color: {{ error ? theme.deleteText : theme.text }}; font-size: {{ resultFontSize }}px">{{ resultText }}</text>
+      </scroll>
+    </div>
+
+    <div class="keys">
+      <div for="{{ keys }}" class="key" onclick="onKey($item.k)" style="background-color: {{ $item.bg }}">
+        <text class="key-text" style="color: {{ $item.fg }}; font-size: {{ $item.fs }}px">{{ $item.label }}</text>
+      </div>
+    </div>
+
+    <div class="hist-mask" if="{{ showHistory }}" onclick="closeHistory">
+      <div class="hist-card" onclick="stopBubble" style="background-color: {{ theme.card }}">
+        <text class="hist-title" style="color: {{ theme.accent }}">历史记录</text>
+        <scroll class="hist-scroll" scroll-y="{{ true }}">
+          <div for="{{ history }}" class="hist-row" onclick="useHistory($idx)" style="background-color: {{ theme.cardLight }}">
+            <text class="hist-expr" style="color: {{ theme.textSecondary }}">{{ $item.expr }}</text>
+            <text class="hist-result" style="color: {{ theme.text }}">{{ $item.result }}</text>
+          </div>
+          <text if="{{ history.length === 0 }}" class="hist-empty" style="color: {{ theme.textMuted }}">暂无历史</text>
+        </scroll>
+        <div class="hist-btns">
+          <input class="hist-btn-clear" type="button" value="清空" onclick="clearHistory" style="background-color: {{ theme.deleteBg }}; color: {{ theme.deleteText }}" />
+          <input class="hist-btn-close" type="button" value="关闭" onclick="closeHistory" style="background-color: {{ theme.btnSecondary }}; color: {{ theme.btnSecondaryText }}" />
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import router from "@system.router"
+import prompt from "@system.prompt"
+import vibrator from "@system.vibrator"
+import device from "@system.device"
+const store = require("../../data/store.js")
+const calcLib = require("../../lib/calc.js")
+
+var HISTORY_KEY = "calc_history"
+var HISTORY_MAX = 20
+
+// 键位：4 列 × 5 行（胶囊屏）；圆屏自动折成 5 列 × 4 行
+var KEY_DEFS = [
+  { k: "C", label: "C", type: "fn" },
+  { k: "DEL", label: "删", type: "fn" },
+  { k: "PCT", label: "%", type: "fn" },
+  { k: "÷", label: "÷", type: "op" },
+  { k: "7", label: "7", type: "num" },
+  { k: "8", label: "8", type: "num" },
+  { k: "9", label: "9", type: "num" },
+  { k: "×", label: "×", type: "op" },
+  { k: "4", label: "4", type: "num" },
+  { k: "5", label: "5", type: "num" },
+  { k: "6", label: "6", type: "num" },
+  { k: "−", label: "−", type: "op" },
+  { k: "1", label: "1", type: "num" },
+  { k: "2", label: "2", type: "num" },
+  { k: "3", label: "3", type: "num" },
+  { k: "+", label: "+", type: "op" },
+  { k: "SIGN", label: "+/-", type: "fn" },
+  { k: "0", label: "0", type: "num" },
+  { k: ".", label: ".", type: "num" },
+  { k: "=", label: "=", type: "eq" }
+]
+
+export default {
+  private: {
+    iconTheme: "dark",
+    isCapsule: false,
+    theme: {
+      bg: '#1a1a2e',
+      card: '#16213e',
+      cardLight: '#0f3460',
+      accent: '#7ec8e3',
+      text: '#ffffff',
+      textSecondary: '#888899',
+      textMuted: '#555566',
+      border: '#0f3460',
+      btnSecondary: '#333355',
+      btnSecondaryText: '#a0a0b0',
+      deleteBg: '#2a1a3e',
+      deleteText: '#e08080'
+    },
+    keys: [],
+    exprText: "",
+    resultText: "0",
+    resultFontSize: 36,
+    error: "",
+    showHistory: false,
+    history: [],
+    numFs: 34,
+    opFs: 34,
+    fnFs: 26,
+    eqFs: 36,
+    resultBase: 44,
+
+    // 计算器状态
+    input: "0",
+    acc: null,
+    op: null,
+    evaluated: false
+  },
+
+  onInit() {
+    var self = this
+    store.getTheme(function(t, themeName) {
+      self.theme = t
+      self.updateIconSrc(themeName)
+      self.buildKeys()
+    })
+    device.getInfo({
+      success: function(data) {
+        var shape = data.screenShape || ""
+        self.isCapsule = (shape === "capsule" || shape === "pill-shaped")
+        self.applySizes()
+        self.buildKeys()
+      },
+      fail: function() {}
+    })
+    this.loadHistory()
+  },
+
+  onShow() {
+    var self = this
+    store.getTheme(function(t, themeName) {
+      self.theme = t
+      self.updateIconSrc(themeName)
+      self.buildKeys()
+    }, true)
+  },
+
+  updateIconSrc(themeName) {
+    this.iconTheme = (themeName === 'light' || themeName === 'warm') ? 'light' : 'dark'
+  },
+
+  applySizes() {
+    var cap = this.isCapsule
+    this.numFs = cap ? 30 : 34
+    this.opFs = cap ? 30 : 34
+    this.fnFs = cap ? 22 : 26
+    this.eqFs = cap ? 32 : 36
+    this.resultBase = cap ? 36 : 44
+    this.updateResultSize()
+  },
+
+  buildKeys() {
+    var t = this.theme
+    if (!this.numFs) this.applySizes()
+    var out = []
+    for (var i = 0; i < KEY_DEFS.length; i++) {
+      var d = KEY_DEFS[i]
+      var bg = t.card
+      var fg = t.text
+      var fs = this.numFs
+      if (d.type === "op") {
+        bg = t.cardLight
+        fg = t.accent
+        fs = this.opFs
+      } else if (d.type === "fn") {
+        bg = t.cardLight
+        fg = t.textSecondary
+        fs = this.fnFs
+      } else if (d.type === "eq") {
+        bg = t.accent
+        fg = t.bg
+        fs = this.eqFs
+      }
+      out.push({ k: d.k, label: d.label, type: d.type, bg: bg, fg: fg, fs: fs })
+    }
+    this.keys = out
+  },
+
+  updateResultSize() {
+    var len = (this.resultText || "").length
+    var base = this.resultBase || 36
+    var size = base
+    if (len >= 9) size = Math.round(base * 0.62)
+    else if (len >= 6) size = Math.round(base * 0.8)
+    if (size < 20) size = 20
+    this.resultFontSize = size
+  },
+
+  // ---------------------------------------------------------------- 计算内核
+
+  addDigit(d) {
+    if (this.evaluated || this.error) this.resetAll(true)
+    if (this.input === "0") {
+      this.input = d
+    } else if (calcLib.canAppendDigit(this.input)) {
+      this.input += d
+    }
+    this.syncDisplay()
+  },
+
+  addDot() {
+    if (this.evaluated || this.error) this.resetAll(true)
+    if (this.input.indexOf(".") < 0) {
+      this.input += "."
+    }
+    this.syncDisplay()
+  },
+
+  doOp(op) {
+    if (this.error) return
+    var cur = calcLib.toNum(this.input)
+    if (this.op !== null && !this.evaluated) {
+      var r = this.runOp(this.acc, cur, this.op)
+      if (r === null) return
+      this.acc = r
+    } else {
+      this.acc = cur
+    }
+    this.op = op
+    this.evaluated = false
+    this.input = "0"
+    this.exprText = calcLib.fmtNum(this.acc) + " " + op
+    this.resultText = calcLib.fmtNum(this.acc)
+    this.updateResultSize()
+  },
+
+  doEqual() {
+    if (this.error) return
+    if (this.op === null) {
+      this.exprText = this.input + " ="
+      this.resultText = this.input
+      this.evaluated = true
+      this.updateResultSize()
+      return
+    }
+    var cur = calcLib.toNum(this.input)
+    var r = this.runOp(this.acc, cur, this.op)
+    if (r === null) return
+    var expr = calcLib.fmtNum(this.acc) + " " + this.op + " " + calcLib.fmtNum(cur) + " ="
+    this.exprText = expr
+    this.resultText = calcLib.fmtNum(r)
+    this.updateResultSize()
+    this.pushHistory(expr, this.resultText)
+    this.acc = null
+    this.op = null
+    this.input = calcLib.fmtNum(r)
+    this.evaluated = true
+  },
+
+  // 执行一次运算；出错时进入错误态并返回 null
+  runOp(a, b, op) {
+    var r = calcLib.applyOp(a, b, op)
+    if (!r.ok) {
+      this.error = r.error
+      this.exprText = calcLib.fmtNum(a) + " " + op + " " + calcLib.fmtNum(b)
+      this.resultText = r.error
+      this.updateResultSize()
+      vibrator.vibrate({ mode: "short" })
+      return null
+    }
+    return r.value
+  },
+
+  pressSign() {
+    if (this.evaluated) {
+      this.input = "-" + this.input
+      this.evaluated = false
+    } else if (this.input.indexOf("-") === 0) {
+      this.input = this.input.slice(1)
+    } else if (this.input !== "0") {
+      this.input = "-" + this.input
+    }
+    this.syncDisplay()
+  },
+
+  pressPercent() {
+    if (this.error) return
+    var v = calcLib.toNum(this.input) / 100
+    this.input = calcLib.fmtNum(v)
+    this.syncDisplay()
+  },
+
+  pressDelete() {
+    if (this.error) {
+      this.resetAll(true)
+      return
+    }
+    if (this.evaluated) {
+      this.resetAll(true)
+      return
+    }
+    var s = this.input
+    if (s.length <= 1) {
+      this.input = "0"
+    } else {
+      s = s.slice(0, s.length - 1)
+      if (s === "-" || s === "") s = "0"
+      this.input = s
+    }
+    this.syncDisplay()
+  },
+
+  pressClear() {
+    if (this.error) {
+      this.resetAll(true)
+      return
+    }
+    // 第一次：清当前输入；已清空再点：全清
+    if (this.input !== "0" && this.input !== "") {
+      this.input = "0"
+      this.syncDisplay()
+      return
+    }
+    this.resetAll(true)
+  },
+
+  resetAll(sync) {
+    this.input = "0"
+    this.acc = null
+    this.op = null
+    this.evaluated = false
+    this.error = ""
+    if (sync !== false) {
+      this.exprText = ""
+      this.resultText = "0"
+      this.updateResultSize()
+    }
+  },
+
+  syncDisplay() {
+    this.resultText = this.input
+    this.updateResultSize()
+  },
+
+  onKey(k) {
+    vibrator.vibrate({ mode: "short" })
+    if (k === "C") { this.pressClear(); return }
+    if (k === "DEL") { this.pressDelete(); return }
+    if (k === "PCT") { this.pressPercent(); return }
+    if (k === "SIGN") { this.pressSign(); return }
+    if (k === "=") { this.doEqual(); return }
+    if (k === ".") { this.addDot(); return }
+    if (k === "+" || k === "−" || k === "×" || k === "÷") { this.doOp(k); return }
+    this.addDigit(k)
+  },
+
+  // ---------------------------------------------------------------- 历史 / 复制
+
+  pushHistory(expr, result) {
+    var list = this.history.slice()
+    list.unshift({ expr: expr, result: result })
+    if (list.length > HISTORY_MAX) list = list.slice(0, HISTORY_MAX)
+    this.history = list
+    var storage = require("@system.storage")
+    storage.set({ key: HISTORY_KEY, value: JSON.stringify(list), success: function() {}, fail: function() {} })
+  },
+
+  loadHistory() {
+    var self = this
+    var storage = require("@system.storage")
+    storage.get({
+      key: HISTORY_KEY,
+      success: function(data) {
+        var arr = []
+        if (data) {
+          try { arr = JSON.parse(data) } catch (e) { arr = [] }
+        }
+        self.history = arr
+      },
+      fail: function() { self.history = [] }
+    })
+  },
+
+  toggleHistory() {
+    this.showHistory = !this.showHistory
+  },
+
+  closeHistory() {
+    this.showHistory = false
+  },
+
+  stopBubble() {},
+
+  useHistory(idx) {
+    var item = this.history[idx]
+    if (!item) return
+    this.resetAll(true)
+    this.input = item.result
+    this.evaluated = true
+    this.resultText = item.result
+    this.exprText = item.expr
+    this.updateResultSize()
+    this.showHistory = false
+  },
+
+  clearHistory() {
+    this.history = []
+    var storage = require("@system.storage")
+    storage.delete({ key: HISTORY_KEY, success: function() {}, fail: function() {} })
+    prompt.showToast({ message: "历史已清空" })
+  },
+
+  copyResult() {
+    var text = this.resultText
+    if (!text) return
+    var clipboard = require("@system.clipboard")
+    clipboard.set({
+      text: text,
+      success: function() { prompt.showToast({ message: "已复制 " + text }) },
+      fail: function() { prompt.showToast({ message: "复制失败" }) }
+    })
+  },
+
+  goBack() {
+    router.back()
+  }
+}
+</script>
+
+<style>
+.page {
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  padding: 40px 8px 10px 8px;
+}
+
+.top-bar {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  height: 44px;
+  flex-shrink: 0;
+}
+
+.back-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  justify-content: center;
+  align-items: center;
+}
+
+.back-btn-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.hist-btn {
+  font-size: 24px;
+  line-height: 32px;
+  padding: 0 10px;
+}
+
+.display {
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  border-radius: 12px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  min-height: 76px;
+  flex-shrink: 0;
+}
+
+.expr-text {
+  font-size: 22px;
+  line-height: 28px;
+  lines: 1;
+  text-overflow: ellipsis;
+  text-align: right;
+  width: 100%;
+}
+
+.result-scroll {
+  width: 100%;
+  flex-direction: row;
+  justify-content: flex-end;
+}
+
+.result-text {
+  font-weight: bold;
+  text-align: right;
+}
+
+.keys {
+  flex: 1;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  justify-content: center;
+}
+
+.key {
+  width: 70px;
+  height: 56px;
+  margin: 2px;
+  border-radius: 12px;
+  justify-content: center;
+  align-items: center;
+}
+
+.key-text {
+  font-weight: bold;
+  text-align: center;
+}
+
+/* ---------------- 历史面板 ---------------- */
+
+.hist-mask {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.45);
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.hist-card {
+  width: 90%;
+  height: 76%;
+  border-radius: 16px;
+  padding: 12px 12px 8px 12px;
+  flex-direction: column;
+}
+
+.hist-title {
+  font-size: 28px;
+  font-weight: bold;
+  text-align: center;
+  line-height: 36px;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.hist-scroll {
+  flex: 1;
+  flex-direction: column;
+}
+
+.hist-row {
+  flex-direction: column;
+  border-radius: 10px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+}
+
+.hist-expr {
+  font-size: 22px;
+  line-height: 28px;
+  lines: 1;
+  text-overflow: ellipsis;
+}
+
+.hist-result {
+  font-size: 28px;
+  font-weight: bold;
+  line-height: 36px;
+  lines: 1;
+}
+
+.hist-empty {
+  font-size: 24px;
+  line-height: 32px;
+  text-align: center;
+  margin-top: 20px;
+}
+
+.hist-btns {
+  flex-direction: row;
+  justify-content: space-between;
+  flex-shrink: 0;
+  margin-top: 8px;
+}
+
+.hist-btn-clear {
+  width: 46%;
+  height: 52px;
+  border-radius: 26px;
+  font-size: 28px;
+  text-align: center;
+  line-height: 52px;
+}
+
+.hist-btn-close {
+  width: 46%;
+  height: 52px;
+  border-radius: 26px;
+  font-size: 28px;
+  text-align: center;
+  line-height: 52px;
+}
+
+/* ---------------- 胶囊屏 ---------------- */
+
+@media (shape: capsule), (shape: pill-shaped) {
+  .page {
+    padding: 30px 8px 24px 8px;
+  }
+
+  .display {
+    min-height: 70px;
+    padding: 6px 10px;
+    margin-bottom: 6px;
+  }
+
+  .expr-text {
+    font-size: 22px;
+    line-height: 28px;
+  }
+
+  /* 4 列：4 ×（40 + 4）= 176 = 内容区宽（192 - 8×2） */
+  .key {
+    width: 40px;
+    height: 52px;
+    margin: 2px;
+    border-radius: 12px;
+  }
+
+  .hist-btn {
+    font-size: 22px;
+  }
+
+  .hist-card {
+    width: 94%;
+    height: 86%;
+    border-radius: 12px;
+    padding: 10px 8px 8px 8px;
+  }
+
+  .hist-title {
+    font-size: 28px;
+    line-height: 34px;
+    margin-bottom: 6px;
+  }
+
+  .hist-row {
+    padding: 6px 8px;
+    margin-bottom: 4px;
+  }
+
+  .hist-expr {
+    font-size: 22px;
+    line-height: 28px;
+  }
+
+  .hist-result {
+    font-size: 28px;
+    line-height: 34px;
+  }
+
+  .hist-btn-clear,
+  .hist-btn-close {
+    height: 52px;
+    font-size: 28px;
+    line-height: 52px;
+  }
+}
+
+/* ---------------- 圆屏 ---------------- */
+
+@media (shape: circle) {
+  .page {
+    padding: 36px 28px 24px 28px;
+  }
+
+  /* 5 列：5 ×（78 + 4）= 410 ≤ 内容区（480 - 56） */
+  .key {
+    width: 78px;
+    height: 62px;
+    margin: 2px;
+  }
+
+  .display {
+    min-height: 70px;
+  }
+}
+
+/* ---------------- 方屏 ---------------- */
+
+@media (shape: rect), (shape: rectangle) {
+  .page {
+    padding: 6px 8px 8px 8px;
+  }
+
+  .key {
+    width: 72px;
+    height: 56px;
+    margin: 2px;
+  }
+}
+</style>

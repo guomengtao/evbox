@@ -1,0 +1,643 @@
+var storage = require("@system.storage")
+
+var AUTH_KEY = "auth_data"
+var MASTER_USAGE_KEY = "master_usage"
+var USED_CODES_KEY = "used_codes"
+var USED_REDEEM_KEY = "used_redeem"
+var DEFAULT_TRIAL_DAYS = 7
+
+var FORCE_AUTH_MODE = null
+
+var MASTER_CODE = {
+  enabled: true,
+  code: '02',
+  duration: 1,
+  maxUsesPerDevice: 30
+}
+
+function getForcedAuthData() {
+  if (FORCE_AUTH_MODE === null) return null
+  var now = Date.now()
+  if (FORCE_AUTH_MODE === 'standard') {
+    return {
+      installTime: now,
+      isActivated: false,
+      isPermanent: false,
+      expireAt: null,
+      activatedAt: null,
+      lastRemindDate: '',
+      remindEnabled: true,
+      trialDays: DEFAULT_TRIAL_DAYS,
+      productId: '0001',
+      history: [{ id: 'force', type: '强制', duration: '标准版', codeType: 'debug', status: '成功' }]
+    }
+  }
+  if (FORCE_AUTH_MODE === 'permanent') {
+    return {
+      installTime: now,
+      isActivated: true,
+      isPermanent: true,
+      expireAt: null,
+      activatedAt: now,
+      lastRemindDate: '',
+      remindEnabled: true,
+      trialDays: DEFAULT_TRIAL_DAYS,
+      productId: '0001',
+      history: [{ id: 'force', type: '强制', duration: '永久', codeType: 'debug', status: '成功' }]
+    }
+  }
+  if (FORCE_AUTH_MODE === 'expire') {
+    return {
+      installTime: now - 365 * 24 * 60 * 60 * 1000,
+      isActivated: true,
+      isPermanent: false,
+      expireAt: now - 30 * 24 * 60 * 60 * 1000,
+      activatedAt: now - 365 * 24 * 60 * 60 * 1000,
+      lastRemindDate: '',
+      remindEnabled: true,
+      trialDays: DEFAULT_TRIAL_DAYS,
+      productId: '0001',
+      history: [{ id: 'force', type: '强制', duration: '已过期', codeType: 'debug', status: '成功' }]
+    }
+  }
+  if (FORCE_AUTH_MODE.indexOf('months:') === 0) {
+    var months = parseInt(FORCE_AUTH_MODE.split(':')[1], 10)
+    if (isNaN(months) || months <= 0) months = 1
+    return {
+      installTime: now,
+      isActivated: true,
+      isPermanent: false,
+      expireAt: now + months * 30 * 24 * 60 * 60 * 1000,
+      activatedAt: now,
+      lastRemindDate: '',
+      remindEnabled: true,
+      trialDays: DEFAULT_TRIAL_DAYS,
+      productId: '0001',
+      history: [{ id: 'force', type: '强制', duration: months + '个月', codeType: 'debug', status: '成功' }]
+    }
+  }
+  return null
+}
+
+function getTodayDate() {
+  var now = new Date()
+  var y = now.getFullYear()
+  var m = String(now.getMonth() + 1)
+  if (m.length < 2) m = '0' + m
+  var d = String(now.getDate())
+  if (d.length < 2) d = '0' + d
+  return y + '-' + m + '-' + d
+}
+
+function formatDateStr(ts) {
+  var d = new Date(ts)
+  var y = d.getFullYear()
+  var m = String(d.getMonth() + 1)
+  if (m.length < 2) m = '0' + m
+  var day = String(d.getDate())
+  if (day.length < 2) day = '0' + day
+  var h = String(d.getHours())
+  if (h.length < 2) h = '0' + h
+  var min = String(d.getMinutes())
+  if (min.length < 2) min = '0' + min
+  return y + '-' + m + '-' + day + ' ' + h + ':' + min
+}
+
+function getAuthData(callback) {
+  var forced = getForcedAuthData()
+  if (forced) {
+    callback(forced)
+    return
+  }
+  storage.get({
+    key: AUTH_KEY,
+    success: function(data) {
+      if (data) {
+        try {
+          var parsed = JSON.parse(data)
+          callback(parsed)
+        } catch (e) {
+          callback(null)
+        }
+      } else {
+        callback(null)
+      }
+    },
+    fail: function() {
+      callback(null)
+    }
+  })
+}
+
+function setAuthData(data, callback) {
+  storage.set({
+    key: AUTH_KEY,
+    value: JSON.stringify(data),
+    success: function() { if (callback) callback(true) },
+    fail: function() { if (callback) callback(false) }
+  })
+}
+
+function loadUsedCodes(callback) {
+  storage.get({
+    key: USED_CODES_KEY,
+    success: function(data) {
+      if (data) {
+        try {
+          callback(JSON.parse(data))
+        } catch (e) {
+          callback([])
+        }
+      } else {
+        callback([])
+      }
+    },
+    fail: function() { callback([]) }
+  })
+}
+
+function saveUsedCode(code, callback) {
+  loadUsedCodes(function(list) {
+    if (list.indexOf(code) === -1) {
+      list.push(code)
+    }
+    storage.set({
+      key: USED_CODES_KEY,
+      value: JSON.stringify(list),
+      success: function() { if (callback) callback(true) },
+      fail: function() { if (callback) callback(false) }
+    })
+  })
+}
+
+function loadUsedRedeemCodes(callback) {
+  storage.get({
+    key: USED_REDEEM_KEY,
+    success: function(data) {
+      if (data) {
+        try {
+          callback(JSON.parse(data))
+        } catch (e) {
+          callback([])
+        }
+      } else {
+        callback([])
+      }
+    },
+    fail: function() { callback([]) }
+  })
+}
+
+function saveUsedRedeemCode(redeemCode, callback) {
+  loadUsedRedeemCodes(function(list) {
+    if (list.indexOf(redeemCode) === -1) {
+      list.push(redeemCode)
+    }
+    storage.set({
+      key: USED_REDEEM_KEY,
+      value: JSON.stringify(list),
+      success: function() { if (callback) callback(true) },
+      fail: function() { if (callback) callback(false) }
+    })
+  })
+}
+
+function initAuth(callback) {
+  getAuthData(function(data) {
+    if (data && data.installTime) {
+      if (!data.lastRemindDate) data.lastRemindDate = ''
+      if (!data.history) data.history = []
+      if (callback) callback(data)
+    } else {
+      var now = Date.now()
+      var newData = {
+        installTime: now,
+        isActivated: false,
+        isPermanent: false,
+        expireAt: null,
+        activatedAt: null,
+        lastRemindDate: '',
+        remindEnabled: true,
+        trialDays: DEFAULT_TRIAL_DAYS,
+        productId: '0001',
+        history: []
+      }
+      setAuthData(newData, function() {
+        if (callback) callback(newData)
+      })
+    }
+  })
+}
+
+function checkStatus(callback) {
+  var forced = getForcedAuthData()
+  if (forced) {
+    callback(buildStatus(forced))
+    return
+  }
+  getAuthData(function(data) {
+    if (!data) {
+      initAuth(function(initData) {
+        callback(buildStatus(initData))
+      })
+      return
+    }
+    callback(buildStatus(data))
+  })
+}
+
+function buildStatus(data) {
+  var now = Date.now()
+
+  if (data.isActivated && data.isPermanent) {
+    return {
+      priority: 3,
+      status: 'permanent',
+      displayStatus: '高级版',
+      color: 'green',
+      text: '高级版 永久有效',
+      remainingDays: -1,
+      expireText: '永久有效',
+      isExpired: false,
+      isExpiring: false,
+      isTrial: false,
+      isActivated: true,
+      isPermanent: true
+    }
+  }
+
+  if (data.isActivated && data.expireAt) {
+    var remainingMs = data.expireAt - now
+    var remainingDays = Math.ceil(remainingMs / (24 * 60 * 60 * 1000))
+
+    if (remainingDays <= 0) {
+      var expiredDays = Math.abs(Math.floor(remainingMs / (24 * 60 * 60 * 1000)))
+      return {
+        priority: 1,
+        status: 'auth_expired',
+        displayStatus: '高级版',
+        color: 'red',
+        text: '高级版 已过期 ' + expiredDays + ' 天',
+        remainingDays: 0,
+        expiredDays: expiredDays,
+        expireText: '已过期 ' + expiredDays + ' 天',
+        isExpired: true,
+        isExpiring: false,
+        isTrial: false,
+        isActivated: true,
+        isPermanent: false
+      }
+    }
+
+    if (remainingDays <= 1) {
+      return {
+        priority: 2,
+        status: 'auth_expiring_critical',
+        displayStatus: '高级版',
+        color: '#e67e22',
+        text: '高级版 剩余 1 天',
+        remainingDays: 1,
+        expireText: '剩余 1 天',
+        isExpired: false,
+        isExpiring: true,
+        isTrial: false,
+        isActivated: true,
+        isPermanent: false
+      }
+    }
+
+    if (remainingDays <= 3) {
+      return {
+        priority: 2,
+        status: 'auth_expiring_soon',
+        displayStatus: '高级版',
+        color: '#d4a017',
+        text: '高级版 剩余 ' + remainingDays + ' 天',
+        remainingDays: remainingDays,
+        expireText: '剩余 ' + remainingDays + ' 天',
+        isExpired: false,
+        isExpiring: true,
+        isTrial: false,
+        isActivated: true,
+        isPermanent: false
+      }
+    }
+
+    return {
+      priority: 3,
+      status: 'active',
+      displayStatus: '高级版',
+      color: 'green',
+      text: '高级版 剩余 ' + remainingDays + ' 天',
+      remainingDays: remainingDays,
+      expireText: '剩余 ' + remainingDays + ' 天',
+      isExpired: false,
+      isExpiring: false,
+      isTrial: false,
+      isActivated: true,
+      isPermanent: false
+    }
+  }
+
+  return {
+    priority: 3,
+    status: 'basic',
+    displayStatus: '标准版',
+    color: 'gray',
+    text: '标准版',
+    remainingDays: 0,
+    expireText: '',
+    isExpired: false,
+    isExpiring: false,
+    isTrial: false,
+    isActivated: false,
+    isPermanent: false
+  }
+}
+
+function getFullStatus(callback) {
+  var forced = getForcedAuthData()
+  if (forced) {
+    callback(buildFullStatus(forced))
+    return
+  }
+  getAuthData(function(data) {
+    if (!data) {
+      initAuth(function(initData) {
+        callback(buildFullStatus(initData))
+      })
+      return
+    }
+    callback(buildFullStatus(data))
+  })
+}
+
+function buildFullStatus(data) {
+  var status = buildStatus(data)
+  status.expireAt = data.expireAt
+  status.installTime = data.installTime
+  status.activatedAt = data.activatedAt
+  status.deviceId = data.deviceId || ''
+  status.productId = data.productId || '0001'
+  return status
+}
+
+function markActivated(days, activationCode, redeemCode, callback) {
+  markActivatedV2(days, '0001', activationCode, redeemCode, callback)
+}
+
+function markActivatedV2(days, productId, activationCode, redeemCode, callback) {
+  var pid = productId || '0001'
+  getAuthData(function(data) {
+    if (!data) {
+      data = {
+        installTime: Date.now(),
+        trialDays: DEFAULT_TRIAL_DAYS,
+        history: [],
+        lastRemindDate: '',
+        remindEnabled: true
+      }
+    }
+    var now = Date.now()
+    if (!data.activatedAt) {
+      data.activatedAt = now
+    }
+    data.isActivated = true
+    data.productId = pid
+
+    var durationText
+    var codeType
+    if (days === -1 || days === 9999) {
+      data.isPermanent = true
+      data.expireAt = null
+      durationText = '永久'
+      codeType = 'permanent'
+    } else {
+      data.isPermanent = false
+      var extraMs = days * 24 * 60 * 60 * 1000
+      if (data.expireAt && data.expireAt > now) {
+        data.expireAt = data.expireAt + extraMs
+      } else {
+        data.expireAt = now + extraMs
+      }
+      durationText = days + '天'
+      codeType = (days === 7) ? 'trial' : 'standard'
+    }
+
+    addHistoryEntry(data, '激活', durationText, codeType, '成功', activationCode, redeemCode)
+
+    setAuthData(data, callback)
+  })
+}
+
+function addHistoryEntry(data, type, duration, codeType, status, activationCode, redeemCode) {
+  if (!data.history) data.history = []
+  var entry = {
+    id: String(Date.now()),
+    timestamp: Date.now(),
+    date: formatDateStr(Date.now()),
+    type: type,
+    duration: duration,
+    codeType: codeType,
+    status: status,
+    activationCode: activationCode || '',
+    redeemCode: redeemCode || ''
+  }
+  data.history.unshift(entry)
+  if (data.history.length > 50) {
+    data.history = data.history.slice(0, 50)
+  }
+}
+
+function getHistory(callback) {
+  getAuthData(function(data) {
+    if (!data || !data.history) {
+      callback([])
+      return
+    }
+    callback(data.history)
+  })
+}
+
+function needsDailyRemind(callback) {
+  getAuthData(function(data) {
+    if (!data) {
+      initAuth(function(initData) {
+        callback(shouldRemindToday(initData))
+      })
+      return
+    }
+    callback(shouldRemindToday(data))
+  })
+}
+
+function shouldRemindToday(data) {
+  var status = buildStatus(data)
+  if (status.status === 'active' || status.status === 'permanent' || status.status === 'basic') {
+    return { shouldRemind: false, status: status }
+  }
+  var today = getTodayDate()
+  if (data.lastRemindDate === today) {
+    return { shouldRemind: false, status: status }
+  }
+  return { shouldRemind: true, status: status }
+}
+
+function markRemindedToday(callback) {
+  getAuthData(function(data) {
+    if (!data) return
+    data.lastRemindDate = getTodayDate()
+    setAuthData(data, callback)
+  })
+}
+
+function getRemindDialogContent(status) {
+  if (status.isExpired) {
+    return {
+      title: '高级版已过期',
+      icon: '🔒',
+      message: '您的高级版授权已过期' + (status.expiredDays || 0) + '天，请续费后继续使用',
+      buttonText: '我知道了',
+      actionText: '去续费'
+    }
+  }
+  if (status.isExpiring) {
+    return {
+      title: '高级版即将到期',
+      icon: '⏳',
+      message: '您的高级版授权还剩' + status.remainingDays + '天，到期后将无法使用，请及时续费',
+      buttonText: '我知道了',
+      actionText: '去续费'
+    }
+  }
+  return {
+    title: '高级版',
+    icon: '📱',
+    message: '请激活高级版以解锁全部功能',
+    buttonText: '我知道了',
+    actionText: '去激活'
+  }
+}
+
+function getMasterUsage(deviceId, callback) {
+  storage.get({
+    key: MASTER_USAGE_KEY,
+    success: function(data) {
+      if (data) {
+        try {
+          var all = JSON.parse(data)
+          callback(all[deviceId] || 0)
+        } catch (e) {
+          callback(0)
+        }
+      } else {
+        callback(0)
+      }
+    },
+    fail: function() {
+      callback(0)
+    }
+  })
+}
+
+function setMasterUsage(deviceId, count, callback) {
+  storage.get({
+    key: MASTER_USAGE_KEY,
+    success: function(data) {
+      var all = {}
+      if (data) {
+        try {
+          all = JSON.parse(data)
+        } catch (e) {
+          all = {}
+        }
+      }
+      all[deviceId] = count
+      storage.set({
+        key: MASTER_USAGE_KEY,
+        value: JSON.stringify(all),
+        success: function() { if (callback) callback(true) },
+        fail: function() { if (callback) callback(false) }
+      })
+    },
+    fail: function() {
+      var all = {}
+      all[deviceId] = count
+      storage.set({
+        key: MASTER_USAGE_KEY,
+        value: JSON.stringify(all),
+        success: function() { if (callback) callback(true) },
+        fail: function() { if (callback) callback(false) }
+      })
+    }
+  })
+}
+
+function verifyMasterCode(code, deviceId, callback) {
+  if (code !== MASTER_CODE.code) {
+    callback({ success: false, reason: '无效的激活码' })
+    return
+  }
+  if (!MASTER_CODE.enabled) {
+    callback({ success: false, reason: '万能码已禁用' })
+    return
+  }
+
+  getAuthData(function(data) {
+    var status = buildStatus(data)
+
+    if (!status.isExpired) {
+      callback({
+        success: false,
+        reason: '万能码仅限已过期用户使用',
+        blockReason: 'not_expired'
+      })
+      return
+    }
+
+    getMasterUsage(deviceId, function(usage) {
+      var maxUses = MASTER_CODE.maxUsesPerDevice
+      if (usage >= maxUses) {
+        callback({
+          success: false,
+          reason: '使用次数已达上限（' + maxUses + '次）',
+          blockReason: 'limit_reached'
+        })
+        return
+      }
+
+      var newUsage = usage + 1
+      setMasterUsage(deviceId, newUsage, function(saved) {
+        var expireAt = Date.now() + MASTER_CODE.duration * 24 * 60 * 60 * 1000
+        callback({
+          success: true,
+          isMasterCode: true,
+          duration: MASTER_CODE.duration,
+          expireAt: expireAt,
+          remainingUses: maxUses - newUsage,
+          message: '万能码激活成功，剩余可用 ' + (maxUses - newUsage) + ' 次'
+        })
+      })
+    })
+  })
+}
+
+module.exports = {
+  getAuthData: getAuthData,
+  setAuthData: setAuthData,
+  initAuth: initAuth,
+  checkStatus: checkStatus,
+  getFullStatus: getFullStatus,
+  markActivated: markActivated,
+  markActivatedV2: markActivatedV2,
+  getHistory: getHistory,
+  needsDailyRemind: needsDailyRemind,
+  markRemindedToday: markRemindedToday,
+  getRemindDialogContent: getRemindDialogContent,
+  getTodayDate: getTodayDate,
+  verifyMasterCode: verifyMasterCode,
+  loadUsedCodes: loadUsedCodes,
+  saveUsedCode: saveUsedCode,
+  loadUsedRedeemCodes: loadUsedRedeemCodes,
+  saveUsedRedeemCode: saveUsedRedeemCode
+}

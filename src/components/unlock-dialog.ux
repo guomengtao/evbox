@@ -1,0 +1,227 @@
+<template>
+  <div class="dialog-overlay" show="{{ visible }}" onclick="doCancel">
+    <div class="dialog-card" style="background-color: {{ theme.card }}" onclick="stopBubble">
+      <text class="dialog-title" style="color: {{ theme.accent }}">{{ title }}</text>
+      <text class="dialog-desc" style="color: {{ theme.textSecondary }}">{{ description }}</text>
+
+      <div class="benefits">
+        <div for="{{ benefits }}" class="benefit-row">
+          <text class="benefit-icon" style="color: {{ theme.accent }}">✓</text>
+          <text class="benefit-text" style="color: {{ theme.text }}">{{ $item }}</text>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <input class="unlock-btn" type="button" value="立即解锁" onclick="doUnlock"
+               style="background-color: {{ theme.accent }}; color: {{ theme.bg }}" />
+        <input class="cancel-btn" type="button" value="{{ cancelText }}" onclick="doCancel"
+               style="background-color: {{ theme.btnSecondary }}; color: {{ theme.btnSecondaryText }}" />
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import router from "@system.router"
+const store = require("../data/store.js")
+
+export default {
+  private: {
+    visible: false,
+    title: "解锁高级功能",
+    description: "一次性解锁，永久使用全部高级功能",
+    benefits: ["全部工具", "数据备份与恢复", "首页自定义", "多套主题"],
+    cancelText: "继续使用标准版",
+    feature: "",
+    onSuccess: null,
+    onPayFail: null,
+    theme: {
+      card: "#16213e",
+      accent: "#7ec8e3",
+      text: "#ffffff",
+      textSecondary: "#888899",
+      textMuted: "#555566",
+      bg: "#1a1a2e",
+      btnSecondary: "#333355",
+      btnSecondaryText: "#a0a0b0"
+    }
+  },
+
+  onInit() {
+    var self = this
+    store._unlockDialogRef = this
+    store.getTheme(function(t) {
+      self.theme = t
+    })
+  },
+
+  onDestroy() {
+    if (store._unlockDialogRef === this) {
+      store._unlockDialogRef = null
+    }
+  },
+
+  show(options) {
+    options = options || {}
+    this.title = options.title || "解锁高级功能"
+    this.description = options.description || "一次性解锁，永久使用全部高级功能"
+    this.benefits = options.benefits || ["全部工具", "数据备份与恢复", "首页自定义", "多套主题"]
+    this.cancelText = options.cancelText || "继续使用标准版"
+    this.feature = options.feature || ""
+    this.onSuccess = options.onSuccess || null
+    this.onPayFail = options.onPayFail || null
+    this.visible = true
+  },
+
+  hide() {
+    this.visible = false
+  },
+
+  doUnlock() {
+    this.hide()
+    router.push({ uri: "/pages/activation" })
+  },
+
+  doCancel() {
+    this.hide()
+  },
+
+  stopBubble() {
+  }
+}
+</script>
+
+<style>
+.dialog-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+}
+
+.dialog-card {
+  width: 80%;
+  border-radius: 16px;
+  padding: 20px 18px;
+  flex-direction: column;
+  align-items: center;
+}
+
+.dialog-title {
+  font-size: 34px;
+  font-weight: bold;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.dialog-desc {
+  font-size: 26px;
+  text-align: center;
+  margin-bottom: 16px;
+  line-height: 34px;
+}
+
+.benefits {
+  width: 100%;
+  flex-direction: column;
+  margin-bottom: 16px;
+}
+
+.benefit-row {
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.benefit-icon {
+  font-size: 28px;
+  margin-right: 8px;
+  width: 28px;
+  text-align: center;
+}
+
+.benefit-text {
+  font-size: 26px;
+  flex: 1;
+}
+
+.btn-row {
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
+}
+
+.unlock-btn {
+  width: 100%;
+  height: 48px;
+  border-radius: 24px;
+  font-size: 28px;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.cancel-btn {
+  width: 100%;
+  height: 48px;
+  border-radius: 24px;
+  font-size: 26px;
+}
+
+@media (shape: capsule), (shape: pill-shaped) {
+  .dialog-card {
+    width: 90%;
+    border-radius: 12px;
+    padding: 18px 16px;
+  }
+
+  .dialog-title {
+    font-size: 26px;
+    margin-bottom: 10px;
+  }
+
+  .dialog-desc {
+    font-size: 20px;
+    margin-bottom: 14px;
+    line-height: 30px;
+  }
+
+  .benefits {
+    margin-bottom: 14px;
+  }
+
+  .benefit-row {
+    margin-bottom: 6px;
+    line-height: 28px;
+  }
+
+  .benefit-icon {
+    font-size: 22px;
+    margin-right: 6px;
+    width: 22px;
+  }
+
+  .benefit-text {
+    font-size: 20px;
+    line-height: 28px;
+  }
+
+  .unlock-btn {
+    height: 48px;
+    border-radius: 24px;
+    font-size: 24px;
+    margin-bottom: 8px;
+  }
+
+  .cancel-btn {
+    height: 48px;
+    border-radius: 24px;
+    font-size: 22px;
+  }
+}
+</style>

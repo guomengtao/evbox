@@ -1,0 +1,1597 @@
+<template>
+  <div id="evbox-page" class="schedule-page" style="background-color: {{ theme.bg }}">
+    <div class="clock-row" if="{{ showTime }}">
+      <text class="clock-text" style="color: {{ theme.textSecondary }}">{{ currentTime }}</text>
+    </div>
+
+    <div class="date-row">
+      <text class="date-text" style="color: {{ theme.textSecondary }}">{{ currentDateStr }}</text>
+    </div>
+
+    <!-- 倒数日大数字（数据源 pages/countdown-manage，模块 countdownHero） -->
+    <div class="cd-hero" if="{{ showCountdown && hasCountdown }}" onclick="openCountdown" style="background-color: {{ theme.cardLight }}">
+      <div class="cd-hero-left">
+        <text class="cd-hero-num" style="color: {{ theme.accent }}">{{ cdBadge }}</text>
+        <text class="cd-hero-unit" if="{{ cdUnit }}" style="color: {{ theme.textSecondary }}">{{ cdUnit }}</text>
+      </div>
+      <div class="cd-hero-right">
+        <text class="cd-hero-title" style="color: {{ theme.text }}">{{ cdTitle }}</text>
+        <text class="cd-hero-sub" style="color: {{ theme.textSecondary }}">{{ cdSubText }}</text>
+      </div>
+      <text class="cd-hero-pin" if="{{ cdPinned }}" style="color: {{ theme.bg }}; background-color: {{ theme.accent }}">钉</text>
+    </div>
+
+    <div class="pinned-bar" if="{{ showPinnedBar && hasPinned }}" style="background-color: {{ theme.cardLight }}">
+      <div class="left-accent left-accent-4" style="background-color: {{ theme.accent }}"></div>
+      <div class="pinned-content">
+        <div class="pinned-row">
+          <div for="{{ pinnedPages }}" class="pinned-tag" onclick="openPinnedPage($item.uri)" style="background-color: {{ theme.card }}; border-color: {{ theme.borderLight }}">
+            <text class="pinned-tag-text" style="color: {{ theme.accent }}">{{ $item.name }}</text>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 工具显示模式：图标 / 列表 / 图文（偏好存 homepage_settings.toolViewMode） -->
+    <div class="mode-row" style="background-color: {{ theme.card }}">
+      <div class="mode-seg" onclick="setToolMode('icon')" style="background-color: {{ toolViewMode === 'icon' ? theme.accent : 'transparent' }}">
+        <text class="mode-text" style="color: {{ toolViewMode === 'icon' ? theme.bg : theme.textSecondary }}">图标</text>
+      </div>
+      <div class="mode-seg" onclick="setToolMode('list')" style="background-color: {{ toolViewMode === 'list' ? theme.accent : 'transparent' }}">
+        <text class="mode-text" style="color: {{ toolViewMode === 'list' ? theme.bg : theme.textSecondary }}">列表</text>
+      </div>
+      <div class="mode-seg" onclick="setToolMode('rich')" style="background-color: {{ toolViewMode === 'rich' ? theme.accent : 'transparent' }}">
+        <text class="mode-text" style="color: {{ toolViewMode === 'rich' ? theme.bg : theme.textSecondary }}">图文</text>
+      </div>
+    </div>
+
+    <scroll class="class-list" scroll-y="true">
+      <!-- 模式一：图标（胶囊屏一行 2 列） -->
+      <div class="tool-grid" if="{{ toolViewMode === 'icon' }}">
+        <div for="{{ tools }}" class="tool-card" onclick="openTool($item.uri)" style="background-color: {{ theme.card }}">
+          <image class="tool-icon-img" src="/common/icons/tools/{{ iconTheme }}/{{ $item.iconFile }}"></image>
+          <text class="tool-name" style="color: {{ theme.text }}">{{ $item.name }}</text>
+        </div>
+      </div>
+
+      <!-- 模式二：列表（扫视最快） -->
+      <div class="tool-list" if="{{ toolViewMode === 'list' }}">
+        <div for="{{ tools }}" class="tool-row" onclick="openTool($item.uri)" style="background-color: {{ theme.card }}">
+          <div class="tool-row-icon-box" style="background-color: {{ theme.cardLight }}">
+            <image class="tool-row-icon" src="/common/icons/tools/{{ iconTheme }}/{{ $item.iconFile }}"></image>
+          </div>
+          <text class="tool-row-name" style="color: {{ theme.text }}">{{ $item.name }}</text>
+          <image class="tool-row-arrow" src="/common/icons/{{ iconTheme }}/icon_chevron_right.png"></image>
+        </div>
+      </div>
+
+      <!-- 模式三：图文（图标 + 名称 + 实时摘要） -->
+      <div class="tool-rich" if="{{ toolViewMode === 'rich' }}">
+        <div for="{{ richTools }}" class="rich-card" onclick="openTool($item.uri)" style="background-color: {{ theme.card }}">
+          <div class="rich-icon-box" style="background-color: {{ theme.cardLight }}">
+            <image class="rich-icon" src="/common/icons/tools/{{ iconTheme }}/{{ $item.iconFile }}"></image>
+          </div>
+          <div class="rich-info">
+            <text class="rich-name" style="color: {{ theme.text }}">{{ $item.name }}</text>
+            <text class="rich-sum" if="{{ $item.summary }}" style="color: {{ theme.textSecondary }}">{{ $item.summary }}</text>
+          </div>
+        </div>
+      </div>
+    </scroll>
+
+    <div class="bottom-buttons">
+      <input class="style-btn" type="button" value="工具" onclick="openTools" style="margin-right: 4px; background-color: {{ theme.cardLight }}; color: {{ theme.text }}" />
+      <input class="style-btn" type="button" value="设置" onclick="openSettings" style="background-color: {{ theme.cardLight }}; color: {{ theme.text }}" />
+    </div>
+  </div>
+</template>
+
+<script>
+import router from "@system.router"
+const store = require("../../data/store.js")
+const device = require("@system.device")
+const toolSummaries = require("./modules/tool-summaries.js")
+
+// 日志开关：发布态关闭
+var DEBUG = false
+function dlog() {
+  if (DEBUG) console.log.apply(console, arguments)
+}
+
+var isCapsuleScreen = false
+
+function pad(n) {
+  return n < 10 ? "0" + n : "" + n
+}
+
+function formatDateShort(d) {
+  return pad(d.getMonth() + 1) + "-" + pad(d.getDate())
+}
+
+var indexInstance = null
+
+// 屏型异步返回，拿到后回填并刷新
+device.getInfo({
+  success: function(data) {
+    var shape = data.screenShape || ""
+    var capsule = (shape === "capsule" || shape === "pill-shaped")
+    isCapsuleScreen = capsule
+    if (indexInstance && indexInstance.isCapsule !== capsule) {
+      indexInstance.isCapsule = capsule
+      try { indexInstance.$forceUpdate() } catch (e) {}
+    }
+  },
+  fail: function() {}
+})
+
+var modules = {}
+// 时钟 / 钉首页 / 倒数日大数字
+var moduleNames = [
+  { key: "clock" },
+  { key: "pinnedPages", defer: true },
+  { key: "countdownHero", defer: true }
+]
+
+function loadModule(key, mod) {
+  if (mod && mod.init) {
+    modules[key] = mod
+  } else {
+    modules[key] = null
+  }
+}
+
+loadModule("clock", require("./modules/clock.js"))
+loadModule("pinnedPages", require("./modules/pinned-pages.js"))
+loadModule("countdownHero", require("./modules/countdown-hero.js"))
+
+// 工具箱入口：图标一律走 PNG 双图（/common/icons/tools/{dark,light}/）
+// 名称控制在 ≤3 字，保证胶囊屏「图标模式」2 列卡片（76px 宽）能单行放下
+var TOOLS = [
+  { id: "countdown", name: "倒数日", iconFile: "tool_countdown.png", uri: "/pages/countdown-manage" },
+  { id: "lunar", name: "农历", iconFile: "tool_lunar.png", uri: "/pages/lunar-calendar" },
+  { id: "calculator", name: "计算器", iconFile: "tool_calculator.png", uri: "/pages/calculator" },
+  { id: "qrcode", name: "二维码", iconFile: "tool_qrcode.png", uri: "/pages/qrcode-generator" },
+  { id: "vibrate", name: "震动", iconFile: "tool_vibrate.png", uri: "/pages/vibration-lab" },
+  { id: "backup", name: "备份", iconFile: "tool_backup.png", uri: "/pages/backup-restore" },
+  { id: "device", name: "设备", iconFile: "tool_device.png", uri: "/pages/device-info" }
+]
+
+export default {
+  private: {
+    isCapsule: false,
+    iconTheme: "dark",
+    currentTime: "",
+    currentDateStr: "",
+    showTime: true,
+    showPinnedBar: true,
+    showCountdown: true,
+    hasCountdown: false,
+    cdBadge: "",
+    cdUnit: "",
+    cdTitle: "",
+    cdSubText: "",
+    cdPinned: false,
+    timeFormat: { hour: true, minute: true, second: false },
+    pinnedPages: [],
+    hasPinned: false,
+    tools: TOOLS,
+    richTools: TOOLS,
+    toolViewMode: "icon",
+    theme: {
+      bg: '#1a1a2e',
+      card: '#16213e',
+      cardLight: '#0f3460',
+      accent: '#7ec8e3',
+      text: '#ffffff',
+      textSecondary: '#888899',
+      textMuted: '#555566',
+      border: '#0f3460',
+      borderLight: '#2a2a5a'
+    }
+  },
+
+  onInit() {
+    var self = this
+    indexInstance = self
+    self.isCapsule = isCapsuleScreen
+    self.initialized = false
+    self.currentDateStr = formatDateShort(new Date())
+    store.getTheme(function(t, themeName) {
+      self.theme = t
+      self.updateIconSrc(themeName)
+    })
+    self.loadHomepageSettings()
+    self.initAllModules()
+  },
+
+  onShow() {
+    var self = this
+    self.isCapsule = isCapsuleScreen
+    store.getTheme(function(t, themeName) {
+      self.theme = t
+      self.updateIconSrc(themeName)
+    }, true)
+    self.loadHomepageSettings()
+    if (self.loadPinnedPages && typeof self.loadPinnedPages === 'function') {
+      self.loadPinnedPages()
+    }
+    if (self.loadCountdownHero && typeof self.loadCountdownHero === 'function') {
+      self.loadCountdownHero()
+    }
+    if (self.loadToolSummaries && typeof self.loadToolSummaries === 'function' && self.toolViewMode === "rich") {
+      self.loadToolSummaries()
+    }
+    try { this.$forceUpdate() } catch (e) {}
+  },
+
+  onDestroy() {
+    if (this.deferTimer) clearTimeout(this.deferTimer)
+    if (this.stopClockTimer && typeof this.stopClockTimer === 'function') this.stopClockTimer()
+  },
+
+  loadHomepageSettings() {
+    var self = this
+    store.getHomepageSettings(function(settings) {
+      self.showTime = settings.showTime !== false
+      self.showPinnedBar = settings.showPinnedBar !== false
+      self.showCountdown = settings.showCountdown !== false
+      // 工具显示模式：缺省即图标模式（旧数据无此字段时自动落到 icon）
+      self.toolViewMode = settings.toolViewMode === "list" || settings.toolViewMode === "rich"
+        ? settings.toolViewMode
+        : "icon"
+      if (self.toolViewMode === "rich") self.loadToolSummaries()
+      self.timeFormat = settings.timeFormat || { hour: true, minute: true, second: false }
+      if (isCapsuleScreen) {
+        self.timeFormat.second = false
+      }
+      if (typeof self.updateClock === 'function') {
+        self.updateClock()
+      }
+      self.initialized = true
+      try { self.$forceUpdate() } catch (e) {}
+    }, true)
+  },
+
+  // 工具显示模式：图标 / 列表 / 图文（偏好持久化到 homepage_settings.toolViewMode）
+  setToolMode(mode) {
+    if (mode !== "icon" && mode !== "list" && mode !== "rich") return
+    if (this.toolViewMode === mode) return
+    this.toolViewMode = mode
+    try {
+      require("@system.vibrator").vibrate({ mode: "short" })
+    } catch (e) {}
+    store.getHomepageSettings(function(settings) {
+      settings.toolViewMode = mode
+      store.setHomepageSettings(settings)
+    }, true)
+    if (mode === "rich") this.loadToolSummaries()
+    try { this.$forceUpdate() } catch (e) {}
+  },
+
+  // 图文模式的实时摘要（取不到的项摘要为空，UI 不渲染该行）
+  loadToolSummaries() {
+    var self = this
+    toolSummaries.getAll(function(map) {
+      var out = []
+      for (var i = 0; i < TOOLS.length; i++) {
+        var t = TOOLS[i]
+        out.push({
+          id: t.id,
+          name: t.name,
+          iconFile: t.iconFile,
+          uri: t.uri,
+          summary: map[t.id] || ""
+        })
+      }
+      self.richTools = out
+    })
+  },
+
+  initAllModules() {
+    var self = this
+    var deferred = []
+    for (var i = 0; i < moduleNames.length; i++) {
+      var m = moduleNames[i]
+      if (m.defer) {
+        deferred.push(m.key)
+        continue
+      }
+      self.initOneModule(m.key)
+    }
+    if (deferred.length > 0) {
+      self.deferTimer = setTimeout(function() {
+        self.deferTimer = null
+        for (var j = 0; j < deferred.length; j++) {
+          self.initOneModule(deferred[j])
+        }
+      }, 50)
+    }
+  },
+
+  initOneModule(key) {
+    var mod = modules[key]
+    if (mod && mod.init && !mod.__inited) {
+      try {
+        mod.__inited = true
+        mod.init(this)
+      } catch (e) {
+        console.error("[index] module " + key + " init failed: " + (e.message || e))
+      }
+    }
+  },
+
+  openTool(uri) {
+    router.push({ uri: uri })
+  },
+
+  openTools() {
+    router.push({ uri: "/pages/tools" })
+  },
+
+  openSettings() {
+    router.push({ uri: "/pages/settings" })
+  },
+
+  updateIconSrc(themeName) {
+    this.iconTheme = (themeName === 'light' || themeName === 'warm') ? 'light' : 'dark'
+  },
+
+  onBackPress() {
+    var utils = require("../../data/utils.js")
+    return utils.exitApp() === true
+  }
+}
+</script>
+
+<style>
+.schedule-page {
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  padding: 44px 8px 8px 8px;
+}
+
+.header {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 4px;
+  margin-bottom: 4px;
+  flex-shrink: 0;
+}
+
+.clock-row {
+  padding: 2px 0;
+  margin-bottom: 2px;
+  flex-shrink: 0;
+}
+
+.clock-text {
+  font-size: 20px;
+  text-align: center;
+  width: 100%;
+}
+
+.date-row {
+  padding: 2px 0;
+  flex-shrink: 0;
+}
+
+.date-text {
+  font-size: 22px;
+  line-height: 30px;
+  text-align: center;
+  width: 100%;
+}
+
+.header { line-height: 28px;
+}
+
+.day-title {
+  font-weight: bold;
+  text-align: center;
+  lines: 1;
+  flex: 1;
+  }
+
+.nav-btn-circle {
+  width: 48px;
+  height: 48px;
+  border-radius: 24px;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.nav-btn-img {
+  width: 24px;
+  height: 24px;
+}
+
+.day-nav-btns {
+  flex-direction: row;
+}
+
+.nav-toolbar {
+  flex-direction: row;
+  justify-content: space-around;
+  align-items: center;
+  height: 48px;
+  margin-bottom: 4px;
+  flex-shrink: 0;
+  padding: 0 4px;
+}
+
+.day-nav-circle {
+  width: 44px;
+  height: 44px;
+  border-radius: 22px;
+  justify-content: center;
+  align-items: center;
+  margin-left: 4px;
+}
+
+.day-nav-text {
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: bold;
+  text-align: center;
+}
+
+.custom-content-bar {
+  flex-direction: row;
+  align-items: center;
+  padding: 8px;
+  border-radius: 8px;
+  margin-bottom: 4px;
+  flex-shrink: 0;
+}
+
+.custom-content-text {
+  font-size: 20px;
+  flex: 1;
+  lines: 1;
+  text-overflow: ellipsis;
+  line-height: 28px;
+}
+
+.status-bar {
+  flex-direction: row;
+  align-items: center;
+  padding: 8px;
+  border-radius: 8px;
+  margin-bottom: 4px;
+  flex-shrink: 0;
+}
+
+.status-tag {
+  font-size: 20px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-right: 8px;
+  line-height: 28px;
+}
+
+.status-middle {
+  font-size: 20px;
+  flex: 1;
+  lines: 1;
+  line-height: 28px;
+}
+
+.status-right {
+  font-size: 20px;
+  line-height: 28px;
+}
+
+.pinned-bar {
+  flex-direction: row;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 8px;
+  margin-bottom: 4px;
+  flex-shrink: 0;
+}
+
+.pinned-content {
+  flex: 1;
+}
+
+.pinned-row {
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+.pinned-tag {
+  padding: 6px 16px;
+  border-radius: 18px;
+  margin-right: 8px;
+  margin-bottom: 4px;
+  flex-shrink: 0;
+  border-width: 1px;
+}
+
+.pinned-tag-text {
+  font-size: 20px;
+  line-height: 28px;
+  lines: 1;
+}
+
+/* ---------------- 倒数日大数字 ---------------- */
+
+.cd-hero {
+  flex-direction: row;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 10px;
+  margin-bottom: 6px;
+  flex-shrink: 0;
+}
+
+.cd-hero-left {
+  flex-direction: row;
+  align-items: flex-end;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+.cd-hero-num {
+  font-size: 40px;
+  font-weight: bold;
+  line-height: 46px;
+}
+
+.cd-hero-unit {
+  font-size: 20px;
+  line-height: 28px;
+  margin-left: 3px;
+}
+
+.cd-hero-right {
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.cd-hero-title {
+  font-size: 26px;
+  line-height: 34px;
+  lines: 1;
+  text-overflow: ellipsis;
+}
+
+.cd-hero-sub {
+  font-size: 20px;
+  line-height: 28px;
+  lines: 1;
+  text-overflow: ellipsis;
+}
+
+.cd-hero-pin {
+  font-size: 18px;
+  line-height: 26px;
+  padding: 0 8px;
+  border-radius: 13px;
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
+.class-list {
+  flex: 1;
+  flex-direction: column;
+  margin-bottom: 4px;
+}
+
+.class-grid {
+  flex-direction: column;
+}
+
+.class-grid-item {
+  position: relative;
+  width: 100%;
+  min-height: 60px;
+  border-radius: 12px;
+  padding: 0;
+  margin-bottom: 10px;
+  flex-direction: row;
+  overflow: hidden;
+}
+
+.class-card-accent {
+  width: 5px;
+  flex-shrink: 0;
+  border-radius: 3px 0 0 3px;
+}
+
+.class-card-body {
+  flex: 1;
+  flex-direction: column;
+  padding: 14px 16px 14px 14px;
+}
+
+.progress-bg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  opacity: 0.12;
+}
+
+.grid-item-name {
+  font-weight: bold;
+  text-overflow: ellipsis;
+  lines: 1;
+  flex-shrink: 1;
+}
+
+.card-name-row {
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: 6px;
+}
+
+.grid-item-location-inline {
+  margin-left: 6px;
+  lines: 1;
+  flex-shrink: 0;
+}
+
+.grid-item-location {
+  lines: 1;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+}
+
+.grid-item-time {
+  lines: 1;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+}
+
+.empty-card {
+  padding: 20px;
+  align-items: center;
+}
+
+.empty-text {
+  font-size: 20px;
+  line-height: 28px;
+}
+
+/* ── skeleton ── */
+.skeleton-list {
+  flex-direction: column;
+  padding: 6px 0;
+}
+
+.skeleton-card {
+  flex-direction: row;
+  border-radius: 12px;
+  margin-bottom: 6px;
+  overflow: hidden;
+  height: 72px;
+  opacity: 0.7;
+}
+
+.skeleton-accent {
+  width: 4px;
+  height: 100%;
+  flex-shrink: 0;
+}
+
+.skeleton-body {
+  flex: 1;
+  padding: 12px 14px;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.skeleton-bar {
+  flex-shrink: 0;
+}
+
+.quick-add {
+  border-radius: 10px;
+  margin-bottom: 4px;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.quick-add-header {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 10px;
+}
+
+.quick-add-title {
+  font-size: 20px;
+  font-weight: bold;
+  line-height: 28px;
+}
+
+.quick-add-info {
+  flex-direction: row;
+  align-items: center;
+}
+
+.quick-add-time {
+  font-size: 20px;
+  margin-right: 6px;
+  line-height: 28px;
+}
+
+.quick-add-arrow-img {
+  width: 20px;
+  height: 20px;
+  margin-left: 4px;
+}
+
+.quick-add-row-scroll {
+  flex-direction: column;
+  padding: 0 0 8px 0;
+}
+
+.quick-add-scroll {
+  height: 44px;
+}
+
+.quick-add-tags {
+  flex-direction: row;
+  padding: 0 8px;
+}
+
+.quick-add-tag {
+  border-radius: 20px;
+  padding: 8px 16px;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.quick-add-tag-text {
+  font-size: 20px;
+  line-height: 28px;
+}
+
+.quick-add-plus-text {
+  font-size: 24px;
+  font-weight: bold;
+}
+
+.quick-add-empty {
+  font-size: 20px;
+  line-height: 28px;
+  padding: 6px 12px;
+  text-align: center;
+}
+
+.bottom-buttons {
+  flex-direction: row;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  flex-shrink: 0;
+}
+
+.add-btn-wrapper {
+  flex: 1;
+  height: 44px;
+  border-radius: 22px;
+  margin-right: 4px;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+}
+
+.add-btn-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.add-btn-label {
+  font-size: 20px;
+  font-weight: bold;
+  margin-left: 4px;
+}
+
+.style-btn {
+  flex: 1;
+  height: 44px;
+  border-radius: 22px;
+  font-size: 20px;
+  font-weight: bold;
+  text-align: center;
+  border-width: 0;
+  line-height: 44px;
+}
+
+.week-indicator {
+  padding: 12px 8px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: row;
+}
+
+.week-swap-icon {
+  width: 16px;
+  height: 16px;
+  margin-right: 4px;
+}
+
+.week-text {
+  flex-shrink: 0;
+  font-size: 20px;
+  line-height: 28px;
+  text-align: center;
+}
+
+.left-accent {
+  width: 4px;
+  border-radius: 2px;
+  margin-right: 8px;
+}
+
+.left-accent-4 {
+  height: 24px;
+}
+
+.left-accent-6 {
+  height: 28px;
+}
+
+.workday-tip-bar {
+  flex-direction: row;
+  align-items: center;
+  padding: 10px 14px;
+  border-radius: 8px;
+  margin-bottom: 4px;
+  flex-shrink: 0;
+}
+
+.workday-tip-text {
+  font-size: 18px;
+  line-height: 26px;
+  flex: 1;
+}
+
+.workday-info-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 14px;
+  font-size: 16px;
+  font-weight: bold;
+  line-height: 28px;
+  text-align: center;
+  flex-shrink: 0;
+  margin-left: 6px;
+}
+
+.holiday-greeting-card {
+  flex-direction: column;
+  padding: 14px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+
+.holiday-greeting-name {
+  font-size: 20px;
+  font-weight: bold;
+  line-height: 28px;
+  margin-bottom: 2px;
+}
+
+.holiday-greeting-text {
+  font-size: 22px;
+  line-height: 30px;
+}
+
+@media (shape: circle) {
+  .schedule-page {
+    padding: 44px 36px 44px 36px;
+  }
+  /* 圆屏横向空间同样紧张，取 44px 而非规范 48px */
+  /* 胶囊屏 header 实际只有 ◀ + 标题 + ▶（总/今/明已移到 nav-toolbar），
+     48×2 = 96px，标题仍有 64px（单字 26px 绰绰有余），可提到 48px */
+  .nav-btn-circle {
+    width: 48px;
+    height: 48px;
+    border-radius: 24px;
+  }
+  .nav-btn-img {
+    width: 22px;
+    height: 22px;
+  }
+  .day-nav-circle {
+    width: 36px;
+    height: 36px;
+    border-radius: 18px;
+    margin-left: 2px;
+  }
+  .add-btn-wrapper,
+  .style-btn {
+    height: 40px;
+    border-radius: 20px;
+  }
+  .add-btn-icon {
+    width: 22px;
+    height: 22px;
+  }
+  .add-btn-label {
+    font-size: 18px;
+  }
+  .bottom-buttons {
+    margin-bottom: 8px;
+  }
+  .cd-hero {
+    padding: 6px 8px;
+    margin-bottom: 4px;
+  }
+  .cd-hero-left {
+    margin-right: 8px;
+  }
+  .cd-hero-num {
+    font-size: 34px;
+    line-height: 40px;
+  }
+  .cd-hero-unit {
+    font-size: 18px;
+    line-height: 24px;
+  }
+  .cd-hero-title {
+    font-size: 22px;
+    line-height: 30px;
+  }
+  .cd-hero-sub {
+    font-size: 18px;
+    line-height: 24px;
+  }
+}
+
+@media (shape: capsule), (shape: pill-shaped) {
+  .schedule-page {
+    padding: 30px 16px 30px 16px;
+  }
+  .clock-row {
+    padding: 4px 0;
+    margin-bottom: 4px;
+  }
+  .clock-text {
+    font-size: 20px;
+    line-height: 28px;
+  }
+  .header {
+    padding: 2px 0;
+    margin-bottom: 4px;
+  }
+  /* 胶囊屏 header 横向要放 ◀ 标题 [总] ▶，192px 物理宽下
+     3×48px 会把标题挤没，故取 44px 作为物理上限 */
+  /* 胶囊屏 header 实际只有 ◀ + 标题 + ▶（总/今/明已移到 nav-toolbar），
+     48×2 = 96px，标题仍有 64px（单字 26px 绰绰有余），可提到 48px */
+  .nav-btn-circle {
+    width: 48px;
+    height: 48px;
+    border-radius: 24px;
+  }
+  .nav-btn-img {
+    width: 22px;
+    height: 22px;
+  }
+  .day-title {
+    font-size: 26px;
+    font-weight: bold;
+    text-align: center;
+    flex: 1;
+    lines: 1;
+  }
+  /* 胶囊屏下「总 / 今 / 明」已移到 header 下方的 nav-toolbar，不再与标题抢宽度，
+     48×3 + 间距 = 150px < 160px 内容区，可提到规范的 48px */
+  .day-nav-circle {
+    width: 48px;
+    height: 48px;
+    border-radius: 24px;
+    margin-left: 2px;
+  }
+  .day-nav-text {
+    font-size: 20px;
+    line-height: 28px;
+  }
+  .custom-content-text {
+    font-size: 20px;
+    line-height: 28px;
+  }
+  .status-bar {
+    padding: 8px 8px;
+    margin-bottom: 4px;
+  }
+  /* Capsule status bar: two-line layout for narrow 160px content area */
+  .status-capsule-row {
+    flex-direction: row;
+    align-items: center;
+    flex: 1;
+  }
+  .status-capsule-accent {
+    width: 3px;
+    height: 42px;
+    border-radius: 2px;
+    margin-right: 8px;
+    flex-shrink: 0;
+    align-self: center;
+  }
+  .status-capsule-body {
+    flex: 1;
+    flex-direction: column;
+  }
+  .status-capsule-line1 {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2px;
+  }
+  .status-capsule-tag {
+    font-size: 18px;
+    padding: 1px 8px;
+    border-radius: 4px;
+    line-height: 24px;
+    flex-shrink: 0;
+  }
+  .status-capsule-time {
+    font-size: 18px;
+    line-height: 24px;
+    margin-left: 6px;
+    flex-shrink: 0;
+  }
+  .status-capsule-name {
+    font-size: 22px;
+    font-weight: bold;
+    line-height: 28px;
+    lines: 1;
+    text-overflow: ellipsis;
+  }
+  .section-label {
+    font-size: 20px;
+    line-height: 28px;
+    padding: 6px 4px;
+  }
+  .quick-add-header {
+    padding: 8px 12px;
+  }
+  .quick-add-title {
+    font-size: 20px;
+  }
+  .quick-add-scroll {
+    height: 48px;
+  }
+  .quick-add-tag {
+    border-radius: 20px;
+    padding: 4px 10px;
+  }
+  .quick-add-tag-text {
+    font-size: 20px;
+  }
+  .add-btn-wrapper {
+    flex: 0 0 48px;
+    width: 48px;
+    height: 48px;
+    border-radius: 24px;
+    margin-right: 4px;
+    justify-content: center;
+    align-items: center;
+  }
+  .add-btn-icon {
+    width: 24px;
+    height: 24px;
+  }
+  .add-btn-label {
+    display: none;
+  }
+  .style-btn {
+    flex: 1;
+    height: 48px;
+    border-radius: 24px;
+    font-size: 20px;
+    line-height: 48px;
+  }
+  /* 胶囊屏：换行规则 */
+  .class-card-body {
+    padding: 6px 10px 6px 10px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .card-name-row {
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: space-between;
+    width: 100%;
+    margin-bottom: 2px;
+  }
+  .grid-item-name {
+    margin-bottom: 0;
+    flex-shrink: 1;
+    lines: 1;
+    text-overflow: ellipsis;
+  }
+  .grid-item-location-inline {
+    margin-left: 4px;
+    lines: 1;
+    flex-shrink: 0;
+  }
+  .grid-item-time {
+    font-size: 20px;
+    margin-bottom: 0;
+    lines: 1;
+  }
+  .grid-item-location {
+    font-size: 20px;
+    lines: 1;
+    text-overflow: ellipsis;
+    margin-bottom: 2px;
+  }
+  .week-text {
+    font-size: 20px;
+  }
+  .left-accent-4 {
+    height: 24px;
+  }
+  .left-accent-6 {
+    height: 28px;
+  }
+  /* 倒数日大数字：胶囊屏纵向最紧张，压到 56px 一行 */
+  .cd-hero {
+    padding: 6px 8px;
+    margin-bottom: 4px;
+    border-radius: 8px;
+  }
+  .cd-hero-left {
+    margin-right: 8px;
+  }
+  .cd-hero-num {
+    font-size: 32px;
+    line-height: 38px;
+  }
+  .cd-hero-unit {
+    font-size: 18px;
+    line-height: 24px;
+  }
+  .cd-hero-title {
+    font-size: 22px;
+    line-height: 28px;
+  }
+  .cd-hero-sub {
+    font-size: 18px;
+    line-height: 24px;
+  }
+  .cd-hero-pin {
+    font-size: 16px;
+    line-height: 24px;
+    margin-left: 6px;
+  }
+  /* 工具显示：胶囊屏图标模式一行 2 列 */
+  .mode-row {
+    height: 52px;
+    margin-bottom: 4px;
+  }
+  .mode-seg {
+    height: 52px;
+  }
+  .mode-text {
+    font-size: 24px;
+    line-height: 52px;
+  }
+  /* 图标模式：一行 2 个（卡片 76px 宽）+ 去掉文字，只留图标
+     （14 + 56 + 14 = 84px 的纯图标卡片） */
+  .tool-card {
+    width: 48%;
+    padding: 14px 0;
+    margin-bottom: 6px;
+  }
+  .tool-icon-img {
+    width: 56px;
+    height: 56px;
+  }
+  .tool-name {
+    display: none;
+  }
+  .tool-row {
+    height: 56px;
+    padding: 0 8px;
+    margin-bottom: 4px;
+  }
+  .tool-row-name {
+    font-size: 28px;
+    line-height: 36px;
+  }
+  .rich-card {
+    height: 72px;
+    padding: 0 8px;
+    margin-bottom: 6px;
+  }
+  .rich-name {
+    font-size: 26px;
+    line-height: 32px;
+  }
+  .rich-sum {
+    font-size: 22px;
+    line-height: 28px;
+  }
+}
+
+@media (shape: rect) {
+  .schedule-page {
+    padding: 6px 6px 6px 6px;
+  }
+  .clock-row {
+    padding: 3px 0;
+    margin-bottom: 3px;
+  }
+  .clock-text {
+    font-size: 20px;
+    line-height: 28px;
+  }
+  .header {
+    padding: 3px 0;
+    margin-bottom: 3px;
+  }
+  /* 方屏: 圆圈容器保持48px, 箭头三角缩小到24px与胶囊屏一致 */
+  .nav-btn-img {
+    width: 24px;
+    height: 24px;
+  }
+  .day-title {
+    font-size: 26px;
+    font-weight: bold;
+    text-align: center;
+    flex: 1;
+    lines: 1;
+  }
+  .day-nav-circle {
+    width: 36px;
+    height: 36px;
+    border-radius: 18px;
+    margin-left: 2px;
+  }
+  .day-nav-text {
+    font-size: 20px;
+    line-height: 28px;
+  }
+  .custom-content-bar {
+    padding: 6px 8px;
+    border-radius: 6px;
+    margin-bottom: 3px;
+  }
+  .custom-content-text {
+    font-size: 20px;
+    line-height: 28px;
+  }
+  .status-bar {
+    padding: 6px 8px;
+    border-radius: 6px;
+    margin-bottom: 3px;
+  }
+  .status-tag {
+    font-size: 20px;
+    padding: 2px 6px;
+    margin-right: 6px;
+    line-height: 28px;
+  }
+  .status-middle {
+    font-size: 20px;
+    line-height: 28px;
+  }
+  .status-right {
+    font-size: 20px;
+    line-height: 28px;
+  }
+  
+  .pinned-bar {
+    padding: 4px 6px;
+    border-radius: 6px;
+    margin-bottom: 3px;
+  }
+  .pinned-tag-text {
+    font-size: 20px;
+    line-height: 28px;
+    lines: 1;
+  }
+  .pinned-tag {
+    padding: 5px 12px;
+    border-radius: 16px;
+    margin-right: 6px;
+    margin-bottom: 3px;
+  }
+  .section-label {
+    font-size: 20px;
+    line-height: 28px;
+    padding: 5px 4px;
+  }
+  .quick-add {
+    border-radius: 8px;
+    margin-bottom: 3px;
+  }
+  .quick-add-header {
+    padding: 7px 10px;
+    border-radius: 8px;
+  }
+  .quick-add-title {
+    font-size: 20px;
+    line-height: 28px;
+  }
+  .quick-add-time {
+    font-size: 20px;
+    margin-right: 5px;
+    line-height: 28px;
+  }
+  .quick-add-arrow-img {
+    width: 20px;
+    height: 20px;
+    margin-left: 4px;
+  }
+  /* 快捷添加标签按钮提到规范的 48px（容器跟随） */
+  .quick-add-scroll {
+    height: 48px;
+  }
+  .quick-add-tag {
+    border-radius: 20px;
+    padding: 4px 10px;
+    margin-right: 6px;
+  }
+  .quick-add-tag-text {
+    font-size: 20px;
+    line-height: 28px;
+  }
+  .quick-add-empty {
+    font-size: 20px;
+    line-height: 28px;
+    padding: 5px 10px;
+  }
+  .add-btn-wrapper {
+    flex: 1;
+    height: 42px;
+    border-radius: 21px;
+    margin-right: 3px;
+  }
+  .add-btn-icon {
+    width: 24px;
+    height: 24px;
+  }
+  .add-btn-label {
+    font-size: 20px;
+  }
+  .style-btn {
+    flex: 1;
+    height: 42px;
+    border-radius: 21px;
+    font-size: 20px;
+    line-height: 42px;
+  }
+  .bottom-buttons {
+    margin-bottom: 3px;
+  }
+  .class-grid-item {
+    min-height: 54px;
+    border-radius: 10px;
+    margin-bottom: 8px;
+  }
+  .class-card-body {
+    padding: 10px 12px 10px 12px;
+  }
+  /* 字号与行高由脚本按屏型计算后内联下发，这里只保留布局相关属性 */
+  .grid-item-name {
+    margin-bottom: 4px;
+    lines: 1;
+    text-overflow: ellipsis;
+  }
+  .class-card-meta {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .grid-item-time {
+    margin-right: 10px;
+    lines: 1;
+    flex-shrink: 0;
+  }
+  .grid-item-location {
+    lines: 1;
+    flex-shrink: 0;
+  }
+  .empty-card {
+    padding: 16px;
+  }
+  .empty-text {
+    font-size: 20px;
+    line-height: 28px;
+  }
+  .week-indicator {
+    padding: 8px 6px;
+  }
+  .week-text {
+    font-size: 20px;
+    line-height: 28px;
+  }
+  .left-accent-4 {
+    height: 20px;
+  }
+  .left-accent-6 {
+    height: 24px;
+  }
+  .holiday-greeting-text {
+    font-size: 22px;
+    line-height: 30px;
+  }
+}
+
+/* ---------------- 工具显示模式切换行 ---------------- */
+
+.mode-row {
+  flex-direction: row;
+  height: 52px;
+  border-radius: 26px;
+  margin-bottom: 6px;
+  flex-shrink: 0;
+}
+
+.mode-seg {
+  flex: 1;
+  height: 52px;
+  border-radius: 26px;
+  justify-content: center;
+  align-items: center;
+}
+
+.mode-text {
+  font-size: 24px;
+  line-height: 52px;
+  text-align: center;
+}
+
+/* ---------------- 模式一：图标 ---------------- */
+
+.tool-grid {
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  padding: 2px 0;
+}
+
+.tool-card {
+  width: 48%;
+  margin-bottom: 8px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  /* 12 + 56 + 8 + 36 + 10 = 122px（一行 2 个，卡片放大） */
+  padding: 12px 4px 10px 4px;
+}
+
+.tool-icon-img {
+  width: 56px;
+  height: 56px;
+  margin-bottom: 8px;
+}
+
+.tool-name {
+  font-size: 28px;
+  line-height: 36px;
+  text-align: center;
+  lines: 1;
+  text-overflow: ellipsis;
+}
+
+/* ---------------- 模式二：列表 ---------------- */
+
+.tool-list {
+  flex-direction: column;
+}
+
+.tool-row {
+  flex-direction: row;
+  align-items: center;
+  height: 56px;
+  border-radius: 10px;
+  padding: 0 10px;
+  margin-bottom: 6px;
+}
+
+.tool-row-icon-box {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.tool-row-icon {
+  width: 28px;
+  height: 28px;
+}
+
+.tool-row-name {
+  flex: 1;
+  font-size: 28px;
+  line-height: 36px;
+  margin-left: 8px;
+  lines: 1;
+  text-overflow: ellipsis;
+}
+
+.tool-row-arrow {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+/* ---------------- 模式三：图文 ---------------- */
+
+.tool-rich {
+  flex-direction: column;
+}
+
+.rich-card {
+  flex-direction: row;
+  align-items: center;
+  height: 72px;
+  border-radius: 12px;
+  padding: 0 10px;
+  margin-bottom: 8px;
+}
+
+.rich-icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.rich-icon {
+  width: 36px;
+  height: 36px;
+}
+
+.rich-info {
+  flex: 1;
+  flex-direction: column;
+  margin-left: 8px;
+  min-width: 0;
+}
+
+.rich-name {
+  font-size: 26px;
+  line-height: 34px;
+  lines: 1;
+  text-overflow: ellipsis;
+}
+
+.rich-sum {
+  font-size: 22px;
+  line-height: 30px;
+  lines: 1;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
+@media (shape: circle) {
+  .tool-card {
+    width: 48%;
+    padding: 14px 6px 12px 6px;
+  }
+
+  .tool-icon-img {
+    width: 64px;
+    height: 64px;
+    margin-bottom: 8px;
+  }
+
+  .tool-name {
+    font-size: 30px;
+    line-height: 40px;
+  }
+}
+
+</style>

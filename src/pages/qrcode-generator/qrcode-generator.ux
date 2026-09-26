@@ -1,0 +1,695 @@
+<template>
+  <div class="page-root" style="background-color: {{ theme.bg }}">
+    <div class="home-bar" onclick="goHome" style="background-color: {{ theme.card }}">
+      <text class="home-date" style="color: {{ theme.accent }}">{{ todayDate }}</text>
+    </div>
+
+    <div class="header">
+      <div class="back-btn-wrapper" onclick="goBack" style="background-color: {{ theme.card }}">
+        <image class="back-btn-icon" src="/common/icons/{{ iconTheme }}/icon_back.png"></image>
+      </div>
+      <text class="header-title" style="color: {{ theme.text }}">二维码</text>
+      <div class="header-placeholder"></div>
+    </div>
+
+    <div class="add-btn" onclick="startAdd" style="background-color: {{ theme.card }}">
+      <text class="add-btn-text" style="color: {{ theme.accent }}">＋ 添加二维码</text>
+    </div>
+
+    <div class="list-area">
+      <div class="accordion-item" for="{{ items }}" style="background-color: {{ theme.card }}">
+        <div class="accordion-header" onclick="toggleItem($idx)">
+          <text class="item-name" style="color: {{ theme.text }}">{{ $item.name }}</text>
+          <text class="item-arrow" style="color: {{ theme.textMuted }}">{{ $item.expanded ? '▲' : '▼' }}</text>
+        </div>
+
+        <div class="accordion-body" if="{{ $item.expanded }}">
+          <div class="qr-wrapper" style="background-color: #ffffff">
+            <qrcode value="{{ $item.content }}" style="color: #000000; background-color: #ffffff; width: {{ qrSize }}px; height: {{ qrSize }}px;"></qrcode>
+          </div>
+          <text class="content-text" style="color: {{ theme.textSecondary }}">{{ $item.content }}</text>
+          <div class="action-row">
+            <div class="action-btn edit-btn" onclick="startEdit($idx)" style="background-color: {{ theme.cardLight }}">
+              <text class="action-btn-text" style="color: {{ theme.accent }}">编辑</text>
+            </div>
+            <div class="action-btn delete-btn" onclick="deleteItem($idx)" style="background-color: {{ theme.deleteBg }}">
+              <text class="action-btn-text" style="color: {{ theme.deleteText }}">删除</text>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="empty-state" if="{{ items.length === 0 }}">
+        <text class="empty-text" style="color: {{ theme.textMuted }}">暂无二维码，点击上方添加</text>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import router from "@system.router"
+const store = require("../../data/store.js")
+
+var STORAGE_KEY = "qrcode_items_list"
+var DEFAULT_ITEM = { id: "demo_wechat", name: "微信打赏", content: "wxp://f2f0i7FYfQ5xBhxQtXDwsQpkyGZLB7UsjrRjsrXn02Qx8NQHjn8WlZEnozT2BURX_JRy" }
+var loadingStorage = false
+
+function generateId() {
+  return "qrc_" + Date.now() + "_" + Math.floor(Math.random() * 10000)
+}
+
+function loadItems(callback) {
+  if (loadingStorage) {
+    setTimeout(function() { loadItems(callback) }, 50)
+    return
+  }
+  loadingStorage = true
+  var storage = require("@system.storage")
+  storage.get({
+    key: STORAGE_KEY,
+    success: function(data) {
+      loadingStorage = false
+      var arr = []
+      if (data) {
+        try {
+          arr = JSON.parse(data)
+        } catch (e) {
+          arr = []
+        }
+      }
+      if (arr.length === 0) {
+        arr = [cloneItem(DEFAULT_ITEM)]
+        saveItems(arr)
+      }
+      for (var i = 0; i < arr.length; i++) {
+        if (!arr[i].expanded) arr[i].expanded = false
+      }
+      callback(arr)
+    },
+    fail: function() {
+      loadingStorage = false
+      callback([cloneItem(DEFAULT_ITEM)])
+    }
+  })
+}
+
+function cloneItem(item) {
+  var c = {}
+  c.id = item.id
+  c.name = item.name
+  c.content = item.content
+  c.expanded = item.expanded || false
+  return c
+}
+
+function saveItems(items, callback) {
+  var storage = require("@system.storage")
+  var clean = []
+  for (var i = 0; i < items.length; i++) {
+    clean.push({ id: items[i].id, name: items[i].name, content: items[i].content })
+  }
+  storage.set({
+    key: STORAGE_KEY,
+    value: JSON.stringify(clean),
+    success: function() { if (callback) callback() },
+    fail: function() { if (callback) callback() }
+  })
+}
+
+export default {
+  private: {
+    items: [],
+    qrSize: 140,
+    theme: {
+      bg: "#1a1a2e",
+      card: "#16213e",
+      cardLight: "#0f3460",
+      accent: "#7ec8e3",
+      text: "#ffffff",
+      textSecondary: "#888899",
+      textMuted: "#555566",
+      deleteBg: "#2a1a3e",
+      deleteText: "#e08080"
+    },
+    iconTheme: "dark",
+    todayDate: "",
+    addingName: "",
+    editingId: "",
+    editingName: ""
+  },
+
+  onInit() {
+    var self = this
+    store.getTheme(function(t, themeName) {
+      self.theme = t
+      self.updateIconSrc(themeName)
+    })
+    this.setTodayDate()
+    this.calcQrSize()
+  },
+
+  onShow() {
+    var self = this
+    store.getTheme(function(t, themeName) {
+      self.theme = t
+      self.updateIconSrc(themeName)
+    })
+    this.loadItems()
+    this.checkAddResult()
+    this.checkEditResult()
+  },
+
+  updateIconSrc: function(themeName) {
+    this.iconTheme = (themeName === 'light' || themeName === 'warm') ? 'light' : 'dark'
+  },
+
+  setTodayDate: function() {
+    var d = new Date()
+    var m = d.getMonth() + 1
+    var day = d.getDate()
+    this.todayDate = (m < 10 ? '0' : '') + m + '-' + (day < 10 ? '0' : '') + day
+  },
+
+  calcQrSize() {
+    var self = this
+    var device = require("@system.device")
+    device.getInfo({
+      success: function (info) {
+        var w = info.screenWidth || 192
+        var pagePad = w > 300 ? 24 : 16
+        var bodyPad = 0
+        var wrapperPad = 12
+        var size = w - pagePad - bodyPad - wrapperPad
+        if (size < 100) size = 100
+        if (size > 320) size = 320
+        self.qrSize = size
+      },
+      fail: function () {
+        self.qrSize = 140
+      },
+    })
+  },
+
+  loadItems() {
+    var self = this
+    loadItems(function(arr) { self.items = arr })
+  },
+
+  startAdd() {
+    var storage = require("@system.storage")
+    storage.set({ key: "chinese_input_title", value: "二维码名称", success: function() {} })
+    storage.set({ key: "chinese_input_placeholder", value: "如：我的网址", success: function() {} })
+    storage.set({ key: "chinese_input_value", value: "", success: function() {} })
+    storage.set({ key: "chinese_input_maxlen", value: "5", success: function() {} })
+    storage.set({ key: "chinese_input_return_key", value: "qrcode_add_name", success: function() {
+      router.push({ uri: "/pages/chinese-input" })
+    }})
+  },
+
+  checkAddResult() {
+    var self = this
+    var storage = require("@system.storage")
+
+    storage.get({
+      key: "qrcode_add_name",
+      success: function(data) {
+        if (data !== undefined && data !== null && data !== "") {
+          var name = data.trim()
+          storage.delete({ key: "qrcode_add_name", fail: function() {} })
+          storage.set({ key: "chinese_input_title", value: "二维码内容", success: function() {} })
+          storage.set({ key: "chinese_input_placeholder", value: "输入网址或文字", success: function() {} })
+          storage.set({ key: "chinese_input_value", value: "", success: function() {} })
+          storage.set({ key: "chinese_input_maxlen", value: "100", success: function() {} })
+          storage.set({ key: "chinese_input_return_key", value: "qrcode_add_content", success: function() {
+            storage.set({ key: "qrcode_add_temp_name", value: name, success: function() {
+              router.push({ uri: "/pages/chinese-input" })
+            }})
+          }})
+        }
+      },
+      fail: function() {}
+    })
+
+    storage.get({
+      key: "qrcode_add_content",
+      success: function(data) {
+        if (data !== undefined && data !== null && data !== "") {
+          var content = data.trim()
+          storage.delete({ key: "qrcode_add_content", fail: function() {} })
+          storage.get({
+            key: "qrcode_add_temp_name",
+            success: function(nameData) {
+              storage.delete({ key: "qrcode_add_temp_name", fail: function() {} })
+              var name = (nameData || "").trim()
+              if (name && content) {
+                self.doAdd(name, content)
+              }
+            },
+            fail: function() {
+              storage.delete({ key: "qrcode_add_temp_name", fail: function() {} })
+            }
+          })
+        }
+      },
+      fail: function() {}
+    })
+  },
+
+  doAdd(name, content) {
+    var self = this
+    loadItems(function(arr) {
+      arr.push({
+        id: generateId(),
+        name: name,
+        content: content,
+        expanded: false
+      })
+      self.items = arr
+      saveItems(arr)
+    })
+  },
+
+  toggleItem(index) {
+    var item = this.items[index]
+    if (item) {
+      item.expanded = !item.expanded
+      var clone = this.items.slice()
+      var copy = {}
+      copy.id = item.id
+      copy.name = item.name
+      copy.content = item.content
+      copy.expanded = item.expanded
+      clone[index] = copy
+      this.items = clone
+    }
+  },
+
+  startEdit(index) {
+    var item = this.items[index]
+    if (!item) return
+    var storage = require("@system.storage")
+    storage.set({ key: "chinese_input_title", value: "编辑名称", success: function() {} })
+    storage.set({ key: "chinese_input_placeholder", value: "如：我的网址", success: function() {} })
+    storage.set({ key: "chinese_input_value", value: item.name, success: function() {} })
+    storage.set({ key: "chinese_input_maxlen", value: "5", success: function() {} })
+    storage.set({ key: "chinese_input_return_key", value: "qrcode_edit_name", success: function() {
+      storage.set({ key: "qrcode_edit_temp_id", value: item.id, success: function() {
+        router.push({ uri: "/pages/chinese-input" })
+      }})
+    }})
+  },
+
+  checkEditResult() {
+    var self = this
+    var storage = require("@system.storage")
+
+    storage.get({
+      key: "qrcode_edit_name",
+      success: function(data) {
+        if (data !== undefined && data !== null && data !== "") {
+          var name = data.trim()
+          storage.delete({ key: "qrcode_edit_name", fail: function() {} })
+          storage.set({ key: "chinese_input_title", value: "编辑内容", success: function() {} })
+          storage.set({ key: "chinese_input_placeholder", value: "输入网址或文字", success: function() {} })
+          storage.set({ key: "chinese_input_value", value: "", success: function() {} })
+          storage.set({ key: "chinese_input_maxlen", value: "100", success: function() {} })
+          storage.set({ key: "chinese_input_return_key", value: "qrcode_edit_content", success: function() {
+            storage.set({ key: "qrcode_edit_temp_name", value: name, success: function() {
+              router.push({ uri: "/pages/chinese-input" })
+            }})
+          }})
+        }
+      },
+      fail: function() {}
+    })
+
+    storage.get({
+      key: "qrcode_edit_content",
+      success: function(data) {
+        if (data !== undefined && data !== null && data !== "") {
+          var content = data.trim()
+          storage.delete({ key: "qrcode_edit_content", fail: function() {} })
+          storage.get({
+            key: "qrcode_edit_temp_name",
+            success: function(nameData) {
+              storage.delete({ key: "qrcode_edit_temp_name", fail: function() {} })
+              storage.get({
+                key: "qrcode_edit_temp_id",
+                success: function(idData) {
+                  storage.delete({ key: "qrcode_edit_temp_id", fail: function() {} })
+                  var name = (nameData || "").trim()
+                  var id = (idData || "").trim()
+                  if (id && name && content) {
+                    self.doEdit(id, name, content)
+                  }
+                },
+                fail: function() {}
+              })
+            },
+            fail: function() {}
+          })
+        }
+      },
+      fail: function() {}
+    })
+  },
+
+  doEdit(id, name, content) {
+    var self = this
+    loadItems(function(arr) {
+      for (var i = 0; i < arr.length; i++) {
+        if (arr[i].id === id) {
+          arr[i].name = name
+          arr[i].content = content
+          self.items = arr
+          saveItems(arr)
+          return
+        }
+      }
+    })
+  },
+
+  deleteItem(index) {
+    var self = this
+    loadItems(function(arr) {
+      if (index >= 0 && index < arr.length) {
+        arr.splice(index, 1)
+        self.items = arr
+        saveItems(arr)
+      }
+    })
+  },
+
+  goBack() {
+    router.back()
+  },
+
+  goHome() {
+    router.push({ uri: "/pages/index" })
+  }
+}
+</script>
+
+<style>
+@import '../../common/header.css';
+
+.page-root {
+  flex-direction: column;
+  width: 100%;
+  padding: 8px;
+}
+
+.home-bar {
+  height: 40px;
+  border-radius: 10px;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 6px;
+  flex-shrink: 0;
+}
+
+.home-date {
+  font-size: 28px;
+  font-weight: bold;
+  line-height: 34px;
+}
+
+.add-btn {
+  height: 44px;
+  border-radius: 12px;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.add-btn-text {
+  font-size: 22px;
+  font-weight: bold;
+  line-height: 30px;
+  lines: 1;
+}
+
+.list-area {
+  flex: 1;
+  flex-direction: column;
+}
+
+.accordion-item {
+  flex-direction: column;
+  border-radius: 12px;
+  margin-bottom: 6px;
+}
+
+.accordion-header {
+  flex-direction: row;
+  align-items: center;
+  padding: 10px 12px;
+}
+
+.item-name {
+  flex: 1;
+  font-size: 24px;
+  font-weight: bold;
+  line-height: 34px;
+  lines: 1;
+  text-overflow: ellipsis;
+}
+
+.item-arrow {
+  font-size: 20px;
+  line-height: 34px;
+  flex-shrink: 0;
+  margin-left: 6px;
+}
+
+.accordion-body {
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 0;
+}
+
+.qr-wrapper {
+  padding: 6px;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  align-items: center;
+  justify-content: center;
+}
+
+.content-text {
+  font-size: 20px;
+  line-height: 28px;
+  lines: 3;
+  text-overflow: ellipsis;
+  text-align: center;
+  margin-bottom: 8px;
+  width: 100%;
+}
+
+.action-row {
+  flex-direction: row;
+  width: 100%;
+}
+
+.action-btn {
+  flex: 1;
+  height: 40px;
+  border-radius: 8px;
+  justify-content: center;
+  align-items: center;
+}
+
+.edit-btn {
+  margin-right: 4px;
+}
+
+.delete-btn {
+  margin-left: 4px;
+}
+
+.action-btn-text {
+  font-size: 20px;
+  font-weight: bold;
+  line-height: 28px;
+  lines: 1;
+}
+
+.empty-state {
+  flex: 1;
+  justify-content: center;
+  align-items: center;
+  padding: 40px 0;
+}
+
+.empty-text {
+  font-size: 22px;
+  line-height: 30px;
+  text-align: center;
+}
+
+@media (shape: capsule), (shape: pill-shaped) {
+  .page-root {
+    padding: 8px;
+  }
+        .home-bar {
+    height: 40px;
+    margin-bottom: 6px;
+  }
+  .home-icon {
+    width: 28px;
+    height: 28px;
+  }
+  .add-btn {
+    height: 44px;
+    margin-bottom: 8px;
+  }
+  .add-btn-text {
+    font-size: 22px;
+    line-height: 30px;
+  }
+  .accordion-header {
+    padding: 10px 12px;
+  }
+  .item-name {
+    font-size: 24px;
+    line-height: 34px;
+  }
+  .item-arrow {
+    font-size: 20px;
+    line-height: 34px;
+  }
+  .accordion-body {
+    padding: 10px 0;
+  }
+  .qr-wrapper {
+    padding: 6px;
+    margin-bottom: 8px;
+  }
+  .content-text {
+    font-size: 20px;
+    line-height: 28px;
+  }
+  .action-btn {
+    height: 40px;
+  }
+  .action-btn-text {
+    font-size: 20px;
+    line-height: 28px;
+  }
+  .empty-text {
+    font-size: 22px;
+    line-height: 30px;
+  }
+}
+
+@media (shape: rect) {
+  .page-root {
+    padding: 12px;
+  }
+        .home-bar {
+    height: 46px;
+    margin-bottom: 8px;
+  }
+  .home-icon {
+    width: 32px;
+    height: 32px;
+  }
+    .add-btn {
+    height: 50px;
+    margin-bottom: 10px;
+  }
+  .add-btn-text {
+    font-size: 26px;
+    line-height: 34px;
+  }
+  .accordion-header {
+    padding: 14px 16px;
+  }
+  .item-name {
+    font-size: 28px;
+    line-height: 40px;
+  }
+  .item-arrow {
+    font-size: 20px;
+    line-height: 40px;
+  }
+  .accordion-body {
+    padding: 14px 0;
+  }
+  .qr-wrapper {
+    padding: 8px;
+    margin-bottom: 10px;
+  }
+  .content-text {
+    font-size: 22px;
+    line-height: 30px;
+  }
+  .action-btn {
+    height: 44px;
+  }
+  .action-btn-text {
+    font-size: 22px;
+    line-height: 30px;
+  }
+  .empty-text {
+    font-size: 24px;
+    line-height: 34px;
+  }
+}
+
+@media (shape: circle) {
+  .page-root {
+    padding: 8px;
+  }
+        .home-bar {
+    height: 40px;
+    margin-bottom: 6px;
+  }
+  .home-icon {
+    width: 28px;
+    height: 28px;
+  }
+  .add-btn {
+    height: 44px;
+    margin-bottom: 8px;
+  }
+  .add-btn-text {
+    font-size: 22px;
+    line-height: 30px;
+  }
+  .accordion-header {
+    padding: 10px 12px;
+  }
+  .item-name {
+    font-size: 24px;
+    line-height: 34px;
+  }
+  .item-arrow {
+    font-size: 20px;
+    line-height: 34px;
+  }
+  .accordion-body {
+    padding: 0 6px 10px 6px;
+  }
+  .qr-wrapper {
+    padding: 6px;
+    margin-bottom: 8px;
+  }
+  .content-text {
+    font-size: 20px;
+    line-height: 28px;
+  }
+  .action-btn {
+    height: 40px;
+  }
+  .action-btn-text {
+    font-size: 20px;
+    line-height: 28px;
+  }
+  .empty-text {
+    font-size: 22px;
+    line-height: 30px;
+  }
+}
+</style>

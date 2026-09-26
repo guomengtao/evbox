@@ -1,0 +1,1136 @@
+<template>
+  <div class="page" style="background-color: {{ theme.bg }}">
+    <div class="top-bar">
+      <div class="back-btn" onclick="goBack" style="background-color: {{ theme.card }}">
+        <image class="back-btn-icon" src="/common/icons/{{ iconTheme }}/icon_back.png"></image>
+      </div>
+      <text class="today-btn" onclick="goToday" style="color: {{ theme.textSecondary }}">今天</text>
+    </div>
+
+    <scroll class="body" scroll-y="{{true}}">
+      <!-- ========== 视图一：今日 ========== -->
+      <div if="{{ view === 'today' }}" class="today-box">
+        <text class="l-month" style="color: {{ theme.accent }}">{{ lmText }}</text>
+        <text class="l-day" style="color: {{ theme.accent }}">{{ ldText }}</text>
+        <text class="l-solar" style="color: {{ theme.textSecondary }}">{{ solarText }}</text>
+
+        <div class="fest-chip" if="{{ festivalText }}" style="background-color: {{ theme.cardLight }}">
+          <text class="fest-text" style="color: {{ theme.accent }}">{{ festivalText }}</text>
+        </div>
+
+        <text class="gz-text" style="color: {{ theme.textMuted }}">{{ gzText }}</text>
+
+        <div class="up-block" style="background-color: {{ theme.card }}">
+          <text class="up-title" style="color: {{ theme.textSecondary }}">接下来</text>
+          <div for="{{ upcoming }}" class="up-row">
+            <text class="up-name" style="color: {{ theme.text }}">{{ $item.name }}</text>
+            <div class="up-right">
+              <text class="up-days" style="color: {{ theme.accent }}">{{ $item.daysText }}</text>
+              <text class="up-date" style="color: {{ theme.textMuted }}">{{ $item.dateText }}</text>
+            </div>
+          </div>
+          <text if="{{ upcoming.length === 0 }}" class="up-empty" style="color: {{ theme.textMuted }}">暂无</text>
+        </div>
+      </div>
+
+      <!-- ========== 视图二：本月 ========== -->
+      <div if="{{ view === 'month' }}" class="month-box">
+        <div class="month-head">
+          <div class="month-nav" onclick="prevMonth" style="background-color: {{ theme.card }}">
+            <text class="month-nav-text" style="color: {{ theme.text }}">‹</text>
+          </div>
+          <text class="month-title" style="color: {{ theme.text }}">{{ monthTitle }}</text>
+          <div class="month-nav" onclick="nextMonth" style="background-color: {{ theme.card }}">
+            <text class="month-nav-text" style="color: {{ theme.text }}">›</text>
+          </div>
+        </div>
+
+        <div class="month-sub" style="background-color: {{ theme.cardLight }}">
+          <text class="month-sub-text" style="color: {{ theme.accent }}">{{ monthFestivalText }}</text>
+        </div>
+
+        <!-- 胶囊屏：列表（7 列网格每格仅 22px，低于可读底线，故不用网格） -->
+        <div class="day-list" if="{{ isCapsule }}">
+          <div for="{{ monthList }}" class="day-row" onclick="queryFromMonth($idx)"
+               style="background-color: {{ $item.isToday ? theme.cardLight : theme.card }}">
+            <text class="day-lunar" style="color: {{ $item.isToday ? theme.accent : theme.text }}">{{ $item.lunarText }}</text>
+            <text class="day-solar" style="color: {{ theme.textSecondary }}">{{ $item.solarText }}</text>
+            <text class="day-fest" if="{{ $item.festival }}" style="color: {{ theme.accent }}">{{ $item.festival }}</text>
+          </div>
+        </div>
+
+        <!-- 圆屏 / 方屏：网格 -->
+        <div class="grid" else>
+          <div for="{{ weekNames }}" class="grid-cell grid-head">
+            <text class="cell-week" style="color: {{ theme.textMuted }}">{{ $item }}</text>
+          </div>
+          <div for="{{ monthCells }}" class="grid-cell"
+               style="background-color: {{ $item.day === 0 ? 'transparent' : ($item.festival ? theme.cardLight : theme.card) }}">
+            <text class="cell-day" style="color: {{ $item.day === 0 ? 'transparent' : ($item.isToday ? theme.accent : theme.text) }}">{{ $item.dayText }}</text>
+            <text class="cell-lunar" style="color: {{ $item.isToday ? theme.accent : theme.textSecondary }}">{{ $item.lunarText }}</text>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== 视图三：查日 ========== -->
+      <div if="{{ view === 'query' }}" class="query-box">
+        <div class="seg-row">
+          <div class="seg-chip" onclick="setQCalendar('solar')"
+               style="border-color: {{ qCalendar === 'solar' ? theme.accent : theme.border }}; background-color: {{ qCalendar === 'solar' ? theme.cardLight : 'transparent' }}">
+            <text class="seg-text" style="color: {{ qCalendar === 'solar' ? theme.accent : theme.textSecondary }}">公历</text>
+          </div>
+          <div class="seg-chip" onclick="setQCalendar('lunar')"
+               style="border-color: {{ qCalendar === 'lunar' ? theme.accent : theme.border }}; background-color: {{ qCalendar === 'lunar' ? theme.cardLight : 'transparent' }}">
+            <text class="seg-text" style="color: {{ qCalendar === 'lunar' ? theme.accent : theme.textSecondary }}">农历</text>
+          </div>
+        </div>
+
+        <div class="step-row">
+          <text class="step-label" style="color: {{ theme.textSecondary }}">年</text>
+          <input class="step-btn" type="button" value="−" onclick="stepQYear(-1)" style="background-color: {{ theme.border }}; color: {{ theme.text }}" />
+          <text class="step-value" style="color: {{ theme.text }}">{{ qYear }}</text>
+          <input class="step-btn" type="button" value="＋" onclick="stepQYear(1)" style="background-color: {{ theme.border }}; color: {{ theme.text }}" />
+        </div>
+
+        <div class="step-row">
+          <text class="step-label" style="color: {{ theme.textSecondary }}">月</text>
+          <input class="step-btn" type="button" value="−" onclick="stepQMonth(-1)" style="background-color: {{ theme.border }}; color: {{ theme.text }}" />
+          <text class="step-value" style="color: {{ theme.text }}">{{ qMonthText }}</text>
+          <input class="step-btn" type="button" value="＋" onclick="stepQMonth(1)" style="background-color: {{ theme.border }}; color: {{ theme.text }}" />
+        </div>
+
+        <div class="step-row">
+          <text class="step-label" style="color: {{ theme.textSecondary }}">日</text>
+          <input class="step-btn" type="button" value="−" onclick="stepQDay(-1)" style="background-color: {{ theme.border }}; color: {{ theme.text }}" />
+          <text class="step-value" style="color: {{ theme.text }}">{{ qDayText }}</text>
+          <input class="step-btn" type="button" value="＋" onclick="stepQDay(1)" style="background-color: {{ theme.border }}; color: {{ theme.text }}" />
+        </div>
+
+        <div class="leap-row" if="{{ qShowLeap }}">
+          <div class="seg-chip" onclick="toggleQLeap"
+               style="border-color: {{ qIsLeap ? theme.accent : theme.border }}; background-color: {{ qIsLeap ? theme.cardLight : 'transparent' }}">
+            <text class="seg-text" style="color: {{ qIsLeap ? theme.accent : theme.textSecondary }}">{{ qLeapLabel }}</text>
+          </div>
+        </div>
+
+        <div class="preview-box" style="background-color: {{ theme.card }}">
+          <text class="preview-main" style="color: {{ theme.accent }}">{{ qMainText }}</text>
+          <text class="preview-sub" style="color: {{ theme.textSecondary }}">{{ qSubText }}</text>
+          <text class="preview-days" style="color: {{ theme.text }}">{{ qDaysText }}</text>
+        </div>
+      </div>
+    </scroll>
+
+    <div class="save-row" if="{{ view === 'query' }}">
+      <input class="save-btn" type="button" value="存为倒数日" onclick="saveAsCountdown"
+             style="background-color: {{ theme.accent }}; color: {{ theme.bg }}" />
+    </div>
+
+    <div class="tab-bar">
+      <div class="tab" onclick="setView('today')">
+        <text class="tab-text" style="color: {{ view === 'today' ? theme.accent : theme.textSecondary }}">今日</text>
+      </div>
+      <div class="tab" onclick="setView('month')">
+        <text class="tab-text" style="color: {{ view === 'month' ? theme.accent : theme.textSecondary }}">本月</text>
+      </div>
+      <div class="tab" onclick="setView('query')">
+        <text class="tab-text" style="color: {{ view === 'query' ? theme.accent : theme.textSecondary }}">查日</text>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import router from "@system.router"
+import prompt from "@system.prompt"
+import vibrator from "@system.vibrator"
+import device from "@system.device"
+const store = require("../../data/store.js")
+const lunar = require("../../lib/lunar.js")
+const countdown = require("../../data/countdown.js")
+
+var WEEK_CN = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"]
+var MIN_YEAR = 1900
+var MAX_YEAR = 2100
+
+function pad2(n) {
+  return n < 10 ? "0" + n : "" + n
+}
+
+function dateKey(y, m, d) {
+  return y + "-" + pad2(m) + "-" + pad2(d)
+}
+
+export default {
+  private: {
+    iconTheme: "dark",
+    isCapsule: false,
+    theme: {
+      bg: '#1a1a2e',
+      card: '#16213e',
+      cardLight: '#0f3460',
+      accent: '#7ec8e3',
+      text: '#ffffff',
+      textSecondary: '#888899',
+      textMuted: '#555566',
+      border: '#0f3460',
+      btnSecondary: '#333355',
+      btnSecondaryText: '#a0a0b0'
+    },
+    view: "today",
+
+    // 今日
+    lmText: "",
+    ldText: "",
+    solarText: "",
+    festivalText: "",
+    gzText: "",
+    upcoming: [],
+
+    // 本月
+    monthOffset: 0,
+    monthTitle: "",
+    monthFestivalText: "",
+    monthList: [],
+    monthCells: [],
+    weekNames: ["一", "二", "三", "四", "五", "六", "日"],
+
+    // 查日
+    qCalendar: "solar",
+    qYear: 2026,
+    qMonth: 1,
+    qDay: 1,
+    qIsLeap: false,
+    qMonthText: "",
+    qDayText: "",
+    qShowLeap: false,
+    qLeapLabel: "闰月",
+    qMainText: "",
+    qSubText: "",
+    qDaysText: "",
+    qSolarCache: null,
+    monthTimer: null
+  },
+
+  onInit() {
+    var self = this
+    store.getTheme(function(t, themeName) {
+      self.theme = t
+      self.updateIconSrc(themeName)
+    })
+    device.getInfo({
+      success: function(data) {
+        var shape = data.screenShape || ""
+        self.isCapsule = (shape === "capsule" || shape === "pill-shaped")
+        if (self.view === "month") self.buildMonth()
+      },
+      fail: function() {}
+    })
+    this.buildToday()
+    this.buildMonth()
+    this.resetQueryToToday()
+  },
+
+  onShow() {
+    var self = this
+    store.getTheme(function(t, themeName) {
+      self.theme = t
+      self.updateIconSrc(themeName)
+    }, true)
+    this.buildToday()
+  },
+
+  updateIconSrc(themeName) {
+    this.iconTheme = (themeName === 'light' || themeName === 'warm') ? 'light' : 'dark'
+  },
+
+  setView(v) {
+    vibrator.vibrate({ mode: "short" })
+    this.view = v
+    if (v === "month") this.buildMonth()
+  },
+
+  goToday() {
+    this.resetQueryToToday()
+    this.monthOffset = 0
+    this.buildToday()
+    this.buildMonth()
+    this.view = "today"
+  },
+
+  // ---------------------------------------------------------------- 今日
+
+  buildToday() {
+    var now = new Date()
+    var y = now.getFullYear()
+    var m = now.getMonth() + 1
+    var d = now.getDate()
+    var l = lunar.solarToLunar(y, m, d)
+    if (!l) return
+    this.lmText = lunar.monthText(l.month, l.isLeap)
+    this.ldText = lunar.dayText(l.day)
+    this.solarText = dateKey(y, m, d) + " " + WEEK_CN[now.getDay()]
+    this.gzText = lunar.ganZhi(l.year) + "年 · 属" + lunar.zodiac(l.year)
+
+    var fest = lunar.lunarFestival(l) || lunar.solarFestival(m, d)
+    this.festivalText = fest || ""
+
+    var list = lunar.upcomingFestivals(now, 4)
+    var up = []
+    for (var j = 0; j < list.length && up.length < 3; j++) {
+      var f = list[j]
+      // 今天的节日已在上方 chip 展示，不再重复出现在"接下来"
+      if (fest && f.daysLeft === 0 && f.name === fest) continue
+      up.push({
+        name: f.name,
+        dateText: pad2(f.month) + "-" + pad2(f.day),
+        daysText: f.daysLeft === 0 ? "今天" : (f.daysLeft + "天")
+      })
+    }
+    this.upcoming = up
+  },
+
+  // ---------------------------------------------------------------- 本月
+
+  prevMonth() {
+    this.monthOffset -= 1
+    this.buildMonth()
+  },
+
+  nextMonth() {
+    this.monthOffset += 1
+    this.buildMonth()
+  },
+
+  buildMonth() {
+    var now = new Date()
+    var base = new Date(now.getFullYear(), now.getMonth() + this.monthOffset, 1)
+    var y = base.getFullYear()
+    var m = base.getMonth() + 1
+    var dim = lunar.solarMonthDays(y, m)
+    this.monthTitle = y + "年" + m + "月"
+
+    var tY = now.getFullYear()
+    var tM = now.getMonth() + 1
+    var tD = now.getDate()
+    var festNames = []
+
+    // 胶囊屏：列表（每行 52px，行即热区）
+    var list = []
+    for (var d = 1; d <= dim; d++) {
+      var wd = new Date(y, m - 1, d).getDay()
+      var l = lunar.solarToLunar(y, m, d)
+      var fest = l ? (lunar.lunarFestival(l) || lunar.solarFestival(m, d)) : ""
+      if (fest) festNames.push(fest)
+      list.push({
+        day: d,
+        lunarText: l ? lunar.formatLunar(l) : "",
+        solarText: pad2(m) + "-" + pad2(d) + " " + WEEK_CN[wd].replace("周", ""),
+        festival: fest,
+        isToday: (y === tY && m === tM && d === tD)
+      })
+    }
+    this.monthList = list
+    this.monthFestivalText = festNames.length > 0 ? ("本月节日：" + festNames.join(" · ")) : "本月无节日"
+
+    // 圆屏 / 方屏：7 列网格，分两帧挂载（单帧节点数控制）
+    var firstWeekday = new Date(y, m - 1, 1).getDay() // 0=周日
+    var offset = (firstWeekday + 6) % 7 // 周一为一周起点
+    var cells = []
+    var total = offset + dim
+    var rows = Math.ceil(total / 7)
+    for (var i = 0; i < rows * 7; i++) {
+      var day = i - offset + 1
+      var valid = day >= 1 && day <= dim
+      var l2 = valid ? lunar.solarToLunar(y, m, day) : null
+      cells.push({
+        day: valid ? day : 0,
+        dayText: valid ? ("" + day) : "",
+        lunarText: valid && l2 ? (lunar.lunarFestival(l2) || lunar.dayText(l2.day)) : "",
+        festival: valid && l2 ? (lunar.lunarFestival(l2) || "") : "",
+        isToday: valid && y === tY && m === tM && day === tD
+      })
+    }
+    var self = this
+    this.monthCells = cells.slice(0, 21)
+    if (this.monthTimer) clearTimeout(this.monthTimer)
+    if (cells.length > 21) {
+      this.monthTimer = setTimeout(function() {
+        self.monthCells = cells
+      }, 30)
+    }
+  },
+
+  queryFromMonth(idx) {
+    var item = this.monthList[idx]
+    if (!item) return
+    var now = new Date()
+    var base = new Date(now.getFullYear(), now.getMonth() + this.monthOffset, 1)
+    this.qCalendar = "solar"
+    this.qYear = base.getFullYear()
+    this.qMonth = base.getMonth() + 1
+    this.qDay = item.day
+    this.qIsLeap = false
+    this.view = "query"
+    this.normalizeQuery()
+  },
+
+  // ---------------------------------------------------------------- 查日
+
+  resetQueryToToday() {
+    var now = new Date()
+    this.qCalendar = "solar"
+    this.qYear = now.getFullYear()
+    this.qMonth = now.getMonth() + 1
+    this.qDay = now.getDate()
+    this.qIsLeap = false
+    this.normalizeQuery()
+  },
+
+  qMaxDay(year, month, isLeap) {
+    if (this.qCalendar === "lunar") return countdown.lunarMonthMaxDay(year, month, isLeap)
+    return lunar.solarMonthDays(year, month)
+  },
+
+  normalizeQuery() {
+    if (this.qYear < MIN_YEAR) this.qYear = MIN_YEAR
+    if (this.qYear > MAX_YEAR) this.qYear = MAX_YEAR
+    if (this.qMonth < 1) this.qMonth = 12
+    if (this.qMonth > 12) this.qMonth = 1
+    var leap = lunar.leapMonth(this.qYear)
+    if (this.qCalendar !== "lunar" || leap !== this.qMonth) this.qIsLeap = false
+    var maxDay = this.qMaxDay(this.qYear, this.qMonth, this.qIsLeap)
+    if (this.qDay < 1) this.qDay = maxDay
+    if (this.qDay > maxDay) this.qDay = maxDay
+
+    if (this.qCalendar === "lunar") {
+      this.qMonthText = lunar.monthText(this.qMonth, this.qIsLeap)
+      this.qDayText = lunar.dayText(this.qDay)
+    } else {
+      this.qMonthText = this.qMonth + "月"
+      this.qDayText = this.qDay + "日"
+    }
+    this.qShowLeap = this.qCalendar === "lunar" && leap === this.qMonth
+    this.qLeapLabel = "闰" + lunar.monthText(this.qMonth, false)
+
+    var now = new Date()
+    var t0 = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    var solar
+    if (this.qCalendar === "lunar") {
+      var s = lunar.lunarToSolar(this.qYear, this.qMonth, this.qDay, this.qIsLeap)
+      solar = s ? { year: s.year, month: s.month, day: s.day } : null
+      this.qMainText = "农历" + lunar.formatLunar({ month: this.qMonth, day: this.qDay, isLeap: this.qIsLeap })
+    } else {
+      solar = { year: this.qYear, month: this.qMonth, day: this.qDay }
+      var l = lunar.solarToLunar(this.qYear, this.qMonth, this.qDay)
+      this.qMainText = "公历 " + dateKey(this.qYear, this.qMonth, this.qDay)
+      this.qSubText = l ? lunar.formatLunarWithPrefix(l) : ""
+    }
+
+    if (solar) {
+      var l2 = lunar.solarToLunar(solar.year, solar.month, solar.day)
+      var fest = (l2 ? lunar.lunarFestival(l2) : "") || lunar.solarFestival(solar.month, solar.day)
+      var wd = new Date(solar.year, solar.month - 1, solar.day).getDay()
+      var sub = dateKey(solar.year, solar.month, solar.day) + " " + WEEK_CN[wd]
+      if (this.qCalendar === "lunar") {
+        this.qSubText = "公历 " + sub + (l2 ? " · " + lunar.formatLunarWithPrefix(l2) : "")
+      } else {
+        this.qSubText = this.qSubText + " · " + sub
+      }
+      if (fest) this.qSubText = fest + " · " + this.qSubText
+      var target = new Date(solar.year, solar.month - 1, solar.day)
+      var diff = Math.round((target.getTime() - t0.getTime()) / 86400000)
+      this.qDaysText = diff > 0 ? ("还有 " + diff + " 天") : (diff === 0 ? "就是今天" : ("已过 " + (-diff) + " 天"))
+      this.qSolarCache = solar
+    } else {
+      this.qSubText = "超出可换算范围"
+      this.qDaysText = ""
+      this.qSolarCache = null
+    }
+  },
+
+  setQCalendar(kind) {
+    if (kind === this.qCalendar) return
+    vibrator.vibrate({ mode: "short" })
+    if (kind === "lunar") {
+      var l = lunar.solarToLunar(this.qYear, this.qMonth, this.qDay)
+      if (l) {
+        this.qYear = l.year
+        this.qMonth = l.month
+        this.qDay = l.day
+        this.qIsLeap = l.isLeap
+      }
+    } else {
+      var s = lunar.lunarToSolar(this.qYear, this.qMonth, this.qDay, this.qIsLeap)
+      if (s) {
+        this.qYear = s.year
+        this.qMonth = s.month
+        this.qDay = s.day
+      }
+      this.qIsLeap = false
+    }
+    this.qCalendar = kind
+    this.normalizeQuery()
+  },
+
+  stepQYear(delta) {
+    var y = this.qYear + delta
+    if (y < MIN_YEAR) y = MIN_YEAR
+    if (y > MAX_YEAR) y = MAX_YEAR
+    this.qYear = y
+    this.normalizeQuery()
+  },
+
+  stepQMonth(delta) {
+    var m = this.qMonth + delta
+    if (m < 1) m = 12
+    if (m > 12) m = 1
+    this.qMonth = m
+    this.normalizeQuery()
+  },
+
+  stepQDay(delta) {
+    var maxDay = this.qMaxDay(this.qYear, this.qMonth, this.qIsLeap)
+    var d = this.qDay + delta
+    if (d < 1) d = maxDay
+    if (d > maxDay) d = 1
+    this.qDay = d
+    this.normalizeQuery()
+  },
+
+  toggleQLeap() {
+    vibrator.vibrate({ mode: "short" })
+    this.qIsLeap = !this.qIsLeap
+    this.normalizeQuery()
+  },
+
+  saveAsCountdown() {
+    if (!this.qSolarCache) {
+      prompt.showToast({ message: "该日期无法换算" })
+      return
+    }
+    var solar = this.qSolarCache
+    var l = lunar.solarToLunar(solar.year, solar.month, solar.day)
+    var fest = (l ? lunar.lunarFestival(l) : "") || lunar.solarFestival(solar.month, solar.day)
+    var title = fest || (this.qCalendar === "lunar"
+      ? ("农历" + lunar.formatLunar({ month: this.qMonth, day: this.qDay, isLeap: this.qIsLeap }))
+      : dateKey(solar.year, solar.month, solar.day))
+
+    var item = countdown.createItem({
+      title: title,
+      calendar: this.qCalendar,
+      year: this.qYear,
+      month: this.qMonth,
+      day: this.qDay,
+      isLeap: this.qIsLeap,
+      repeat: this.qCalendar === "lunar" ? "yearly" : "none"
+    })
+    if (!item) {
+      prompt.showToast({ message: "保存失败" })
+      return
+    }
+    countdown.loadList(function(list) {
+      list.push(item)
+      countdown.saveList(list, function() {
+        prompt.showToast({ message: "已添加：" + title })
+        router.push({ uri: "/pages/countdown-manage" })
+      })
+    })
+  },
+
+  goBack() {
+    router.back()
+  }
+}
+</script>
+
+<style>
+.page {
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  padding: 40px 16px 12px 16px;
+}
+
+.top-bar {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  height: 44px;
+  margin-bottom: 6px;
+  flex-shrink: 0;
+}
+
+.back-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  justify-content: center;
+  align-items: center;
+}
+
+.back-btn-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.today-btn {
+  font-size: 24px;
+  line-height: 32px;
+  padding: 0 10px;
+}
+
+.body {
+  flex: 1;
+  flex-direction: column;
+}
+
+/* ---------------- 今日 ---------------- */
+
+.today-box {
+  flex-direction: column;
+  align-items: center;
+  padding-top: 6px;
+}
+
+.l-month {
+  font-size: 36px;
+  font-weight: bold;
+  line-height: 44px;
+  text-align: center;
+}
+
+.l-day {
+  font-size: 48px;
+  font-weight: bold;
+  line-height: 58px;
+  text-align: center;
+  margin-top: 2px;
+}
+
+.l-solar {
+  font-size: 24px;
+  line-height: 32px;
+  text-align: center;
+  margin-top: 6px;
+}
+
+.fest-chip {
+  border-radius: 18px;
+  padding: 6px 16px;
+  margin-top: 10px;
+}
+
+.fest-text {
+  font-size: 24px;
+  line-height: 30px;
+}
+
+.gz-text {
+  font-size: 22px;
+  line-height: 30px;
+  text-align: center;
+  margin-top: 8px;
+}
+
+.up-block {
+  width: 100%;
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-top: 14px;
+}
+
+.up-title {
+  font-size: 24px;
+  line-height: 32px;
+  margin-bottom: 4px;
+}
+
+.up-row {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+}
+
+.up-name {
+  font-size: 28px;
+  line-height: 36px;
+  lines: 1;
+  flex-shrink: 1;
+}
+
+.up-right {
+  flex-direction: row;
+  align-items: center;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.up-days {
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: bold;
+}
+
+.up-date {
+  font-size: 22px;
+  line-height: 30px;
+  margin-left: 8px;
+}
+
+.up-empty {
+  font-size: 24px;
+  line-height: 32px;
+  text-align: center;
+  padding: 10px 0;
+}
+
+/* ---------------- 本月 ---------------- */
+
+.month-box {
+  flex-direction: column;
+}
+
+.month-head {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.month-nav {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.month-nav-text {
+  font-size: 30px;
+  line-height: 48px;
+  text-align: center;
+}
+
+.month-title {
+  font-size: 30px;
+  font-weight: bold;
+  line-height: 40px;
+  flex: 1;
+  text-align: center;
+}
+
+.month-sub {
+  border-radius: 10px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+}
+
+.month-sub-text {
+  font-size: 22px;
+  line-height: 30px;
+  lines: 2;
+}
+
+.day-list {
+  flex-direction: column;
+}
+
+.day-row {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 6px;
+}
+
+.day-lunar {
+  font-size: 28px;
+  line-height: 36px;
+  flex-shrink: 1;
+}
+
+.day-solar {
+  font-size: 22px;
+  line-height: 30px;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.day-fest {
+  font-size: 22px;
+  line-height: 30px;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.grid {
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+.grid-cell {
+  width: 14.28%;
+  height: 48px;
+  border-radius: 8px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.grid-head {
+  height: 32px;
+  background-color: transparent;
+}
+
+.cell-week {
+  font-size: 22px;
+  line-height: 30px;
+  text-align: center;
+}
+
+.cell-day {
+  font-size: 24px;
+  line-height: 30px;
+  font-weight: bold;
+  text-align: center;
+}
+
+.cell-lunar {
+  font-size: 18px;
+  line-height: 24px;
+  text-align: center;
+}
+
+/* ---------------- 查日 ---------------- */
+
+.query-box {
+  flex-direction: column;
+}
+
+.seg-row {
+  flex-direction: row;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.seg-chip {
+  padding: 6px 18px;
+  border-radius: 18px;
+  border-width: 1px;
+  border-style: solid;
+  margin: 0 5px;
+}
+
+.seg-text {
+  font-size: 24px;
+  line-height: 30px;
+}
+
+.step-row {
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.step-label {
+  font-size: 24px;
+  line-height: 32px;
+  width: 36px;
+  text-align: center;
+}
+
+.step-btn {
+  width: 56px;
+  height: 40px;
+  border-radius: 20px;
+  font-size: 28px;
+  font-weight: bold;
+  text-align: center;
+  line-height: 40px;
+  flex-shrink: 0;
+}
+
+.step-value {
+  font-size: 28px;
+  font-weight: bold;
+  line-height: 40px;
+  width: 120px;
+  text-align: center;
+}
+
+.leap-row {
+  flex-direction: row;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.preview-box {
+  border-radius: 12px;
+  padding: 12px;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.preview-main {
+  font-size: 28px;
+  font-weight: bold;
+  line-height: 36px;
+  text-align: center;
+}
+
+.preview-sub {
+  font-size: 22px;
+  line-height: 30px;
+  text-align: center;
+  margin-top: 4px;
+  lines: 2;
+}
+
+.preview-days {
+  font-size: 28px;
+  line-height: 36px;
+  font-weight: bold;
+  text-align: center;
+  margin-top: 6px;
+}
+
+.save-row {
+  flex-shrink: 0;
+  padding: 6px 0;
+}
+
+.save-btn {
+  width: 100%;
+  height: 52px;
+  border-radius: 26px;
+  font-size: 28px;
+  font-weight: bold;
+  text-align: center;
+  line-height: 52px;
+}
+
+/* ---------------- 底部 tab ---------------- */
+
+.tab-bar {
+  flex-direction: row;
+  flex-shrink: 0;
+  margin-top: 6px;
+}
+
+.tab {
+  flex: 1;
+  height: 52px;
+  justify-content: center;
+  align-items: center;
+}
+
+.tab-text {
+  font-size: 28px;
+  line-height: 52px;
+  text-align: center;
+  font-weight: bold;
+}
+
+/* ---------------- 胶囊屏 ---------------- */
+
+@media (shape: capsule), (shape: pill-shaped) {
+  .page {
+    padding: 30px 16px 30px 16px;
+  }
+
+  .top-bar {
+    height: 44px;
+    margin-bottom: 4px;
+  }
+
+  .today-btn {
+    font-size: 22px;
+  }
+
+  .l-month {
+    font-size: 36px;
+    line-height: 42px;
+  }
+
+  .l-day {
+    font-size: 48px;
+    line-height: 56px;
+  }
+
+  .l-solar {
+    font-size: 24px;
+    line-height: 30px;
+    margin-top: 4px;
+  }
+
+  .fest-chip {
+    padding: 4px 14px;
+    margin-top: 8px;
+  }
+
+  .fest-text {
+    font-size: 24px;
+    line-height: 30px;
+  }
+
+  .gz-text {
+    font-size: 22px;
+    line-height: 28px;
+    margin-top: 6px;
+  }
+
+  .up-block {
+    padding: 8px 10px;
+    margin-top: 10px;
+  }
+
+  .up-title {
+    font-size: 24px;
+    line-height: 30px;
+  }
+
+  .up-row {
+    padding: 6px 0;
+  }
+
+  .up-name {
+    font-size: 28px;
+    line-height: 34px;
+  }
+
+  .up-days {
+    font-size: 24px;
+    line-height: 30px;
+  }
+
+  .up-date {
+    font-size: 22px;
+    line-height: 28px;
+    margin-left: 6px;
+  }
+
+  .month-nav {
+    width: 48px;
+    height: 48px;
+  }
+
+  .month-title {
+    font-size: 28px;
+    line-height: 38px;
+  }
+
+  .month-sub-text {
+    font-size: 22px;
+    line-height: 28px;
+    lines: 2;
+  }
+
+  .day-row {
+    padding: 8px 10px;
+    margin-bottom: 4px;
+  }
+
+  .day-lunar {
+    font-size: 28px;
+    line-height: 34px;
+  }
+
+  .day-solar {
+    font-size: 22px;
+    line-height: 28px;
+  }
+
+  .day-fest {
+    font-size: 22px;
+    line-height: 28px;
+  }
+
+  .step-btn {
+    width: 48px;
+    height: 44px;
+    border-radius: 22px;
+    font-size: 26px;
+    line-height: 44px;
+  }
+
+  .step-value {
+    font-size: 28px;
+    line-height: 44px;
+    width: 96px;
+  }
+
+  .step-label {
+    font-size: 24px;
+    width: 30px;
+  }
+
+  .preview-main {
+    font-size: 28px;
+    line-height: 34px;
+  }
+
+  .preview-sub {
+    font-size: 22px;
+    line-height: 28px;
+  }
+
+  .preview-days {
+    font-size: 28px;
+    line-height: 34px;
+  }
+
+  .save-btn {
+    height: 52px;
+    font-size: 28px;
+    line-height: 52px;
+  }
+
+  .tab {
+    height: 52px;
+  }
+
+  .tab-text {
+    font-size: 28px;
+    line-height: 52px;
+  }
+}
+
+/* ---------------- 圆屏 ---------------- */
+
+@media (shape: circle) {
+  .page {
+    padding: 44px 36px 24px 36px;
+  }
+
+  .grid-cell {
+    height: 56px;
+  }
+
+  .cell-day {
+    font-size: 26px;
+    line-height: 32px;
+  }
+
+  .cell-lunar {
+    font-size: 20px;
+    line-height: 26px;
+  }
+}
+
+/* ---------------- 方屏 ---------------- */
+
+@media (shape: rect), (shape: rectangle) {
+  .page {
+    padding: 8px 12px 10px 12px;
+  }
+
+  .grid-cell {
+    height: 46px;
+  }
+}
+</style>

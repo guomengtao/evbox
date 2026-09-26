@@ -1,0 +1,183 @@
+<template>
+  <div class="overlay-modal" show="{{ visible }}" onclick="doCancel">
+    <div class="modal-card" style="background-color: {{ theme.card }}" onclick="stopBubble">
+      <text class="modal-title" style="color: {{ theme.accent }}">解锁高级功能</text>
+      <text class="modal-desc" style="color: {{ theme.textSecondary }}">一次性解锁，永久使用全部高级功能</text>
+      <div class="benefit-list">
+        <text class="benefit-item" style="color: {{ theme.text }}">✓ 全部工具</text>
+        <text class="benefit-item" style="color: {{ theme.text }}">✓ 数据备份与恢复</text>
+        <text class="benefit-item" style="color: {{ theme.text }}">✓ 首页自定义</text>
+        <text class="benefit-item" style="color: {{ theme.text }}">✓ 多套主题</text>
+      </div>
+      <input class="modal-btn-primary" type="button" value="立即解锁" onclick="doUnlock"
+             style="background-color: {{ theme.accent }}; color: {{ theme.bg }}" />
+      <input class="modal-btn-secondary" type="button" value="继续使用标准版" onclick="doCancel"
+             style="background-color: {{ theme.btnSecondary }}; color: {{ theme.btnSecondaryText }}" />
+    </div>
+  </div>
+</template>
+
+<script>
+import router from "@system.router"
+const store = require("../data/store.js")
+var premiumOverlay = require("../data/premium-overlay.js")
+
+// 日志开关：发布态关闭，避免手环上字符串拼接与 IPC 开销
+var DEBUG = false
+function dlog() {
+  if (DEBUG) console.log.apply(console, arguments)
+}
+
+export default {
+  private: {
+    visible: false,
+    theme: store.DEFAULT_THEME
+  },
+
+  onInit() {
+    dlog("[PREMIUM-UI] onInit: component created")
+    var self = this
+    store.getTheme(function(t) {
+      self.theme = t
+    })
+    premiumOverlay._register(self)
+    dlog("[PREMIUM-UI] onInit: registered with premiumOverlay module")
+  },
+
+  onDestroy() {
+    dlog("[PREMIUM-UI] onDestroy: component destroyed")
+    premiumOverlay._unregister(this)
+  },
+
+  show() {
+    dlog("[PREMIUM-UI] show: overlay visible = true")
+    this.visible = true
+  },
+
+  hide() {
+    dlog("[PREMIUM-UI] hide: overlay visible = false")
+    this.visible = false
+  },
+
+  doUnlock() {
+    dlog("[PREMIUM-UI] doUnlock: user clicked '立即解锁', navigating to activation")
+    this.hide()
+    router.push({ uri: "/pages/activation" })
+  },
+
+  doCancel() {
+    dlog("[PREMIUM-UI] doCancel: user clicked cancel / tapped outside, close dialog")
+    this.hide()
+  },
+
+  stopBubble() {
+    dlog("[PREMIUM-UI] stopBubble: tap on card, prevent close")
+  }
+}
+</script>
+
+<style>
+.overlay-modal {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-card {
+  width: 80%;
+  border-radius: 16px;
+  padding: 24px 20px;
+  flex-direction: column;
+  align-items: center;
+}
+
+.modal-title {
+  font-size: 26px;
+  font-weight: bold;
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+.modal-desc {
+  font-size: 22px;
+  text-align: center;
+  margin-bottom: 16px;
+  line-height: 30px;
+}
+
+.benefit-list {
+  width: 100%;
+  flex-direction: column;
+  margin-bottom: 20px;
+}
+
+.benefit-item {
+  font-size: 22px;
+  margin-bottom: 6px;
+}
+
+.modal-btn-primary {
+  width: 100%;
+  height: 48px;
+  border-radius: 24px;
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.modal-btn-secondary {
+  width: 100%;
+  height: 48px;
+  border-radius: 24px;
+  font-size: 22px;
+}
+
+@media (shape: capsule), (shape: pill-shaped) {
+  .modal-card {
+    width: 90%;
+    border-radius: 12px;
+    padding: 18px 16px;
+  }
+
+  .modal-title {
+    font-size: 26px;
+    margin-bottom: 10px;
+  }
+
+  .modal-desc {
+    font-size: 20px;
+    margin-bottom: 14px;
+    line-height: 30px;
+  }
+
+  .benefit-list {
+    margin-bottom: 14px;
+  }
+
+  .benefit-item {
+    font-size: 20px;
+    margin-bottom: 6px;
+    line-height: 28px;
+  }
+
+  .modal-btn-primary {
+    height: 48px;
+    border-radius: 24px;
+    font-size: 24px;
+    margin-bottom: 8px;
+  }
+
+  .modal-btn-secondary {
+    height: 48px;
+    border-radius: 24px;
+    font-size: 22px;
+  }
+}
+</style>

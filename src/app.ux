@@ -1,0 +1,49 @@
+<script>
+var store = require("./data/store.js")
+var authStore = require("./data/auth-store.js")
+
+// 日志开关：发布态关闭，避免手环上字符串拼接开销
+var DEBUG = false
+function dlog() {
+  if (DEBUG) console.log.apply(console, arguments)
+}
+
+// 历史字号迁移：fontScale(倍率) -> baseFontSize(px)
+function migrateFontScale() {
+  var storage = require("@system.storage")
+  storage.get({
+    key: "fontScale",
+    success: function(data) {
+      var oldScale = parseFloat(data)
+      if (oldScale && oldScale >= 0.5) {
+        var newSize = Math.round(48 * oldScale)
+        storage.set({
+          key: "baseFontSize",
+          value: String(newSize),
+          success: function() {
+            storage.delete({
+              key: "fontScale",
+              fail: function() {}
+            })
+          }
+        })
+      }
+    },
+    fail: function() {}
+  })
+}
+
+export default {
+  onCreate() {
+    authStore.initAuth()
+    store.getBaseFontSize(function(size) {
+      if (!size) {
+        store.setBaseFontSize(48)
+      }
+    })
+    migrateFontScale()
+  },
+
+  onDestroy() {}
+}
+</script>

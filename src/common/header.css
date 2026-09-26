@@ -1,0 +1,136 @@
+/* ====== Shared Header Styles ====== */
+/* Import this in each page: <import src="../../common/header.css"></import> */
+
+.header {
+  flex-direction: row;
+  align-items: center;
+  height: 44px;
+  margin-bottom: 10px;
+}
+
+.header-back {
+  width: 40px;
+  height: 30px;
+  border-radius: 15px;
+  font-size: 20px;
+  line-height: 30px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.header-title {
+  flex: 1;
+  font-size: 26px;
+  font-weight: bold;
+  text-align: center;
+  line-height: 34px;
+  lines: 1;
+  text-overflow: ellipsis;
+}
+
+.header-placeholder {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+}
+
+.back-btn-wrapper {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.back-btn-icon {
+  width: 24px;
+  height: 24px;
+}
+
+/* ====== Rect Screen (336x480) ====== */
+@media screen and (shape: rect) {
+  .header {
+    height: 48px;
+    margin-bottom: 14px;
+  }
+
+  .header-back {
+    width: 44px;
+    height: 34px;
+    border-radius: 17px;
+    font-size: 22px;
+    line-height: 34px;
+  }
+
+  .header-title {
+    font-size: 30px;
+    line-height: 40px;
+  }
+
+  .header-placeholder {
+    width: 48px;
+    height: 48px;
+  }
+
+  .back-btn-wrapper {
+    width: 48px;
+    height: 48px;
+  }
+}
+
+/* ====== Circular Screen (466x466) ====== */
+@media screen and (shape: circle) {
+  .header {
+    height: 48px;
+    margin-bottom: 14px;
+  }
+
+  .header-back {
+    width: 44px;
+    height: 34px;
+    border-radius: 17px;
+    font-size: 22px;
+    line-height: 34px;
+  }
+
+  .header-title {
+    font-size: 30px;
+    line-height: 40px;
+  }
+
+  .header-placeholder {
+    width: 48px;
+    height: 48px;
+  }
+
+  .back-btn-wrapper {
+    width: 48px;
+    height: 48px;
+  }
+}
+
+/* ====== Capsule Screen (192px width, ~160px content) ====== */
+/* Title area: content_width - 40px(back) - 40px(placeholder) = 80~96px */
+/* 4 Chinese chars at 20px = 80px, fits exactly on 16px-padding pages */
+@media (shape: capsule), (shape: pill-shaped) {
+  .header-title {
+    font-size: 20px;
+    line-height: 28px;
+  }
+
+  .back-btn-wrapper {
+    width: 40px;
+    height: 40px;
+    border-radius: 20px;
+  }
+
+  .back-btn-icon {
+    width: 20px;
+    height: 20px;
+  }
+
+  .header-placeholder {
+    width: 40px;
+  }
+}

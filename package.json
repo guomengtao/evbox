@@ -1,0 +1,38 @@
+{
+  "name": "evbox",
+  "version": "1.0.0",
+  "description": "",
+  "engines": {
+    "node": ">=8.10"
+  },
+  "scripts": {
+    "clean": "rm -rf build dist ../.temp_evbox",
+    "start": "npm run clean && aiot start --watch",
+    "bump": "node scripts/bump-version.js",
+    "prebuild": "npm run clean && node scripts/bump-version.js",
+    "build": "node scripts/build.js",
+    "build:dev": "npm run clean && aiot build",
+    "prerelease": "node scripts/bump-version.js",
+    "release": "aiot release --enable-jsc && node scripts/rename-rpk.js",
+    "lint": "eslint --format codeframe --fix --ext .ux,.js src/",
+    "postinstall": "patch-package"
+  },
+  "lint-staged": {
+    "*.{ux,js}": [
+      "prettier --write",
+      "eslint --format codeframe --fix",
+      "git add"
+    ],
+    "*.{less,css}": [
+      "prettier --write",
+      "stylelint --fix --custom-syntax postcss-less",
+      "git add"
+    ]
+  },
+  "devDependencies": {
+    "@aiot-toolkit/jsc": "^1.0.3",
+    "aiot-toolkit": "^2.0.5",
+    "patch-package": "^8.0.1",
+    "postinstall-postinstall": "^2.1.0"
+  }
+}

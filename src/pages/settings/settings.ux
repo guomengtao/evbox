@@ -1,0 +1,881 @@
+<import name="unlock-dialog" src="../../components/unlock-dialog"></import>
+<template>
+  <div class="settings-page" style="background-color: {{ theme.bg }}">
+    <div class="back-header">
+      <div class="back-btn-wrapper" onclick="goBack" style="background-color: {{ theme.card }}">
+        <image class="back-btn-icon" src="/common/icons/{{ iconTheme }}/icon_back.png"></image>
+      </div>
+      <text class="header-title" style="color: {{ theme.text }}">设置</text>
+      <div class="header-placeholder"></div>
+    </div>
+
+    <div class="group" style="background-color: {{ theme.card }}">
+      <div class="row nickname-row" onclick="openNicknameEdit">
+        <text class="row-label nickname-label" style="color: {{ theme.text }}">昵称</text>
+        <div class="row-right nickname-value-wrap">
+          <text class="row-value nickname-value" if="{{ nickname }}" style="color: {{ theme.accent }}">{{ nickname }}</text>
+          <text class="row-hint" if="{{ !nickname }}" style="color: {{ theme.textMuted }}">点击设置</text>
+          <text class="arrow nickname-arrow" style="color: {{ theme.textMuted }}">›</text>
+        </div>
+      </div>
+    </div>
+
+    <div class="group" style="background-color: {{ theme.card }}">
+      <div class="group-title-row" onclick="toggleTheme">
+        <text class="group-title" style="color: {{ theme.text }}">主题配色</text>
+        <div class="row-right">
+          <text class="arrow" style="color: {{ theme.textMuted }}">{{ showTheme ? 'v' : '›' }}</text>
+        </div>
+      </div>
+      <div if="{{ showTheme }}" style="flex-direction: column">
+        <div style="flex-direction: row; justify-content: center">
+          <div for="{{ themesRow1 }}" class="theme-item {{ currentThemeKey === $item.key ? 'active' : '' }}" onclick="selectTheme($item.key)" style="border-color: {{ currentThemeKey === $item.key ? theme.accent : 'transparent' }}">
+            <div class="theme-dot" style="background-color: {{ $item.accent }}"></div>
+            <text class="theme-name" style="color: {{ currentThemeKey === $item.key ? theme.accent : theme.textSecondary }}">{{ $item.name }}</text>
+          </div>
+        </div>
+        <div style="flex-direction: row; justify-content: center">
+          <div for="{{ themesRow2 }}" class="theme-item {{ currentThemeKey === $item.key ? 'active' : '' }}" onclick="selectTheme($item.key)" style="border-color: {{ currentThemeKey === $item.key ? theme.accent : 'transparent' }}">
+            <div class="theme-dot" style="background-color: {{ $item.accent }}"></div>
+            <text class="theme-name" style="color: {{ currentThemeKey === $item.key ? theme.accent : theme.textSecondary }}">{{ $item.name }}</text>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="group" style="background-color: {{ theme.card }}">
+      <div class="group-title-row" onclick="toggleFontSize">
+        <text class="group-title" style="color: {{ theme.text }}">字号</text>
+        <div class="row-right">
+          <text class="size-indicator" style="color: {{ theme.textMuted }}">{{ displaySize }}px</text>
+          <text class="arrow" style="color: {{ theme.textMuted }}">{{ showFontSize ? 'v' : '›' }}</text>
+        </div>
+      </div>
+      <div if="{{ showFontSize }}" class="font-size-body">
+        <div class="scale-row">
+          <input class="scale-btn" type="button" value="−" onclick="decreaseFont" style="background-color: {{ theme.border }}; color: {{ theme.text }}" />
+          <text class="scale-value" style="color: {{ theme.accent }}">{{ displaySize }}px</text>
+          <input class="scale-btn" type="button" value="+" onclick="increaseFont" style="background-color: {{ theme.border }}; color: {{ theme.text }}" />
+        </div>
+        <div class="preview-box" style="background-color: {{ theme.cardLight }}">
+          <text class="preview-text" style="font-size: {{ previewDisplaySize }}px; color: {{ theme.text }}">示例文本</text>
+        </div>
+        <text class="scope-hint" style="color: {{ theme.textMuted }}">影响首页等页面的正文字号</text>
+      </div>
+    </div>
+
+    <div class="group" style="background-color: {{ theme.card }}">
+      <div class="row" onclick="openHomepageSettings">
+        <text class="row-label" style="color: {{ theme.text }}">首页设置</text>
+        <div class="row-right">
+          <text class="row-hint" style="color: {{ theme.textMuted }}">栏目时间</text>
+          <text class="arrow" style="color: {{ theme.textMuted }}">›</text>
+        </div>
+      </div>
+    </div>
+
+    <div class="group" style="background-color: {{ theme.card }}">
+      <div class="row" onclick="openTools">
+        <text class="row-label" style="color: {{ theme.text }}">工具</text>
+        <div class="row-right">
+          <text class="row-hint" style="color: {{ theme.textMuted }}">调试、二维码等</text>
+          <text class="arrow" style="color: {{ theme.textMuted }}">›</text>
+        </div>
+      </div>
+    </div>
+
+    <div class="group" style="background-color: {{ theme.card }}">
+      <div class="row" onclick="openBackupRestore">
+        <text class="row-label" style="color: {{ theme.text }}">数据备份</text>
+        <div class="row-right">
+          <text class="row-hint" style="color: {{ theme.textMuted }}">本地备份</text>
+          <text class="arrow" style="color: {{ theme.textMuted }}">›</text>
+        </div>
+      </div>
+      <div class="divider" style="background-color: {{ theme.border }}"></div>
+      <div class="row" onclick="openActivation">
+        <text class="row-label" style="color: {{ theme.text }}">高级版</text>
+        <div class="row-right">
+          <text class="row-hint" style="color: {{ theme.textMuted }}">解锁</text>
+          <text class="arrow" style="color: {{ theme.textMuted }}">›</text>
+        </div>
+      </div>
+      <div class="divider" style="background-color: {{ theme.border }}"></div>
+      <div class="row" onclick="openDonate">
+        <text class="row-label" style="color: {{ theme.text }}">打赏支持</text>
+        <div class="row-right">
+          <text class="row-hint" style="color: {{ theme.textMuted }}">支持</text>
+          <text class="arrow" style="color: {{ theme.textMuted }}">›</text>
+        </div>
+      </div>
+    </div>
+
+    <text class="version-text" style="color: {{ theme.textMuted }}">v{{ versionText }} · #{{ versionCode }}</text>
+    <text class="welcome-link" onclick="goToWelcome" style="color: {{ theme.accent }}">欢迎页</text>
+
+    <unlock-dialog id="unlockDialog"></unlock-dialog>
+
+    <div class="overlay-modal" if="{{ showPremiumDialog }}" onclick="dismissPremiumDialog">
+      <div class="modal-card" style="background-color: {{ theme.card }}" onclick="stopBubble">
+        <text class="modal-title" style="color: {{ theme.accent }}">解锁高级版</text>
+        <text class="modal-desc" style="color: {{ theme.textSecondary }}">全部工具 · 数据备份 · 自定义主题，一次性解锁永久使用</text>
+        <input class="modal-btn-primary" type="button" value="立即解锁" onclick="goToPremium"
+               style="background-color: {{ theme.accent }}; color: {{ theme.bg }}" />
+        <input class="modal-btn-secondary" type="button" value="取消" onclick="dismissPremiumDialog"
+               style="background-color: {{ theme.btnSecondary }}; color: {{ theme.btnSecondaryText }}" />
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import router from "@system.router"
+const store = require("../../data/store.js")
+const version = require("../../data/version.js")
+
+const sizeLevels = [20, 28, 36, 48, 62, 76]
+
+export default {
+  private: {
+    nickname: "",
+    displaySize: 48,
+    previewClassSize: 48,
+    previewDisplaySize: 32,
+    theme: {
+      bg: '#1a1a2e',
+      card: '#16213e',
+      cardLight: '#0f3460',
+      accent: '#7ec8e3',
+      text: '#ffffff',
+      textSecondary: '#888899',
+      textMuted: '#555566',
+      border: '#0f3460',
+      borderLight: '#2a2a5a',
+      keyBg: '#1a1a3e',
+      keyBorder: '#2a2a5a',
+      btnSecondary: '#333355',
+      btnSecondaryText: '#a0a0b0',
+      deleteBg: '#2a1a3e',
+      deleteText: '#e08080',
+      icon: '●',
+      progressOngoing: 'rgba(126,200,227,0.2)',
+      progressDone: 'rgba(74,138,154,0.25)'
+    },
+    currentThemeKey: "blue",
+    iconTheme: "dark",
+    themes: [],
+    themesRow1: [],
+    themesRow2: [],
+    versionText: "",
+    versionCode: 0,
+    showPremiumDialog: false,
+    showFontSize: false,
+    showTheme: false
+  },
+
+  onInit() {
+    var self = this
+    this.themes = store.getAvailableThemes ? store.getAvailableThemes() : []
+    var mid = Math.ceil(this.themes.length / 2)
+    this.themesRow1 = this.themes.slice(0, mid)
+    this.themesRow2 = this.themes.slice(mid)
+
+    store.getTheme(function(t, name) {
+      self.theme = t
+      self.currentThemeKey = name || "blue"
+      self.updateIconSrc(name)
+    })
+
+    store.getBaseFontSize(function(size) {
+      self.displaySize = size
+      self.updatePreviews()
+    }, true)
+    this.loadNickname()
+    this.versionText = version.versionName
+    this.versionCode = version.versionCode
+  },
+
+  onShow() {
+    this.loadNickname()
+    var self = this
+    store.getTheme(function(t, themeName) {
+      self.updateIconSrc(themeName)
+    })
+  },
+
+  updateIconSrc: function(themeName) {
+    this.iconTheme = (themeName === 'light' || themeName === 'warm') ? 'light' : 'dark'
+  },
+
+  updatePreviews() {
+    // Use same formula as index.ux computeFontSizes to preview actual homepage size
+    var norm = Math.round(this.displaySize * 32 / 48)
+    if (norm < 20) norm = 20
+    if (norm > 40) norm = 40
+    norm = Math.round(norm / 4) * 4
+    this.previewDisplaySize = Math.min(norm, 40)
+    this.previewClassSize = this.previewDisplaySize
+  },
+
+  setSize(size) {
+    this.displaySize = size
+    store.setBaseFontSize(size)
+    this.updatePreviews()
+  },
+
+  set20() { this.setSize(20) },
+
+  decreaseFont() {
+    for (var i = sizeLevels.length - 1; i >= 0; i--) {
+      if (sizeLevels[i] < this.displaySize) {
+        this.setSize(sizeLevels[i])
+        return
+      }
+    }
+  },
+
+  increaseFont() {
+    for (var i = 0; i < sizeLevels.length; i++) {
+      if (sizeLevels[i] > this.displaySize) {
+        this.setSize(sizeLevels[i])
+        return
+      }
+    }
+  },
+
+  toggleFontSize() {
+    this.showFontSize = !this.showFontSize
+  },
+
+  selectTheme(themeKey) {
+    var self = this
+    store.isPremiumUnlocked(function(unlocked) {
+      if (unlocked) {
+        self.applyTheme(themeKey)
+      } else {
+        self.showPremiumDialog = true
+      }
+    })
+  },
+
+  applyTheme(themeKey) {
+    var self = this
+    this.currentThemeKey = themeKey
+    store.setTheme(themeKey, function() {
+      store.getTheme(function(t, themeName) {
+        self.theme = t
+        self.updateIconSrc(themeName)
+      })
+    })
+  },
+
+  loadNickname() {
+    var self = this
+    var storage = require("@system.storage")
+    storage.get({
+      key: "chinese_input_nickname_result",
+      success: function(data) {
+        if (data !== undefined && data !== null && data !== "") {
+          var newName = data.trim()
+          store.setNickname(newName, function() {
+            self.nickname = newName
+          })
+          storage.delete({ key: "chinese_input_nickname_result", fail: function() {} })
+          return
+        }
+        store.getNickname(function(name) {
+          self.nickname = name || ""
+        })
+      },
+      fail: function() {
+        store.getNickname(function(name) {
+          self.nickname = name || ""
+        })
+      }
+    })
+  },
+
+  toggleTheme() {
+    this.showTheme = !this.showTheme
+  },
+
+  openNicknameEdit() {
+    var storage = require("@system.storage")
+    storage.set({ key: "chinese_input_title", value: "编辑昵称", success: function() {} })
+    storage.set({ key: "chinese_input_placeholder", value: "输入昵称", success: function() {} })
+    storage.set({ key: "chinese_input_value", value: this.nickname, success: function() {} })
+    storage.set({ key: "chinese_input_maxlen", value: "12", success: function() {} })
+    storage.set({ key: "chinese_input_return_key", value: "chinese_input_nickname_result", success: function() {
+      router.push({ uri: "/pages/chinese-input" })
+    }})
+  },
+
+  openTools() {
+    router.push({ uri: "/pages/tools" })
+  },
+
+  openActivation() {
+    router.push({ uri: "/pages/activation" })
+  },
+
+  openDonate() {
+    router.push({ uri: "/pages/donate" })
+  },
+
+  goToPremium() {
+    this.showPremiumDialog = false
+    router.push({ uri: "/pages/activation" })
+  },
+
+  dismissPremiumDialog() {
+    this.showPremiumDialog = false
+  },
+
+  stopBubble() {
+  },
+
+  openHomepageSettings() {
+    router.push({ uri: "/pages/homepage-settings" })
+  },
+
+  openBackupRestore() {
+    router.push({ uri: "/pages/backup-restore" })
+  },
+
+  goToWelcome() {
+    router.push({ uri: "/pages/welcome" })
+  },
+
+  goBack() {
+    router.back()
+  }
+}
+</script>
+
+<style>
+.settings-page {
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  
+  padding: 44px 10px 12px 10px;
+  position: relative;
+}
+
+.back-header {
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 14px;
+  padding: 0 4px;
+}
+
+.back-btn-wrapper {
+  width: 48px;
+  height: 40px;
+  border-radius: 8px;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.back-btn-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.header-title {
+  flex: 1;
+  font-size: 30px;
+  font-weight: bold;
+  text-align: center;
+  line-height: 40px;
+  lines: 1;
+  text-overflow: ellipsis;
+}
+
+.header-placeholder {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+}
+
+.group {
+  flex-direction: column;
+  border-radius: 12px;
+  padding: 18px 14px;
+  margin-bottom: 14px;
+}
+
+.group-title {
+  font-size: 28px;
+  font-weight: bold;
+  opacity: 0.8;
+  line-height: 38px;
+}
+
+.group-title-row {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.font-size-body {
+  flex-direction: column;
+}
+
+.row {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+}
+
+.row-label {
+  font-size: 30px;
+  flex-shrink: 0;
+  line-height: 40px;
+}
+
+.row-right {
+  flex-direction: row;
+  align-items: center;
+  flex-shrink: 1;
+  overflow: hidden;
+}
+
+.row-value {
+  font-size: 28px;
+  margin-right: 6px;
+  line-height: 38px;
+}
+
+.row-hint {
+  font-size: 28px;
+  margin-right: 6px;
+  max-lines: 1;
+  line-height: 38px;
+}
+
+.size-indicator {
+  font-size: 24px;
+  margin-right: 6px;
+  max-lines: 1;
+  line-height: 32px;
+  flex-shrink: 0;
+}
+
+.arrow {
+  font-size: 28px;
+  flex-shrink: 0;
+  line-height: 38px;
+}
+
+.divider {
+  height: 1px;
+  margin: 6px 0;
+}
+
+.switch-track {
+  width: 44px;
+  height: 24px;
+  border-radius: 12px;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.switch-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  position: absolute;
+  top: 2px;
+}
+
+.theme-item {
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  padding: 12px 0;
+  border-radius: 8px;
+  border: 2px solid transparent;
+}
+
+.theme-dot {
+  width: 26px;
+  height: 26px;
+  border-radius: 13px;
+}
+
+.theme-name {
+  font-size: 28px;
+  margin-top: 4px;
+  text-align: center;
+  line-height: 38px;
+}
+
+.scale-row {
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.scale-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  font-size: 24px;
+  font-weight: bold;
+  text-align: center;
+  line-height: 40px;
+}
+
+.scale-value {
+  font-size: 28px;
+  font-weight: bold;
+  width: 72px;
+  text-align: center;
+  line-height: 38px;
+}
+
+.preview-box {
+  border-radius: 8px;
+  padding: 12px;
+  align-items: center;
+  justify-content: center;
+}
+
+.preview-text {
+  font-weight: bold;
+  text-align: center;
+}
+
+/* 作用范围说明：20px 为规范下限，行高取 1.2 倍 */
+.scope-hint {
+  font-size: 20px;
+  line-height: 24px;
+  text-align: center;
+  margin-top: 8px;
+}
+
+.toggle-btn {
+  width: 60px;
+  height: 36px;
+  border-radius: 8px;
+  font-size: 28px;
+  font-weight: bold;
+  text-align: center;
+  line-height: 36px;
+}
+
+.version-text {
+  font-size: 24px;
+  text-align: center;
+  padding-top: 14px;
+  padding-bottom: 8px;
+  line-height: 32px;
+}
+
+.welcome-link {
+  font-size: 28px;
+  text-align: center;
+  padding-bottom: 20px;
+  line-height: 38px;
+}
+
+.overlay-modal {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-card {
+  width: 80%;
+  border-radius: 16px;
+  padding: 20px 18px;
+  flex-direction: column;
+  align-items: center;
+}
+
+.modal-title {
+  font-size: 30px;
+  font-weight: bold;
+  margin-bottom: 10px;
+  text-align: center;
+  line-height: 40px;
+}
+
+.modal-desc {
+  font-size: 24px;
+  text-align: center;
+  margin-bottom: 18px;
+  line-height: 32px;
+}
+
+.modal-btn-primary {
+  width: 100%;
+  height: 42px;
+  border-radius: 21px;
+  font-size: 28px;
+  font-weight: bold;
+  margin-bottom: 8px;
+  line-height: 42px;
+}
+
+.modal-btn-secondary {
+  width: 100%;
+  height: 36px;
+  border-radius: 18px;
+  font-size: 28px;
+  line-height: 36px;
+}
+
+@media (shape: circle) {
+  .settings-page {
+    padding: 44px 36px 44px 36px;
+  }
+  .back-header {
+    margin-bottom: 8px;
+    padding: 0 20px;
+    justify-content: center;
+  }
+  .back-btn-wrapper {
+    width: 52px;
+    height: 40px;
+  }
+  .header-title {
+    font-size: 30px;
+    line-height: 40px;
+  }
+  .row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .row-right {
+    margin-top: 6px;
+  }
+  .row-label {
+    font-size: 28px;
+    line-height: 38px;
+  }
+  .row-hint {
+    font-size: 24px;
+    line-height: 32px;
+  }
+  .toggle-btn {
+    width: 52px;
+    height: 38px;
+    font-size: 24px;
+    line-height: 38px;
+  }
+  .version-text {
+    font-size: 20px;
+    line-height: 28px;
+  }
+  .overlay-bottom-sheet {
+    padding: 44px 36px 44px 36px;
+  }
+}
+
+@media (shape: capsule), (shape: pill-shaped) {
+  .settings-page {
+    padding: 30px 16px 30px 16px;
+  }
+
+  .back-header {
+    height: 48px;
+    margin-bottom: 8px;
+    flex-direction: row;
+    align-items: center;
+  }
+  .back-btn-wrapper {
+    width: 48px;
+    height: 48px;
+    border-radius: 24px;
+    flex-shrink: 0;
+  }
+  .header-title {
+    font-size: 28px;
+    line-height: 44px;
+    text-align: center;
+    flex: 1;
+    lines: 1;
+    margin: 0 4px;
+  }
+
+  .row {
+    padding: 14px 0;
+  }
+
+  .nickname-row {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 14px 0;
+  }
+
+  .nickname-label {
+    font-size: 28px;
+    line-height: 36px;
+    margin-bottom: 2px;
+  }
+
+  .nickname-value-wrap {
+    flex-direction: row;
+    align-items: center;
+    width: 100%;
+  }
+
+  .nickname-value {
+    font-size: 28px;
+    line-height: 38px;
+    flex: 1;
+    lines: 1;
+    text-overflow: ellipsis;
+  }
+
+  .nickname-arrow {
+    font-size: 28px;
+    flex-shrink: 0;
+    margin-left: 4px;
+  }
+
+  .row-label {
+    font-size: 32px;
+    line-height: 44px;
+  }
+
+  .row-hint {
+    display: none;
+  }
+
+  .arrow {
+    font-size: 32px;
+    line-height: 39px;
+  }
+
+  .modal-card {
+    width: 90%;
+    border-radius: 12px;
+    padding: 18px 16px;
+  }
+
+  .modal-title {
+    font-size: 24px;
+    margin-bottom: 10px;
+    line-height: 32px;
+  }
+
+  .modal-desc {
+    font-size: 20px;
+    margin-bottom: 14px;
+    line-height: 28px;
+  }
+
+  .modal-btn-primary {
+    height: 48px;
+    border-radius: 24px;
+    font-size: 24px;
+    margin-bottom: 8px;
+    line-height: 48px;
+  }
+
+  .modal-btn-secondary {
+    height: 44px;
+    border-radius: 22px;
+    font-size: 22px;
+    line-height: 44px;
+  }
+
+  .theme-name {
+    display: none;
+  }
+
+  .toggle-btn {
+    width: 80px;
+    height: 46px;
+    border-radius: 12px;
+    font-size: 30px;
+    line-height: 46px;
+  }
+
+  .group-title-row {
+    margin-bottom: 10px;
+  }
+
+  .group-title {
+    font-size: 28px;
+    line-height: 36px;
+  }
+
+  .font-size-body {
+    margin-top: 0;
+  }
+
+  .scale-row {
+    margin-bottom: 12px;
+  }
+
+  .scale-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    font-size: 26px;
+    line-height: 48px;
+  }
+
+  .scale-value {
+    font-size: 28px;
+    width: 80px;
+    line-height: 38px;
+  }
+
+  .preview-box {
+    border-radius: 10px;
+    padding: 14px;
+  }
+
+  .scope-hint {
+    font-size: 18px;
+    line-height: 22px;
+    margin-top: 6px;
+  }
+}
+
+@media (shape: rect) {
+  .settings-page {
+    padding: 6px 6px 6px 6px;
+  }
+  .back-header {
+    margin-bottom: 6px;
+  }
+  .back-btn-wrapper {
+    width: 50px;
+    height: 48px;
+  }
+  .header-title {
+    font-size: 30px;
+    line-height: 40px;
+  }
+  .row-label {
+    font-size: 28px;
+    line-height: 38px;
+  }
+  .row-hint {
+    font-size: 24px;
+    line-height: 32px;
+  }
+  .toggle-btn {
+    width: 52px;
+    height: 48px;
+    font-size: 24px;
+    line-height: 48px;
+  }
+}
+</style>
