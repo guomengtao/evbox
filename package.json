@@ -15,6 +15,7 @@
     "prerelease": "node scripts/bump-version.js",
     "release": "aiot release --enable-jsc && node scripts/rename-rpk.js",
     "lint": "eslint --format codeframe --fix --ext .ux,.js src/",
+    "push:api": "node scripts/gh-api-push.js",
     "postinstall": "patch-package"
   },
   "lint-staged": {
