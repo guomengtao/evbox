@@ -6,7 +6,7 @@
     "node": ">=8.10"
   },
   "scripts": {
-    "clean": "rm -rf build dist ../.temp_evbox",
+    "clean": "rm -rf build dist ../../.temp_evbox node_modules/.aiot-temp-*",
     "start": "npm run clean && aiot start --watch",
     "bump": "node scripts/bump-version.js",
     "prebuild": "npm run clean && node scripts/bump-version.js",

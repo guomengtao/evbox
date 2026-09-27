@@ -1,0 +1,17 @@
+diff --git a/node_modules/@aiot-toolkit/aiotpack/lib/config/UxConfig.js b/node_modules/@aiot-toolkit/aiotpack/lib/config/UxConfig.js
+index dac3175..f641a5a 100644
+--- a/node_modules/@aiot-toolkit/aiotpack/lib/config/UxConfig.js
++++ b/node_modules/@aiot-toolkit/aiotpack/lib/config/UxConfig.js
+@@ -69,7 +69,11 @@ class UxConfig {
+   }];
+   get output() {
+     const name = _path.default.basename(this.projectPath);
+-    const result = `../.temp_${name}`;
++    // PATCHED(patch-package)：原版是 `../.temp_${name}`（位于工作区内），
++    // 构建时在其中创建/删除 600+ 文件会触发「改动超过 500 个文件」弹窗。
++    // 改为 ../../.temp_${name}，落在工作区父目录（绝不可放 node_modules，
++    // 否则 aiotpack 的 toProject webpack 编译失败，页面 jsc 仅 544B 空壳）。
++    const result = `../../.temp_${name}`;
+     return result;
+   }
+   beforeWorks = (() => [_UxBeforeWorks.default.cleanOutput])();
