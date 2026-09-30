@@ -1,6 +1,7 @@
 <script>
 var store = require("./data/store.js")
 var authStore = require("./data/auth-store.js")
+var syncChannel = require("./data/sync-channel.js")
 
 // 日志开关：发布态关闭，避免手环上字符串拼接开销
 var DEBUG = false
@@ -42,8 +43,37 @@ export default {
       }
     })
     migrateFontScale()
+    this.startSyncChannel()
   },
 
+  // 同步通道：**默认关闭**（零耗电、不常驻）；用户在设置页开启后才 resident + interconnect
+  startSyncChannel() {
+    var resident = null
+    try {
+      resident = require("@system.resident")
+    } catch (e) {
+      resident = null
+    }
+    syncChannel.isEnabled(function(on) {
+      if (!on) {
+        dlog("[SYNC] 通道未开启，跳过常驻与连接")
+        return
+      }
+      if (resident) {
+        try {
+          resident.start({
+            success: function() { dlog("[SYNC] resident started") },
+            fail: function(code) { dlog("[SYNC] resident start fail: " + code) }
+          })
+        } catch (e) {
+          dlog("[SYNC] resident error: " + e)
+        }
+      }
+      syncChannel.setup()
+    })
+  },
+
+  // 刻意不 stop resident：保持通道在后台存活（与参考工程一致）
   onDestroy() {}
 }
 </script>

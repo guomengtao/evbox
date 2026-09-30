@@ -8,56 +8,80 @@
       <div class="header-placeholder"></div>
     </div>
 
-    <div class="section" style="background-color: {{ theme.card }}">
-      <div class="item-row" onclick="openDeviceInfo">
-        <text class="item-label" style="color: {{ theme.text }}">设备信息</text>
-        <text class="item-hint" style="color: {{ theme.textMuted }}">调试</text>
+    <!-- 视图切换：图标 / 列表 / 图文（选中态为圆角矩形按钮，非椭圆；偏好与首页共用） -->
+    <div class="mode-row">
+      <div class="mode-seg" onclick="setToolMode('icon')"
+           style="background-color: {{ toolViewMode === 'icon' ? theme.accent : 'transparent' }}; border-color: {{ toolViewMode === 'icon' ? theme.accent : theme.borderLight }}">
+        <text class="mode-text" style="color: {{ toolViewMode === 'icon' ? theme.bg : theme.textSecondary }}; font-weight: {{ toolViewMode === 'icon' ? 'bold' : 'normal' }}">图标</text>
       </div>
-      <div class="row-divider" style="background-color: {{ theme.border }}"></div>
-      <div class="item-row" onclick="openDeviceIdDiagnosis">
-        <text class="item-label" style="color: {{ theme.accent }}">设备ID诊断</text>
-        <text class="item-hint" style="color: {{ theme.textMuted }}">API测试</text>
+      <div class="mode-seg" onclick="setToolMode('list')"
+           style="background-color: {{ toolViewMode === 'list' ? theme.accent : 'transparent' }}; border-color: {{ toolViewMode === 'list' ? theme.accent : theme.borderLight }}">
+        <text class="mode-text" style="color: {{ toolViewMode === 'list' ? theme.bg : theme.textSecondary }}; font-weight: {{ toolViewMode === 'list' ? 'bold' : 'normal' }}">列表</text>
       </div>
-      <div class="row-divider" style="background-color: {{ theme.border }}"></div>
-
-
-      <div class="item-row" onclick="openVibrationLab">
-        <text class="item-label" style="color: {{ theme.text }}">震动自定义</text>
-        <text class="item-hint" style="color: {{ theme.textMuted }}">震动方案</text>
-      </div>
-      <div class="row-divider" style="background-color: {{ theme.border }}"></div>
-      <div class="item-row" onclick="openCountdownManage">
-        <text class="item-label" style="color: {{ theme.text }}">倒数日</text>
-        <text class="item-hint" style="color: {{ theme.textMuted }}">事件倒计时</text>
-      </div>
-      <div class="row-divider" style="background-color: {{ theme.border }}"></div>
-      <div class="item-row" onclick="openLunarCalendar">
-        <text class="item-label" style="color: {{ theme.text }}">农历</text>
-        <text class="item-hint" style="color: {{ theme.textMuted }}">今日 · 本月 · 查日</text>
-      </div>
-      <div class="row-divider" style="background-color: {{ theme.border }}"></div>
-      <div class="item-row" onclick="openCalculator">
-        <text class="item-label" style="color: {{ theme.text }}">计算器</text>
-        <text class="item-hint" style="color: {{ theme.textMuted }}">四则运算</text>
-      </div>
-      <div class="row-divider" style="background-color: {{ theme.border }}"></div>
-      <div class="item-row" onclick="openQRCodeGenerator">
-        <text class="item-label" style="color: {{ theme.text }}">二维码生成</text>
-        <text class="item-hint" style="color: {{ theme.textMuted }}">文字转二维码</text>
-      </div>
-      <div class="row-divider" style="background-color: {{ theme.border }}"></div>
-      <div class="item-row">
-        <text class="item-label" style="color: {{ theme.text }}">已钉页面</text>
-        <div class="switch-track" style="background-color: {{ isHomePinned ? theme.accent : theme.border }}" onclick="toggleHomePin">
-          <div class="switch-thumb" style="left: {{ isHomePinned ? '22px' : '2px' }}; background-color: {{ theme.bg }}"></div>
-        </div>
-      </div>
-      <div class="row-divider" style="background-color: {{ theme.border }}"></div>
-      <div class="item-row" onclick="openBlackScreenCheck">
-        <text class="item-label" style="color: {{ theme.text }}">黑屏检测</text>
-        <text class="item-hint" style="color: {{ theme.textMuted }}">诊断</text>
+      <div class="mode-seg" onclick="setToolMode('rich')"
+           style="background-color: {{ toolViewMode === 'rich' ? theme.accent : 'transparent' }}; border-color: {{ toolViewMode === 'rich' ? theme.accent : theme.borderLight }}">
+        <text class="mode-text" style="color: {{ toolViewMode === 'rich' ? theme.bg : theme.textSecondary }}; font-weight: {{ toolViewMode === 'rich' ? 'bold' : 'normal' }}">图文</text>
       </div>
     </div>
+
+    <scroll class="tool-scroll" scroll-y="true">
+      <!-- 模式一：图标 -->
+      <div class="tool-grid" if="{{ toolViewMode === 'icon' }}">
+        <div for="{{ tools }}" class="tool-card" onclick="openTool($item.uri)" style="background-color: {{ theme.card }}">
+          <image class="tool-icon-img" src="/common/icons/tools/{{ iconTheme }}/{{ $item.iconFile }}"></image>
+          <text class="tool-name" style="color: {{ theme.text }}">{{ $item.name }}</text>
+        </div>
+      </div>
+
+      <!-- 模式二：列表 -->
+      <div class="tool-list" if="{{ toolViewMode === 'list' }}">
+        <div for="{{ tools }}" class="tool-row" onclick="openTool($item.uri)" style="background-color: {{ theme.card }}">
+          <div class="tool-row-icon-box" style="background-color: {{ theme.cardLight }}">
+            <image class="tool-row-icon" src="/common/icons/tools/{{ iconTheme }}/{{ $item.iconFile }}"></image>
+          </div>
+          <text class="tool-row-name" style="color: {{ theme.text }}">{{ $item.name }}</text>
+          <image class="tool-row-arrow" src="/common/icons/{{ iconTheme }}/icon_chevron_right.png"></image>
+        </div>
+      </div>
+
+      <!-- 模式三：图文（图标 + 名称 + 实时摘要） -->
+      <div class="tool-rich" if="{{ toolViewMode === 'rich' }}">
+        <div for="{{ richTools }}" class="rich-card" onclick="openTool($item.uri)" style="background-color: {{ theme.card }}">
+          <div class="rich-icon-box" style="background-color: {{ theme.cardLight }}">
+            <image class="rich-icon" src="/common/icons/tools/{{ iconTheme }}/{{ $item.iconFile }}"></image>
+          </div>
+          <div class="rich-info">
+            <text class="rich-name" style="color: {{ theme.text }}">{{ $item.name }}</text>
+            <text class="rich-sum" if="{{ $item.summary }}" style="color: {{ theme.textSecondary }}">{{ $item.summary }}</text>
+          </div>
+        </div>
+      </div>
+
+      <!-- 设置与诊断（不参与三视图切换） -->
+      <div class="section" style="background-color: {{ theme.card }}">
+        <div class="item-row" onclick="openDeviceInfo">
+          <text class="item-label" style="color: {{ theme.text }}">设备信息</text>
+          <text class="item-hint" style="color: {{ theme.textMuted }}">调试</text>
+        </div>
+        <div class="row-divider" style="background-color: {{ theme.border }}"></div>
+        <div class="item-row" onclick="openDeviceIdDiagnosis">
+          <text class="item-label" style="color: {{ theme.accent }}">设备ID诊断</text>
+          <text class="item-hint" style="color: {{ theme.textMuted }}">API测试</text>
+        </div>
+        <div class="row-divider" style="background-color: {{ theme.border }}"></div>
+        <div class="item-row">
+          <text class="item-label" style="color: {{ theme.text }}">已钉页面</text>
+          <div class="switch-track" style="background-color: {{ isHomePinned ? theme.accent : theme.border }}" onclick="toggleHomePin">
+            <div class="switch-thumb" style="left: {{ isHomePinned ? '22px' : '2px' }}; background-color: {{ theme.bg }}"></div>
+          </div>
+        </div>
+        <div class="row-divider" style="background-color: {{ theme.border }}"></div>
+        <div class="item-row" onclick="openBlackScreenCheck">
+          <text class="item-label" style="color: {{ theme.text }}">黑屏检测</text>
+          <text class="item-hint" style="color: {{ theme.textMuted }}">诊断</text>
+        </div>
+      </div>
+    </scroll>
   </div>
 </template>
 
@@ -65,6 +89,18 @@
 import router from "@system.router"
 const store = require("../../data/store.js")
 var pinHelper = require("../../data/pin-helper.js")
+var toolSummaries = require("../index/modules/tool-summaries.js")
+
+// 参与三视图切换的工具（图标走 PNG 双图；名称 ≤3 字以适配图标模式卡片）
+var TOOLS = [
+  { id: "countdown", name: "倒数日", iconFile: "tool_countdown.png", uri: "/pages/countdown-manage" },
+  { id: "lunar", name: "农历", iconFile: "tool_lunar.png", uri: "/pages/lunar-calendar" },
+  { id: "calculator", name: "计算器", iconFile: "tool_calculator.png", uri: "/pages/calculator" },
+  { id: "quote", name: "一言", iconFile: "tool_quote.png", uri: "/pages/daily-quote" },
+  { id: "answer", name: "答案", iconFile: "tool_answer.png", uri: "/pages/answer-book" },
+  { id: "qrcode", name: "二维码", iconFile: "tool_qrcode.png", uri: "/pages/qrcode-generator" },
+  { id: "vibrate", name: "震动", iconFile: "tool_vibrate.png", uri: "/pages/vibration-lab" }
+]
 
 export default {
   private: {
@@ -89,7 +125,10 @@ export default {
       progressOngoing: 'rgba(126,200,227,0.2)',
       progressDone: 'rgba(74,138,154,0.25)'
     },
-    isHomePinned: false
+    isHomePinned: false,
+    tools: TOOLS,
+    richTools: TOOLS,
+    toolViewMode: "icon"
   },
 
   onInit() {
@@ -99,6 +138,7 @@ export default {
       self.updateIconSrc(themeName)
     })
     this.loadHomePin()
+    this.loadToolViewMode()
   },
 
   onShow() {
@@ -107,6 +147,7 @@ export default {
       self.updateIconSrc(themeName)
     })
     this.loadHomePin()
+    this.loadToolViewMode()
   },
 
   updateIconSrc: function(themeName) {
@@ -118,6 +159,55 @@ export default {
     pinHelper.isPinned("/pages/index", function(yes) {
       self.isHomePinned = yes
     })
+  },
+
+  // 视图模式：与首页共用 homepage_settings.toolViewMode（缺省落图标模式）
+  loadToolViewMode() {
+    var self = this
+    store.getHomepageSettings(function(settings) {
+      self.toolViewMode = settings.toolViewMode === "list" || settings.toolViewMode === "rich"
+        ? settings.toolViewMode
+        : "icon"
+      if (self.toolViewMode === "rich") self.loadToolSummaries()
+    })
+  },
+
+  setToolMode(mode) {
+    if (mode !== "icon" && mode !== "list" && mode !== "rich") return
+    if (this.toolViewMode === mode) return
+    this.toolViewMode = mode
+    try {
+      require("@system.vibrator").vibrate({ mode: "short" })
+    } catch (e) {}
+    store.getHomepageSettings(function(settings) {
+      settings.toolViewMode = mode
+      store.setHomepageSettings(settings)
+    }, true)
+    if (mode === "rich") this.loadToolSummaries()
+  },
+
+  // 图文模式的实时摘要（取不到则为空，UI 不渲染该行）
+  loadToolSummaries() {
+    var self = this
+    toolSummaries.getAll(function(map) {
+      var out = []
+      for (var i = 0; i < TOOLS.length; i++) {
+        var t = TOOLS[i]
+        out.push({
+          id: t.id,
+          name: t.name,
+          iconFile: t.iconFile,
+          uri: t.uri,
+          summary: map[t.id] || ""
+        })
+      }
+      self.richTools = out
+    })
+  },
+
+  openTool(uri) {
+    if (!uri) return
+    router.push({ uri: uri })
   },
 
   toggleHomePin() {
@@ -265,6 +355,166 @@ export default {
   top: 2px;
 }
 
+/* ---------------- 视图切换：圆角矩形按钮（非椭圆） ---------------- */
+
+.mode-row {
+  flex-direction: row;
+  height: 46px;
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+
+.mode-seg {
+  flex: 1;
+  height: 46px;
+  border-radius: 10px;
+  border-width: 1px;
+  border-style: solid;
+  justify-content: center;
+  align-items: center;
+}
+
+.mode-text {
+  font-size: 24px;
+  line-height: 46px;
+  text-align: center;
+}
+
+.tool-scroll {
+  flex: 1;
+  flex-direction: column;
+}
+
+/* ---------------- 模式一：图标 ---------------- */
+
+.tool-grid {
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.tool-card {
+  width: 31%;
+  margin-bottom: 8px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  padding: 12px 2px 10px 2px;
+}
+
+.tool-icon-img {
+  width: 40px;
+  height: 40px;
+  margin-bottom: 6px;
+}
+
+.tool-name {
+  font-size: 24px;
+  line-height: 32px;
+  text-align: center;
+  lines: 1;
+  text-overflow: ellipsis;
+}
+
+/* ---------------- 模式二：列表 ---------------- */
+
+.tool-list {
+  flex-direction: column;
+  margin-bottom: 12px;
+}
+
+.tool-row {
+  flex-direction: row;
+  align-items: center;
+  height: 56px;
+  border-radius: 12px;
+  padding: 0 10px;
+  margin-bottom: 8px;
+}
+
+.tool-row-icon-box {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.tool-row-icon {
+  width: 28px;
+  height: 28px;
+}
+
+.tool-row-name {
+  flex: 1;
+  font-size: 28px;
+  line-height: 36px;
+  margin-left: 8px;
+  lines: 1;
+  text-overflow: ellipsis;
+}
+
+.tool-row-arrow {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+/* ---------------- 模式三：图文 ---------------- */
+
+.tool-rich {
+  flex-direction: column;
+  margin-bottom: 12px;
+}
+
+.rich-card {
+  flex-direction: row;
+  align-items: center;
+  height: 72px;
+  border-radius: 12px;
+  padding: 0 10px;
+  margin-bottom: 8px;
+}
+
+.rich-icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.rich-icon {
+  width: 36px;
+  height: 36px;
+}
+
+.rich-info {
+  flex: 1;
+  flex-direction: column;
+  margin-left: 8px;
+  min-width: 0;
+}
+
+.rich-name {
+  font-size: 26px;
+  line-height: 34px;
+  lines: 1;
+  text-overflow: ellipsis;
+}
+
+.rich-sum {
+  font-size: 22px;
+  line-height: 30px;
+  lines: 1;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
 @media (shape: circle) {
   .page {
     padding: 44px 36px 44px 36px;
@@ -344,6 +594,42 @@ export default {
     height: 22px;
     border-radius: 11px;
     top: 2px;
+  }
+  /* 图标模式：胶囊屏一行 2 列 */
+  .mode-row {
+    height: 46px;
+    margin-bottom: 8px;
+  }
+  .tool-card {
+    width: 48%;
+  }
+  .tool-icon-img {
+    width: 44px;
+    height: 44px;
+  }
+  .tool-name {
+    font-size: 24px;
+    line-height: 32px;
+  }
+  .tool-row {
+    height: 56px;
+    padding: 0 8px;
+  }
+  .tool-row-name {
+    font-size: 28px;
+    line-height: 36px;
+  }
+  .rich-card {
+    height: 72px;
+    padding: 0 8px;
+  }
+  .rich-name {
+    font-size: 26px;
+    line-height: 32px;
+  }
+  .rich-sum {
+    font-size: 22px;
+    line-height: 28px;
   }
 }
 </style>

@@ -1,0 +1,286 @@
+<template>
+  <div class="page" style="background-color: {{ theme.bg }}">
+    <div class="back-header">
+      <div class="back-btn-wrapper" onclick="goBack" style="background-color: {{ theme.card }}">
+        <image class="back-btn-icon" src="/common/icons/{{ iconTheme }}/icon_back.png"></image>
+      </div>
+      <text class="header-title" style="color: {{ theme.text }}">答案之书</text>
+      <div class="header-placeholder"></div>
+    </div>
+
+    <div class="ask-card" style="background-color: {{ theme.card }}">
+      <text class="ask-tip" style="color: {{ theme.textSecondary }}">心里想一个问题</text>
+      <div class="answer-box">
+        <!-- 答案 ≤8 字；胶囊屏 40px/3 行容量 9 字 → 完整显示不省略 -->
+        <text class="answer-text" style="color: {{ opened ? theme.accent : theme.textMuted }}">{{ answerText }}</text>
+      </div>
+      <text class="ask-hint" style="color: {{ theme.textMuted }}">{{ opened ? '再点一次，换个答案' : '翻开书页，给你答案' }}</text>
+    </div>
+
+    <div class="main-btn" onclick="draw" style="background-color: {{ theme.accent }}">
+      <text class="main-btn-text" style="color: {{ theme.bg }}">{{ opened ? '再问一次' : '翻开答案之书' }}</text>
+    </div>
+
+    <text class="history-title" if="{{ hasHistory }}" style="color: {{ theme.textSecondary }}">最近问过</text>
+    <div class="history-item" for="{{ history }}">
+      <text class="history-text" style="color: {{ theme.textMuted }}">{{ $item }}</text>
+    </div>
+  </div>
+</template>
+
+<script>
+import router from "@system.router"
+const store = require("../../data/store.js")
+var answers = require("../../data/answers.js")
+
+var HISTORY_KEY = "answer_book_history"
+var HISTORY_MAX = 10
+
+export default {
+  private: {
+    iconTheme: "dark",
+    theme: store.DEFAULT_THEME,
+    opened: false,
+    answerText: "？",
+    hasHistory: false,
+    history: []
+  },
+
+  onInit() {
+    this.applyTheme()
+    this.loadHistory()
+  },
+
+  onShow() {
+    this.applyTheme()
+  },
+
+  applyTheme() {
+    var self = this
+    store.getTheme(function(t, themeName) {
+      self.theme = t
+      self.iconTheme = (themeName === 'light' || themeName === 'warm') ? 'light' : 'dark'
+    })
+  },
+
+  draw() {
+    var text = answers.randomAnswer()
+    this.answerText = text
+    this.opened = true
+    this.vibrate()
+    this.pushHistory(text)
+  },
+
+  pushHistory(text) {
+    var self = this
+    this.readHistory(function(list) {
+      list.unshift(text)
+      if (list.length > HISTORY_MAX) list = list.slice(0, HISTORY_MAX)
+      self.writeHistory(list, function() {
+        self.history = list
+        self.hasHistory = list.length > 0
+      })
+    })
+  },
+
+  readHistory(cb) {
+    var storage = require("@system.storage")
+    storage.get({
+      key: HISTORY_KEY,
+      success: function(data) {
+        var arr = []
+        try {
+          arr = data ? JSON.parse(data) : []
+        } catch (e) {
+          arr = []
+        }
+        cb(arr && arr.length ? arr : [])
+      },
+      fail: function() {
+        cb([])
+      }
+    })
+  },
+
+  writeHistory(list, cb) {
+    var storage = require("@system.storage")
+    storage.set({
+      key: HISTORY_KEY,
+      value: JSON.stringify(list),
+      success: function() { if (cb) cb() },
+      fail: function() { if (cb) cb() }
+    })
+  },
+
+  loadHistory() {
+    var self = this
+    this.readHistory(function(list) {
+      self.history = list
+      self.hasHistory = list.length > 0
+    })
+  },
+
+  vibrate() {
+    try {
+      require("@system.vibrator").vibrate({ mode: "short" })
+    } catch (e) {}
+  },
+
+  goBack() {
+    router.back()
+  }
+}
+</script>
+
+<style>
+.page {
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  padding: 44px 12px 12px 12px;
+}
+
+.back-header {
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.back-btn-wrapper {
+  width: 48px;
+  height: 40px;
+  border-radius: 8px;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.back-btn-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.header-title {
+  flex: 1;
+  font-size: 30px;
+  font-weight: bold;
+  text-align: center;
+  line-height: 40px;
+  lines: 1;
+}
+
+.header-placeholder {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+}
+
+.ask-card {
+  flex-direction: column;
+  align-items: center;
+  border-radius: 12px;
+  padding: 18px 14px;
+  margin-bottom: 12px;
+}
+
+.ask-tip {
+  font-size: 24px;
+  line-height: 32px;
+  text-align: center;
+}
+
+.answer-box {
+  min-height: 150px;
+  justify-content: center;
+  align-items: center;
+  padding: 10px 0;
+}
+
+.answer-text {
+  font-size: 48px;
+  font-weight: bold;
+  line-height: 60px;
+  lines: 2;
+  text-align: center;
+}
+
+.ask-hint {
+  font-size: 22px;
+  line-height: 30px;
+  text-align: center;
+}
+
+.main-btn {
+  height: 56px;
+  border-radius: 12px;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.main-btn-text {
+  font-size: 26px;
+  line-height: 34px;
+  text-align: center;
+}
+
+.history-title {
+  font-size: 22px;
+  line-height: 30px;
+  margin-bottom: 4px;
+}
+
+.history-item {
+  padding: 2px 0;
+}
+
+.history-text {
+  font-size: 22px;
+  line-height: 30px;
+  lines: 2;
+}
+
+@media (shape: capsule), (shape: pill-shaped) {
+  .page {
+    padding: 30px 16px 30px 16px;
+  }
+  .header-title {
+    font-size: 28px;
+    line-height: 44px;
+  }
+  .ask-card {
+    padding: 12px 10px;
+    margin-bottom: 10px;
+  }
+  .ask-tip {
+    font-size: 22px;
+    line-height: 30px;
+  }
+  /* 40px × 3 字/行 × 3 行 = 9 字容量，答案池每条 ≤8 字 → 完整显示 */
+  .answer-box {
+    min-height: 120px;
+    padding: 8px 0;
+  }
+  .answer-text {
+    font-size: 40px;
+    line-height: 48px;
+    lines: 3;
+  }
+  .ask-hint {
+    font-size: 22px;
+    line-height: 28px;
+  }
+  .main-btn {
+    height: 52px;
+    margin-bottom: 10px;
+  }
+  .main-btn-text {
+    font-size: 24px;
+    line-height: 32px;
+  }
+  .history-text {
+    font-size: 22px;
+    line-height: 28px;
+  }
+}
+</style>

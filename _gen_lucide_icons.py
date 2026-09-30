@@ -75,6 +75,10 @@ TOOL_ICONS = {
     "tool_vibrate.png":    "vibrate",
     "tool_backup.png":     "database-backup",
     "tool_device.png":     "watch",
+    # 首页改造新增（doc/首页改造与新工具及同步器通信恢复设计.md）
+    "tool_quote.png":      "quote",       # 每日一言
+    "tool_answer.png":     "book-open",   # 答案之书
+    "tool_exit.png":       "log-out",     # 退出快应用
 }
 
 # 工具图标配色：暗色主题用纯白（放在 card 底色上对比更强），亮色主题用深灰

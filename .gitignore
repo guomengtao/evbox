@@ -10,7 +10,8 @@
 _rpk_check/
 /dist/
 /distrelease/
-release/
+/bak/
+/build_bak/
 
 # AI 工作记忆 / IDE 会话数据（本地保留，不入库）
 .codebuddy/

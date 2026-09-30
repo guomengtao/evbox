@@ -1,0 +1,314 @@
+<template>
+  <div class="page" style="background-color: {{ theme.bg }}">
+    <div class="back-header">
+      <div class="back-btn-wrapper" onclick="goBack" style="background-color: {{ theme.card }}">
+        <image class="back-btn-icon" src="/common/icons/{{ iconTheme }}/icon_back.png"></image>
+      </div>
+      <text class="header-title" style="color: {{ theme.text }}">同步器留言</text>
+      <div class="header-placeholder"></div>
+    </div>
+
+    <div class="status-row" style="background-color: {{ theme.card }}">
+      <text class="status-text" style="color: {{ statusColor }}">{{ statusText }}</text>
+    </div>
+
+    <scroll class="msg-scroll" scroll-y="true">
+      <text class="empty-text" if="{{ !hasMessages }}" style="color: {{ theme.textMuted }}">还没有留言，点下方写一条</text>
+
+      <div for="{{ messages }}" class="msg-row" style="justify-content: {{ $item.from === 'device' ? 'flex-end' : 'flex-start' }}">
+        <div class="bubble" style="background-color: {{ $item.from === 'device' ? theme.cardLight : theme.card }}">
+          <!-- 单条上限 40 字，胶囊屏 22px/6 行容量 42 字 → 完整显示不省略 -->
+          <text class="bubble-text" style="color: {{ theme.text }}">{{ $item.text }}</text>
+          <text class="bubble-time" style="color: {{ theme.textMuted }}">{{ $item.timeText }}</text>
+        </div>
+      </div>
+    </scroll>
+
+    <div class="write-btn" onclick="startWrite" style="background-color: {{ theme.accent }}">
+      <text class="write-text" style="color: {{ theme.bg }}">写留言</text>
+    </div>
+  </div>
+</template>
+
+<script>
+import router from "@system.router"
+import prompt from "@system.prompt"
+const store = require("../../data/store.js")
+var chat = require("../../data/sync-chat.js")
+var syncChannel = require("../../data/sync-channel.js")
+
+// 手写留言走中文输入法页，与「昵称 / 倒数日」同一条链路
+var DRAFT_KEY = "sync_chat_draft"
+var MAX_LEN = 40
+
+function pad2(n) {
+  return n < 10 ? "0" + n : "" + n
+}
+
+function fmtTime(ts) {
+  var d = new Date(ts)
+  return pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()) + " " + pad2(d.getHours()) + ":" + pad2(d.getMinutes())
+}
+
+export default {
+  private: {
+    iconTheme: "dark",
+    theme: store.DEFAULT_THEME,
+    messages: [],
+    hasMessages: false,
+    statusText: "同步通道未开启",
+    statusColor: "#888899"
+  },
+
+  onInit() {
+    this.applyTheme()
+    this.load()
+    this.loadStatus()
+  },
+
+  onShow() {
+    this.applyTheme()
+    this.load()
+    this.loadStatus()
+    this.checkDraft()
+  },
+
+  applyTheme() {
+    var self = this
+    store.getTheme(function(t, themeName) {
+      self.theme = t
+      self.iconTheme = (themeName === 'light' || themeName === 'warm') ? 'light' : 'dark'
+    })
+  },
+
+  // 进入即把同步器发来的消息标为已读
+  load() {
+    var self = this
+    chat.readList(function(list) {
+      var out = []
+      for (var i = 0; i < list.length; i++) {
+        var m = list[i]
+        out.push({
+          from: m.from === "device" ? "device" : "phone",
+          text: m.text || "",
+          timeText: fmtTime(m.ts || Date.now())
+        })
+      }
+      self.messages = out
+      self.hasMessages = out.length > 0
+      chat.markAllRead(function() {})
+    })
+  },
+
+  loadStatus() {
+    var self = this
+    syncChannel.isEnabled(function(on) {
+      if (!on) {
+        self.statusText = "同步通道未开启（设置页可开启）"
+        self.statusColor = self.theme.textMuted
+        return
+      }
+      syncChannel.getState(function(st) {
+        if (!st.available) {
+          self.statusText = "此设备不支持同步通道"
+          self.statusColor = self.theme.textMuted
+        } else if (st.connected === 1) {
+          self.statusText = "已连接同步器"
+          self.statusColor = self.theme.accent
+        } else {
+          self.statusText = "未连接（等待同步器推送）"
+          self.statusColor = self.theme.textSecondary
+        }
+      })
+    })
+  },
+
+  // 写留言：参数交给中文输入页，结果写回 sync_chat_draft
+  startWrite() {
+    var storage = require("@system.storage")
+    storage.set({ key: "chinese_input_title", value: "写留言", success: function() {} })
+    storage.set({ key: "chinese_input_placeholder", value: "写给同步器", success: function() {} })
+    storage.set({ key: "chinese_input_value", value: "", success: function() {} })
+    storage.set({ key: "chinese_input_maxlen", value: String(MAX_LEN), success: function() {} })
+    storage.set({
+      key: "chinese_input_return_key",
+      value: DRAFT_KEY,
+      success: function() {
+        router.push({ uri: "/pages/chinese-input" })
+      }
+    })
+  },
+
+  // 消费中文输入页写回的内容（空值视为取消）
+  checkDraft() {
+    var self = this
+    var storage = require("@system.storage")
+    storage.get({
+      key: DRAFT_KEY,
+      success: function(data) {
+        if (data === undefined || data === null || data === "") return
+        var text = String(data).trim()
+        storage.delete({ key: DRAFT_KEY, fail: function() {} })
+        if (!text) return
+        chat.addMessage("device", text, function() {
+          self.load()
+          prompt.showToast({ message: "已写好，等待同步器取走" })
+        })
+      },
+      fail: function() {}
+    })
+  },
+
+  goBack() {
+    router.back()
+  }
+}
+</script>
+
+<style>
+.page {
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  padding: 44px 12px 12px 12px;
+}
+
+.back-header {
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.back-btn-wrapper {
+  width: 48px;
+  height: 40px;
+  border-radius: 8px;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.back-btn-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.header-title {
+  flex: 1;
+  font-size: 30px;
+  font-weight: bold;
+  text-align: center;
+  line-height: 40px;
+  lines: 1;
+}
+
+.header-placeholder {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+}
+
+.status-row {
+  border-radius: 10px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.status-text {
+  font-size: 22px;
+  line-height: 30px;
+  lines: 2;
+}
+
+.msg-scroll {
+  flex: 1;
+  flex-direction: column;
+  margin-bottom: 8px;
+}
+
+.empty-text {
+  font-size: 22px;
+  line-height: 30px;
+  text-align: center;
+  padding: 20px 0;
+  lines: 2;
+}
+
+.msg-row {
+  flex-direction: row;
+  margin-bottom: 6px;
+}
+
+.bubble {
+  flex-direction: column;
+  max-width: 78%;
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+
+.bubble-text {
+  font-size: 24px;
+  line-height: 32px;
+  lines: 6;
+}
+
+.bubble-time {
+  font-size: 22px;
+  line-height: 28px;
+  margin-top: 2px;
+}
+
+.write-btn {
+  height: 56px;
+  border-radius: 12px;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.write-text {
+  font-size: 26px;
+  line-height: 34px;
+  text-align: center;
+}
+
+@media (shape: capsule), (shape: pill-shaped) {
+  .page {
+    padding: 30px 16px 30px 16px;
+  }
+  .header-title {
+    font-size: 28px;
+    line-height: 44px;
+  }
+  .status-row {
+    padding: 6px 8px;
+    margin-bottom: 6px;
+  }
+  .status-text {
+    font-size: 22px;
+    line-height: 28px;
+  }
+  .bubble {
+    max-width: 84%;
+    padding: 6px 8px;
+  }
+  /* 22px × 7 字/行 × 6 行 = 42 字容量，单条上限 40 字 → 完整显示 */
+  .bubble-text {
+    font-size: 22px;
+    line-height: 28px;
+    lines: 6;
+  }
+  .bubble-time {
+    font-size: 20px;
+    line-height: 24px;
+  }
+  .write-btn {
+    height: 52px;
+  }
+  .write-text {
+    font-size: 24px;
+    line-height: 32px;
+  }
+}
+</style>

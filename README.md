@@ -76,6 +76,9 @@ var TOOLS = [
 > 图标源为 **64×64** PNG（`tool_*` 共 14 张 / 23KB），显示尺寸永远 ≤ 源尺寸，避免放大发虚。
 
 - 偏好存 `homepage_settings.toolViewMode`（`icon`/`list`/`rich`，缺省与非法值均落到 `icon`），首页设置页也可切换
+- **`pages/tools` 工具页共用同一套三视图与同一个偏好**（切换任一侧，两侧同步）；胶囊屏图标模式同样 2 列
+  - 工具页的切换按钮为**圆角矩形**（`border-radius: 10px`，高 46px，非椭圆）：选中=accent 实底 + 反色加粗文字，未选中=透明底 + `borderLight` 描边
+  - 工具页只让 5 个工具参与切换（倒数日/农历/计算器/二维码/震动），「设备信息 / 设备ID诊断 / 已钉页面 / 黑屏检测」属于设置与诊断，固定列表展示在下方
 - 图文摘要由 `src/pages/index/modules/tool-summaries.js` 统一供数（倒数日/农历/计算器/二维码/震动/备份/设备），**取不到就不渲染那一行**
 - 工具入口在 `index.ux` 的 `TOOLS` 数组中维护，**每条必须带 `iconFile`**：
 
@@ -94,6 +97,22 @@ var TOOLS = [
   - 本机 Python urllib 有 SSL 证书问题，可先用 curl 抓 SVG 到 `.cache/lucide-svg/` 再 `--offline`
 - 配色：`dark` = `#ffffff`（8 套暗色主题）、`light` = `#333333`（晨光白/暖阳米）
 - ⚠️ 页面必须提供 `iconTheme`（默认 `"dark"`）+ `onInit/onShow` 刷新，否则路径会变成 `.../undefined/...`，图标显示成「!」
+
+## 一、推送到 GitHub（本机网络说明）
+
+本机 `github.com:443` 被墙（`api.github.com` 可达），且不使用 SSH，因此**不走 `git push`**，改用 `scripts/gh-api-push.js` 经 GitHub REST API 镜像推送：
+
+```bash
+npm run push:api                              # = node scripts/gh-api-push.js
+node scripts/gh-api-push.js -m "feat: xxx"     # 指定提交信息
+node scripts/gh-api-push.js --dry-run          # 只统计待推送文件，不联网写入
+node scripts/gh-api-push.js --force            # 覆盖式推送（非快进）
+```
+
+- 脚本把 `git ls-files`（含未提交改动，`git add -A` 等价范围）走 Git Data API：blobs → tree → commit → 移动 `main`。
+- 凭据用 `gh auth token`（keyring），无需 VPN / SSH / PAT 明文。
+- `origin` 指向 `https://github.com/guomengtao/evbox.git`（仅用于解析 owner/repo；实际推送走 API）。
+- ⚠️ 提交在服务端创建、本机无法 `git fetch`，故本地 `main` 与 `origin/main` 的 **commit SHA 不同但文件树完全一致**（`git diff` 为空）。以后统一 `npm run push:api`，本地无需再 `git commit` 同名改动。
 
 ## 二、核心架构（复用自课程表项目）
 

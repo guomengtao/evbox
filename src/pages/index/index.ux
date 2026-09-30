@@ -48,7 +48,7 @@
     <scroll class="class-list" scroll-y="true">
       <!-- 模式一：图标（胶囊屏一行 2 列） -->
       <div class="tool-grid" if="{{ toolViewMode === 'icon' }}">
-        <div for="{{ tools }}" class="tool-card" onclick="openTool($item.uri)" style="background-color: {{ theme.card }}">
+        <div for="{{ tools }}" class="tool-card" onclick="openTool($item)" style="background-color: {{ theme.card }}">
           <image class="tool-icon-img" src="/common/icons/tools/{{ iconTheme }}/{{ $item.iconFile }}"></image>
           <text class="tool-name" style="color: {{ theme.text }}">{{ $item.name }}</text>
         </div>
@@ -56,7 +56,7 @@
 
       <!-- 模式二：列表（扫视最快） -->
       <div class="tool-list" if="{{ toolViewMode === 'list' }}">
-        <div for="{{ tools }}" class="tool-row" onclick="openTool($item.uri)" style="background-color: {{ theme.card }}">
+        <div for="{{ tools }}" class="tool-row" onclick="openTool($item)" style="background-color: {{ theme.card }}">
           <div class="tool-row-icon-box" style="background-color: {{ theme.cardLight }}">
             <image class="tool-row-icon" src="/common/icons/tools/{{ iconTheme }}/{{ $item.iconFile }}"></image>
           </div>
@@ -67,7 +67,7 @@
 
       <!-- 模式三：图文（图标 + 名称 + 实时摘要） -->
       <div class="tool-rich" if="{{ toolViewMode === 'rich' }}">
-        <div for="{{ richTools }}" class="rich-card" onclick="openTool($item.uri)" style="background-color: {{ theme.card }}">
+        <div for="{{ richTools }}" class="rich-card" onclick="openTool($item)" style="background-color: {{ theme.card }}">
           <div class="rich-icon-box" style="background-color: {{ theme.cardLight }}">
             <image class="rich-icon" src="/common/icons/tools/{{ iconTheme }}/{{ $item.iconFile }}"></image>
           </div>
@@ -88,15 +88,10 @@
 
 <script>
 import router from "@system.router"
+import prompt from "@system.prompt"
 const store = require("../../data/store.js")
 const device = require("@system.device")
 const toolSummaries = require("./modules/tool-summaries.js")
-
-// 日志开关：发布态关闭
-var DEBUG = false
-function dlog() {
-  if (DEBUG) console.log.apply(console, arguments)
-}
 
 var isCapsuleScreen = false
 
@@ -150,10 +145,14 @@ var TOOLS = [
   { id: "countdown", name: "倒数日", iconFile: "tool_countdown.png", uri: "/pages/countdown-manage" },
   { id: "lunar", name: "农历", iconFile: "tool_lunar.png", uri: "/pages/lunar-calendar" },
   { id: "calculator", name: "计算器", iconFile: "tool_calculator.png", uri: "/pages/calculator" },
+  { id: "quote", name: "一言", iconFile: "tool_quote.png", uri: "/pages/daily-quote" },
+  { id: "answer", name: "答案", iconFile: "tool_answer.png", uri: "/pages/answer-book" },
   { id: "qrcode", name: "二维码", iconFile: "tool_qrcode.png", uri: "/pages/qrcode-generator" },
   { id: "vibrate", name: "震动", iconFile: "tool_vibrate.png", uri: "/pages/vibration-lab" },
   { id: "backup", name: "备份", iconFile: "tool_backup.png", uri: "/pages/backup-restore" },
-  { id: "device", name: "设备", iconFile: "tool_device.png", uri: "/pages/device-info" }
+  { id: "device", name: "设备", iconFile: "tool_device.png", uri: "/pages/device-info" },
+  // 退出固定为最后一项：不是跳转，点击直接退出快应用
+  { id: "exit", name: "退出", iconFile: "tool_exit.png", exit: true }
 ]
 
 export default {
@@ -320,8 +319,20 @@ export default {
     }
   },
 
-  openTool(uri) {
-    router.push({ uri: uri })
+  // 传入整条工具数据：普通项跳转，退出项直接退出快应用
+  openTool(item) {
+    if (!item) return
+    if (item.exit) {
+      try {
+        require("@system.vibrator").vibrate({ mode: "short" })
+      } catch (e) {}
+      var utils = require("../../data/utils.js")
+      if (!utils.exitApp()) {
+        prompt.showToast({ message: "此设备不支持直接退出，请用手势返回表盘" })
+      }
+      return
+    }
+    router.push({ uri: item.uri })
   },
 
   openTools() {
@@ -1168,10 +1179,9 @@ export default {
     line-height: 24px;
     margin-left: 6px;
   }
-  /* 工具显示：胶囊屏图标模式一行 2 列 */
+  /* 胶囊屏隐藏顶部三切换按钮（模式改从「首页设置」切换），净释放约 58px 垂直空间 */
   .mode-row {
-    height: 52px;
-    margin-bottom: 4px;
+    display: none;
   }
   .mode-seg {
     height: 52px;

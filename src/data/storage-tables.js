@@ -48,6 +48,30 @@ var tables = [
     type: "array"
   },
   {
+    key: "daily_quote_fav",
+    desc: "每日一言收藏（最近 50 句）",
+    columns: ["value"],
+    type: "array"
+  },
+  {
+    key: "answer_book_history",
+    desc: "答案之书最近抽到的答案（10 条）",
+    columns: ["value"],
+    type: "array"
+  },
+  {
+    key: "sync_chat_list",
+    desc: "同步器留言（上限 200 条）",
+    columns: ["id", "from", "text", "ts", "read"],
+    type: "array"
+  },
+  {
+    key: "sync_channel_enabled",
+    desc: "同步通道开关（1 开 / 0 关，默认关）",
+    columns: ["value"],
+    type: "value"
+  },
+  {
     key: "homepage_settings",
     desc: "首页设置（含工具显示模式 icon|list|rich）",
     columns: ["showTime", "showPinnedBar", "showCountdown", "toolViewMode", "timeFormat"],

@@ -1,8 +1,8 @@
 {
   "package": "com.application.watch.evbox",
   "name": "EvBox工具箱",
-  "versionName": "1.0.7",
-  "versionCode": 8,
+  "versionName": "1.0.18",
+  "versionCode": 19,
   "minPlatformVersion": 1050,
   "icon": "/logo.png",
   "deviceTypeList": [
@@ -31,6 +31,12 @@
       "name": "system.app"
     },
     {
+      "name": "system.interconnect"
+    },
+    {
+      "name": "system.resident"
+    },
+    {
       "name": "system.clipboard"
     },
     {
@@ -47,11 +53,11 @@
     "designWidth": "device-width"
   },
   "router": {
-    "entry": "pages/welcome",
+    "entry": "pages/index",
     "_groups": {
       "核心主流程": "welcome, index, tools",
-      "实用工具": "countdown-manage, lunar-calendar, calculator, qrcode-generator, vibration-lab, vibration-lab-v2, chinese-input",
-      "设置与系统": "settings, homepage-settings, pinned-pages, backup-restore, activation, device-info, template-picker",
+      "实用工具": "countdown-manage, lunar-calendar, calculator, daily-quote, answer-book, qrcode-generator, vibration-lab, vibration-lab-v2, chinese-input",
+      "设置与系统": "settings, homepage-settings, pinned-pages, sync-chat, backup-restore, activation, device-info, template-picker",
       "实验室工具": "device-id-diagnosis, black-screen-check",
       "其他": "donate"
     },
@@ -85,6 +91,16 @@
         "component": "calculator",
         "group": "实用工具",
         "name_cn": "计算器"
+      },
+      "pages/daily-quote": {
+        "component": "daily-quote",
+        "group": "实用工具",
+        "name_cn": "每日一言"
+      },
+      "pages/answer-book": {
+        "component": "answer-book",
+        "group": "实用工具",
+        "name_cn": "答案之书"
       },
       "pages/qrcode-generator": {
         "component": "qrcode-generator",
@@ -120,6 +136,11 @@
         "component": "pinned-pages",
         "group": "设置与系统",
         "name_cn": "已钉页面"
+      },
+      "pages/sync-chat": {
+        "component": "sync-chat",
+        "group": "设置与系统",
+        "name_cn": "同步器留言"
       },
       "pages/backup-restore": {
         "component": "backup-restore",

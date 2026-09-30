@@ -1,0 +1,288 @@
+<template>
+  <div class="page" style="background-color: {{ theme.bg }}">
+    <div class="back-header">
+      <div class="back-btn-wrapper" onclick="goBack" style="background-color: {{ theme.card }}">
+        <image class="back-btn-icon" src="/common/icons/{{ iconTheme }}/icon_back.png"></image>
+      </div>
+      <text class="header-title" style="color: {{ theme.text }}">每日一言</text>
+      <div class="header-placeholder"></div>
+    </div>
+
+    <div class="quote-card" style="background-color: {{ theme.card }}">
+      <div class="quote-head">
+        <text class="quote-label" style="color: {{ theme.accent }}">今日一言</text>
+        <text class="quote-date" style="color: {{ theme.textSecondary }}">{{ dateText }}</text>
+      </div>
+      <!-- 文案 ≤20 字，胶囊屏 26px/4 行容量 20 字，完整显示不省略 -->
+      <text class="quote-text" style="color: {{ theme.text }}">{{ quoteText }}</text>
+      <text class="quote-meta" if="{{ favCount > 0 }}" style="color: {{ theme.textMuted }}">已收藏 {{ favCount }} 句</text>
+    </div>
+
+    <div class="act-row">
+      <div class="act-btn" onclick="nextQuote" style="background-color: {{ theme.cardLight }}">
+        <text class="act-text" style="color: {{ theme.text }}">换一句</text>
+      </div>
+      <div class="act-btn" onclick="toggleFav" style="background-color: {{ isFav ? theme.accent : theme.cardLight }}">
+        <text class="act-text" style="color: {{ isFav ? theme.bg : theme.text }}">{{ isFav ? '已收藏' : '收藏' }}</text>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import router from "@system.router"
+import prompt from "@system.prompt"
+const store = require("../../data/store.js")
+var quotes = require("../../data/daily-quotes.js")
+
+var FAV_KEY = "daily_quote_fav"
+var FAV_MAX = 50
+
+export default {
+  private: {
+    iconTheme: "dark",
+    theme: store.DEFAULT_THEME,
+    quoteText: "",
+    dateText: "",
+    isFav: false,
+    favCount: 0,
+    offset: 0
+  },
+
+  onInit() {
+    this.applyTheme()
+    this.refresh()
+    this.loadFav()
+  },
+
+  onShow() {
+    this.applyTheme()
+    this.loadFav()
+  },
+
+  applyTheme() {
+    var self = this
+    store.getTheme(function(t, themeName) {
+      self.theme = t
+      self.iconTheme = (themeName === 'light' || themeName === 'warm') ? 'light' : 'dark'
+    })
+  },
+
+  // 按日确定性取句：同一天刷新都是同一句，跨天自动换
+  refresh() {
+    var now = new Date()
+    this.quoteText = quotes.quoteOfDay(now, this.offset)
+    this.dateText = quotes.dateText(now)
+  },
+
+  nextQuote() {
+    this.offset++
+    this.refresh()
+    this.loadFav()
+    this.vibrate()
+  },
+
+  toggleFav() {
+    var self = this
+    var text = this.quoteText
+    this.readFav(function(list) {
+      var i = list.indexOf(text)
+      if (i >= 0) {
+        list.splice(i, 1)
+      } else {
+        list.unshift(text)
+        if (list.length > FAV_MAX) list = list.slice(0, FAV_MAX)
+      }
+      self.writeFav(list, function() {
+        self.loadFav()
+        prompt.showToast({ message: i >= 0 ? '已取消收藏' : '已收藏' })
+      })
+    })
+  },
+
+  readFav(cb) {
+    var storage = require("@system.storage")
+    storage.get({
+      key: FAV_KEY,
+      success: function(data) {
+        var arr = []
+        try {
+          arr = data ? JSON.parse(data) : []
+        } catch (e) {
+          arr = []
+        }
+        cb(arr && arr.length ? arr : [])
+      },
+      fail: function() {
+        cb([])
+      }
+    })
+  },
+
+  writeFav(list, cb) {
+    var storage = require("@system.storage")
+    storage.set({
+      key: FAV_KEY,
+      value: JSON.stringify(list),
+      success: function() { if (cb) cb() },
+      fail: function() { if (cb) cb() }
+    })
+  },
+
+  loadFav() {
+    var self = this
+    this.readFav(function(list) {
+      self.favCount = list.length
+      self.isFav = list.indexOf(self.quoteText) >= 0
+    })
+  },
+
+  vibrate() {
+    try {
+      require("@system.vibrator").vibrate({ mode: "short" })
+    } catch (e) {}
+  },
+
+  goBack() {
+    router.back()
+  }
+}
+</script>
+
+<style>
+.page {
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  padding: 44px 12px 12px 12px;
+}
+
+.back-header {
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.back-btn-wrapper {
+  width: 48px;
+  height: 40px;
+  border-radius: 8px;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.back-btn-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.header-title {
+  flex: 1;
+  font-size: 30px;
+  font-weight: bold;
+  text-align: center;
+  line-height: 40px;
+  lines: 1;
+}
+
+.header-placeholder {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+}
+
+.quote-card {
+  flex-direction: column;
+  border-radius: 12px;
+  padding: 16px 14px;
+  margin-bottom: 12px;
+}
+
+.quote-head {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.quote-label {
+  font-size: 24px;
+  line-height: 32px;
+}
+
+.quote-date {
+  font-size: 22px;
+  line-height: 30px;
+}
+
+.quote-text {
+  font-size: 30px;
+  line-height: 42px;
+  lines: 4;
+}
+
+.quote-meta {
+  font-size: 22px;
+  line-height: 30px;
+  margin-top: 10px;
+}
+
+.act-row {
+  flex-direction: row;
+  justify-content: space-between;
+}
+
+.act-btn {
+  width: 48%;
+  height: 56px;
+  border-radius: 12px;
+  justify-content: center;
+  align-items: center;
+}
+
+.act-text {
+  font-size: 26px;
+  line-height: 34px;
+  text-align: center;
+}
+
+@media (shape: capsule), (shape: pill-shaped) {
+  .page {
+    padding: 30px 16px 30px 16px;
+  }
+  .header-title {
+    font-size: 28px;
+    line-height: 44px;
+  }
+  .quote-card {
+    padding: 12px 10px;
+    margin-bottom: 10px;
+  }
+  .quote-label {
+    font-size: 22px;
+    line-height: 30px;
+  }
+  .quote-date {
+    font-size: 22px;
+    line-height: 30px;
+  }
+  /* 26px × 5 字/行 × 4 行 = 20 字容量，文案池每条 ≤20 字 → 完整显示 */
+  .quote-text {
+    font-size: 26px;
+    line-height: 36px;
+    lines: 4;
+  }
+  .quote-meta {
+    font-size: 22px;
+    line-height: 28px;
+  }
+  .act-btn {
+    height: 52px;
+  }
+  .act-text {
+    font-size: 24px;
+    line-height: 32px;
+  }
+}
+</style>

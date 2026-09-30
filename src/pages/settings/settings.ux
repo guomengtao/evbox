@@ -85,6 +85,23 @@
     </div>
 
     <div class="group" style="background-color: {{ theme.card }}">
+      <div class="row" onclick="openSyncChat">
+        <text class="row-label" style="color: {{ theme.text }}">同步器留言</text>
+        <div class="row-right">
+          <text class="row-hint" style="color: {{ theme.textMuted }}">{{ chatHint }}</text>
+          <text class="arrow" style="color: {{ theme.textMuted }}">›</text>
+        </div>
+      </div>
+      <div class="divider" style="background-color: {{ theme.border }}"></div>
+      <div class="row">
+        <text class="row-label" style="color: {{ theme.text }}">同步通道</text>
+        <div class="switch-track" style="background-color: {{ syncEnabled ? theme.accent : theme.border }}" onclick="toggleSyncChannel">
+          <div class="switch-thumb" style="left: {{ syncEnabled ? '22px' : '2px' }}; background-color: {{ theme.bg }}"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="group" style="background-color: {{ theme.card }}">
       <div class="row" onclick="openBackupRestore">
         <text class="row-label" style="color: {{ theme.text }}">数据备份</text>
         <div class="row-right">
@@ -130,14 +147,19 @@
 
 <script>
 import router from "@system.router"
+import prompt from "@system.prompt"
 const store = require("../../data/store.js")
 const version = require("../../data/version.js")
+var syncChannel = require("../../data/sync-channel.js")
+var chat = require("../../data/sync-chat.js")
 
 const sizeLevels = [20, 28, 36, 48, 62, 76]
 
 export default {
   private: {
     nickname: "",
+    syncEnabled: false,
+    chatHint: "与同步器沟通",
     displaySize: 48,
     previewClassSize: 48,
     previewDisplaySize: 32,
@@ -191,16 +213,45 @@ export default {
       self.updatePreviews()
     }, true)
     this.loadNickname()
+    this.loadSyncState()
     this.versionText = version.versionName
     this.versionCode = version.versionCode
   },
 
   onShow() {
     this.loadNickname()
+    this.loadSyncState()
     var self = this
     store.getTheme(function(t, themeName) {
       self.updateIconSrc(themeName)
     })
+  },
+
+  // 同步通道开关状态 + 留言未读数
+  loadSyncState() {
+    var self = this
+    syncChannel.isEnabled(function(on) {
+      self.syncEnabled = on
+    })
+    chat.unreadCount(function(n) {
+      self.chatHint = n > 0 ? n + " 条未读" : "与同步器沟通"
+    })
+  },
+
+  toggleSyncChannel() {
+    var self = this
+    var next = !this.syncEnabled
+    syncChannel.setEnabled(next, function() {
+      self.syncEnabled = next
+      // 通道在 app.ux 的 onCreate 建立，改开关需重启应用才生效
+      prompt.showToast({
+        message: next ? "已开启，重启应用后生效" : "已关闭，重启应用后生效"
+      })
+    })
+  },
+
+  openSyncChat() {
+    router.push({ uri: "/pages/sync-chat" })
   },
 
   updateIconSrc: function(themeName) {
