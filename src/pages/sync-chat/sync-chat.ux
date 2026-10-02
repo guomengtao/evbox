@@ -175,6 +175,7 @@ export default {
 
 .back-header {
   flex-direction: row;
+  width: 100%;
   align-items: center;
   margin-bottom: 10px;
 }
@@ -200,6 +201,7 @@ export default {
   text-align: center;
   line-height: 40px;
   lines: 1;
+  min-width: 0;
 }
 
 .header-placeholder {
@@ -237,6 +239,7 @@ export default {
 
 .msg-row {
   flex-direction: row;
+  width: 100%;
   margin-bottom: 6px;
 }
 
@@ -278,7 +281,7 @@ export default {
     padding: 30px 16px 30px 16px;
   }
   .header-title {
-    font-size: 28px;
+    font-size: 20px;
     line-height: 44px;
   }
   .status-row {

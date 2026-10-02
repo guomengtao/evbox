@@ -705,6 +705,7 @@ export default {
 
 .status-actions {
   flex-direction: row;
+  width: 100%;
   padding-left: 30px;
 }
 
@@ -738,6 +739,7 @@ export default {
 
 .history-row {
   flex-direction: row;
+  width: 100%;
   justify-content: space-between;
   align-items: center;
 }
@@ -796,6 +798,7 @@ export default {
 
 .device-info-row {
   flex-direction: row;
+  width: 100%;
   justify-content: space-between;
   padding: 6px 0;
 }
@@ -818,6 +821,7 @@ export default {
 
 .step-header {
   flex-direction: row;
+  width: 100%;
   align-items: center;
   margin-bottom: 10px;
 }
@@ -855,6 +859,7 @@ export default {
 
 .device-row {
   flex-direction: row;
+  width: 100%;
   align-items: center;
   padding: 10px 0;
   margin-bottom: 10px;
@@ -904,6 +909,7 @@ export default {
 
 .cells-row {
   flex-direction: row;
+  width: 100%;
   justify-content: space-between;
 }
 
@@ -937,6 +943,7 @@ export default {
 
 .keypad-row {
   flex-direction: row;
+  width: 100%;
   justify-content: center;
   margin-bottom: 4px;
 }
@@ -1013,7 +1020,7 @@ export default {
   
   
   .header-title {
-    font-size: 28px;
+    font-size: 20px;
     line-height: 36px;
   }
 

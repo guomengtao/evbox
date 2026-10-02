@@ -145,6 +145,7 @@ export default {
 
 .item {
   flex-direction: row;
+  width: 100%;
   align-items: center;
   border-radius: 8px;
   padding: 12px 10px;
@@ -205,12 +206,20 @@ export default {
     margin-right: 10px;
   }
   .item-name {
-    font-size: 26px;
-    line-height: 36px;
+    font-size: 24px;
+    /* 行高必须显式给：真机 runtime 缺 line-height 时按默认行高渲染，
+       26px 配 36px 偏挤，24px 配 32px（约 1.33）才稳定 */
+    line-height: 32px;
+    flex: 1;
+    min-width: 0;
   }
   .item-status {
-    font-size: 28px;
+    /* 2026-10-02 按用户反馈「行高丢失」：此处原先只有 font-size 没有
+       line-height，真机按默认行高渲染导致文字被压 */
+    font-size: 22px;
+    line-height: 30px;
     margin-left: 6px;
+    flex-shrink: 0;
   }
   .reset-btn {
     height: 36px;

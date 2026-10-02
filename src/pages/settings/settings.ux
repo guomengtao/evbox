@@ -415,6 +415,7 @@ export default {
 
 .back-header {
   flex-direction: row;
+  width: 100%;
   align-items: center;
   margin-bottom: 14px;
   padding: 0 4px;
@@ -441,6 +442,7 @@ export default {
   text-align: center;
   line-height: 40px;
   lines: 1;
+  min-width: 0;
   text-overflow: ellipsis;
 }
 
@@ -466,6 +468,7 @@ export default {
 
 .group-title-row {
   flex-direction: row;
+  width: 100%;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 14px;
@@ -477,6 +480,7 @@ export default {
 
 .row {
   flex-direction: row;
+  width: 100%;
   justify-content: space-between;
   align-items: center;
   padding: 12px 0;
@@ -492,6 +496,9 @@ export default {
   flex-direction: row;
   align-items: center;
   flex-shrink: 1;
+  /* 右值区必须自适应剩余宽度，不能给 width:100% —— 那会占满整行把左侧
+     「字号」标签挤出去，导致「字号」与「48px」重叠（2026-10-02 用户反馈）。 */
+  min-width: 0;
   overflow: hidden;
 }
 
@@ -505,6 +512,7 @@ export default {
   font-size: 28px;
   margin-right: 6px;
   max-lines: 1;
+  min-width: 0;
   line-height: 38px;
 }
 
@@ -512,6 +520,7 @@ export default {
   font-size: 24px;
   margin-right: 6px;
   max-lines: 1;
+  min-width: 0;
   line-height: 32px;
   flex-shrink: 0;
 }
@@ -567,6 +576,7 @@ export default {
 
 .scale-row {
   flex-direction: row;
+  width: 100%;
   align-items: center;
   justify-content: center;
   margin-bottom: 16px;
@@ -740,25 +750,47 @@ export default {
     padding: 30px 16px 30px 16px;
   }
 
+  /* 2026-10-02 按用户反馈：栏目二级解释文案（灰色小字）在胶囊屏 192px 上
+     放不下，且与左侧主标题抢空间，直接隐藏。 */
+  .row-hint,
+  .scope-hint {
+    display: none;
+  }
+
+  /* 主标题与值同步收紧，保证单行不省略 */
+  .row-label {
+    font-size: 24px;
+    line-height: 32px;
+  }
+  .row-value {
+    font-size: 22px;
+    line-height: 30px;
+  }
+
   .back-header {
     height: 48px;
     margin-bottom: 8px;
     flex-direction: row;
+    width: 100%;
     align-items: center;
   }
   .back-btn-wrapper {
-    width: 48px;
-    height: 48px;
-    border-radius: 24px;
+    width: 40px;
+    height: 40px;
+    border-radius: 20px;
     flex-shrink: 0;
   }
   .header-title {
-    font-size: 28px;
-    line-height: 44px;
+    /* 胶囊屏 192px：back 40 + placeholder 40 之后仅剩约 112px，
+       28px 字号下「设置」被截断成「设.」，20px 可稳定完整显示 */
+    font-size: 20px;
+    line-height: 28px;
     text-align: center;
     flex: 1;
+    min-width: 0;
     lines: 1;
-    margin: 0 4px;
+    text-overflow: ellipsis;
+    margin: 0;
   }
 
   .row {
@@ -788,6 +820,7 @@ export default {
     line-height: 38px;
     flex: 1;
     lines: 1;
+    min-width: 0;
     text-overflow: ellipsis;
   }
 

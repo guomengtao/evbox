@@ -33,6 +33,7 @@ export default {
 <style>
 .day-nav-btns {
   flex-direction: row;
+  width: 100%;
   align-items: center;
 }
 

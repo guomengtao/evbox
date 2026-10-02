@@ -135,6 +135,7 @@ export default {
 
 .benefit-row {
   flex-direction: row;
+  width: 100%;
   align-items: center;
   margin-bottom: 6px;
 }

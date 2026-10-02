@@ -115,6 +115,11 @@ export default {
   font-weight: bold;
   margin-bottom: 8px;
   line-height: 44px;
+  /* 2026-10-02 按用户反馈「标题禁止换行」 */
+  lines: 1;
+  text-overflow: ellipsis;
+  width: 100%;
+  text-align: center;
 }
 
 .app-subtitle {
@@ -200,7 +205,10 @@ export default {
     padding: 60px 12px 30px 12px;
   }
   .app-name {
-    font-size: 30px;
+    /* 胶囊屏内容宽约 160px：「EvBox工具箱」= 5 拉丁字符 + 3 汉字，
+       30px 下溢出换行，24px 可稳定单行（配合 lines:1 强制不换行） */
+    font-size: 24px;
+    line-height: 32px;
   }
   .enter-btn {
     width: 160px;

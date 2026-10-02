@@ -4,10 +4,7 @@
       <text class="clock-text" style="color: {{ theme.textSecondary }}">{{ currentTime }}</text>
     </div>
 
-    <div class="date-row">
-      <text class="date-text" style="color: {{ theme.textSecondary }}">{{ currentDateStr }}</text>
-    </div>
-
+    <!-- 2026-10-02 按用户反馈：头部去掉日期行，只保留时钟 -->
     <!-- 倒数日大数字（数据源 pages/countdown-manage，模块 countdownHero） -->
     <div class="cd-hero" if="{{ showCountdown && hasCountdown }}" onclick="openCountdown" style="background-color: {{ theme.cardLight }}">
       <div class="cd-hero-left">
@@ -160,7 +157,6 @@ export default {
     isCapsule: false,
     iconTheme: "dark",
     currentTime: "",
-    currentDateStr: "",
     showTime: true,
     showPinnedBar: true,
     showCountdown: true,
@@ -194,7 +190,6 @@ export default {
     indexInstance = self
     self.isCapsule = isCapsuleScreen
     self.initialized = false
-    self.currentDateStr = formatDateShort(new Date())
     store.getTheme(function(t, themeName) {
       self.theme = t
       self.updateIconSrc(themeName)
@@ -364,6 +359,7 @@ export default {
 
 .header {
   flex-direction: row;
+  width: 100%;
   justify-content: space-between;
   align-items: center;
   padding: 8px 4px;
@@ -383,17 +379,7 @@ export default {
   width: 100%;
 }
 
-.date-row {
-  padding: 2px 0;
-  flex-shrink: 0;
-}
-
-.date-text {
-  font-size: 22px;
-  line-height: 30px;
-  text-align: center;
-  width: 100%;
-}
+/* 2026-10-02 按用户反馈：头部日期行已从模板移除（.date-row / .date-text 样式一并清理） */
 
 .header { line-height: 28px;
 }
@@ -402,6 +388,7 @@ export default {
   font-weight: bold;
   text-align: center;
   lines: 1;
+  min-width: 0;
   flex: 1;
   }
 
@@ -421,10 +408,12 @@ export default {
 
 .day-nav-btns {
   flex-direction: row;
+  width: 100%;
 }
 
 .nav-toolbar {
   flex-direction: row;
+  width: 100%;
   justify-content: space-around;
   align-items: center;
   height: 48px;
@@ -451,6 +440,7 @@ export default {
 
 .custom-content-bar {
   flex-direction: row;
+  width: 100%;
   align-items: center;
   padding: 8px;
   border-radius: 8px;
@@ -462,12 +452,14 @@ export default {
   font-size: 20px;
   flex: 1;
   lines: 1;
+  min-width: 0;
   text-overflow: ellipsis;
   line-height: 28px;
 }
 
 .status-bar {
   flex-direction: row;
+  width: 100%;
   align-items: center;
   padding: 8px;
   border-radius: 8px;
@@ -487,6 +479,7 @@ export default {
   font-size: 20px;
   flex: 1;
   lines: 1;
+  min-width: 0;
   line-height: 28px;
 }
 
@@ -497,6 +490,7 @@ export default {
 
 .pinned-bar {
   flex-direction: row;
+  width: 100%;
   align-items: center;
   padding: 4px 8px;
   border-radius: 8px;
@@ -510,6 +504,7 @@ export default {
 
 .pinned-row {
   flex-direction: row;
+  width: 100%;
   flex-wrap: wrap;
 }
 
@@ -526,12 +521,14 @@ export default {
   font-size: 20px;
   line-height: 28px;
   lines: 1;
+  min-width: 0;
 }
 
 /* ---------------- 倒数日大数字 ---------------- */
 
 .cd-hero {
   flex-direction: row;
+  width: 100%;
   align-items: center;
   padding: 8px 10px;
   border-radius: 10px;
@@ -541,6 +538,7 @@ export default {
 
 .cd-hero-left {
   flex-direction: row;
+  width: 100%;
   align-items: flex-end;
   margin-right: 12px;
   flex-shrink: 0;
@@ -568,6 +566,7 @@ export default {
   font-size: 26px;
   line-height: 34px;
   lines: 1;
+  min-width: 0;
   text-overflow: ellipsis;
 }
 
@@ -575,6 +574,7 @@ export default {
   font-size: 20px;
   line-height: 28px;
   lines: 1;
+  min-width: 0;
   text-overflow: ellipsis;
 }
 
@@ -632,6 +632,7 @@ export default {
   font-weight: bold;
   text-overflow: ellipsis;
   lines: 1;
+  min-width: 0;
   flex-shrink: 1;
 }
 
@@ -646,17 +647,20 @@ export default {
 .grid-item-location-inline {
   margin-left: 6px;
   lines: 1;
+  min-width: 0;
   flex-shrink: 0;
 }
 
 .grid-item-location {
   lines: 1;
+  min-width: 0;
   text-overflow: ellipsis;
   margin-bottom: 4px;
 }
 
 .grid-item-time {
   lines: 1;
+  min-width: 0;
   text-overflow: ellipsis;
   flex-shrink: 0;
 }
@@ -679,6 +683,7 @@ export default {
 
 .skeleton-card {
   flex-direction: row;
+  width: 100%;
   border-radius: 12px;
   margin-bottom: 6px;
   overflow: hidden;
@@ -712,6 +717,7 @@ export default {
 
 .quick-add-header {
   flex-direction: row;
+  width: 100%;
   justify-content: space-between;
   align-items: center;
   padding: 10px 12px;
@@ -726,6 +732,7 @@ export default {
 
 .quick-add-info {
   flex-direction: row;
+  width: 100%;
   align-items: center;
 }
 
@@ -752,6 +759,7 @@ export default {
 
 .quick-add-tags {
   flex-direction: row;
+  width: 100%;
   padding: 0 8px;
 }
 
@@ -781,6 +789,7 @@ export default {
 
 .bottom-buttons {
   flex-direction: row;
+  width: 100%;
   justify-content: space-between;
   margin-bottom: 4px;
   flex-shrink: 0;
@@ -792,6 +801,7 @@ export default {
   border-radius: 22px;
   margin-right: 4px;
   flex-direction: row;
+  width: 100%;
   justify-content: center;
   align-items: center;
 }
@@ -823,6 +833,7 @@ export default {
   align-items: center;
   justify-content: center;
   flex-direction: row;
+  width: 100%;
 }
 
 .week-swap-icon {
@@ -854,6 +865,7 @@ export default {
 
 .workday-tip-bar {
   flex-direction: row;
+  width: 100%;
   align-items: center;
   padding: 10px 14px;
   border-radius: 8px;
@@ -996,6 +1008,7 @@ export default {
     text-align: center;
     flex: 1;
     lines: 1;
+    min-width: 0;
   }
   /* 胶囊屏下「总 / 今 / 明」已移到 header 下方的 nav-toolbar，不再与标题抢宽度，
      48×3 + 间距 = 150px < 160px 内容区，可提到规范的 48px */
@@ -1020,6 +1033,7 @@ export default {
   /* Capsule status bar: two-line layout for narrow 160px content area */
   .status-capsule-row {
     flex-direction: row;
+    width: 100%;
     align-items: center;
     flex: 1;
   }
@@ -1037,6 +1051,7 @@ export default {
   }
   .status-capsule-line1 {
     flex-direction: row;
+    width: 100%;
     align-items: center;
     justify-content: space-between;
     margin-bottom: 2px;
@@ -1059,6 +1074,7 @@ export default {
     font-weight: bold;
     line-height: 28px;
     lines: 1;
+    min-width: 0;
     text-overflow: ellipsis;
   }
   .section-label {
@@ -1122,21 +1138,25 @@ export default {
     margin-bottom: 0;
     flex-shrink: 1;
     lines: 1;
+    min-width: 0;
     text-overflow: ellipsis;
   }
   .grid-item-location-inline {
     margin-left: 4px;
     lines: 1;
+    min-width: 0;
     flex-shrink: 0;
   }
   .grid-item-time {
     font-size: 20px;
     margin-bottom: 0;
     lines: 1;
+    min-width: 0;
   }
   .grid-item-location {
     font-size: 20px;
     lines: 1;
+    min-width: 0;
     text-overflow: ellipsis;
     margin-bottom: 2px;
   }
@@ -1255,6 +1275,7 @@ export default {
     text-align: center;
     flex: 1;
     lines: 1;
+    min-width: 0;
   }
   .day-nav-circle {
     width: 36px;
@@ -1304,6 +1325,7 @@ export default {
     font-size: 20px;
     line-height: 28px;
     lines: 1;
+    min-width: 0;
   }
   .pinned-tag {
     padding: 5px 12px;
@@ -1391,20 +1413,24 @@ export default {
   .grid-item-name {
     margin-bottom: 4px;
     lines: 1;
+    min-width: 0;
     text-overflow: ellipsis;
   }
   .class-card-meta {
     flex-direction: row;
+    width: 100%;
     align-items: center;
     flex-wrap: wrap;
   }
   .grid-item-time {
     margin-right: 10px;
     lines: 1;
+    min-width: 0;
     flex-shrink: 0;
   }
   .grid-item-location {
     lines: 1;
+    min-width: 0;
     flex-shrink: 0;
   }
   .empty-card {
@@ -1437,6 +1463,7 @@ export default {
 
 .mode-row {
   flex-direction: row;
+  width: 100%;
   height: 52px;
   border-radius: 26px;
   margin-bottom: 6px;
@@ -1461,6 +1488,7 @@ export default {
 
 .tool-grid {
   flex-direction: row;
+  width: 100%;
   flex-wrap: wrap;
   justify-content: space-between;
   padding: 2px 0;
@@ -1488,6 +1516,7 @@ export default {
   line-height: 36px;
   text-align: center;
   lines: 1;
+  min-width: 0;
   text-overflow: ellipsis;
 }
 
@@ -1499,6 +1528,7 @@ export default {
 
 .tool-row {
   flex-direction: row;
+  width: 100%;
   align-items: center;
   height: 56px;
   border-radius: 10px;
@@ -1526,6 +1556,7 @@ export default {
   line-height: 36px;
   margin-left: 8px;
   lines: 1;
+  min-width: 0;
   text-overflow: ellipsis;
 }
 
@@ -1543,6 +1574,7 @@ export default {
 
 .rich-card {
   flex-direction: row;
+  width: 100%;
   align-items: center;
   height: 72px;
   border-radius: 12px;
@@ -1575,6 +1607,7 @@ export default {
   font-size: 26px;
   line-height: 34px;
   lines: 1;
+  min-width: 0;
   text-overflow: ellipsis;
 }
 
@@ -1582,6 +1615,7 @@ export default {
   font-size: 22px;
   line-height: 30px;
   lines: 1;
+  min-width: 0;
   text-overflow: ellipsis;
   margin-top: 2px;
 }

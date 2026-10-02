@@ -51,8 +51,30 @@ import router from "@system.router"
 const store = require("../../data/store.js")
 
 var STORAGE_KEY = "qrcode_items_list"
-var DEFAULT_ITEM = { id: "demo_wechat", name: "微信打赏", content: "wxp://f2f0i7FYfQ5xBhxQtXDwsQpkyGZLB7UsjrRjsrXn02Qx8NQHjn8WlZEnozT2BURX_JRy" }
+var SEED_FLAG = "qrcode_seeded"
+/* 2026-10-02 按用户反馈：示例二维码从 1 条增至 2 条（加 QQ 群），
+   名称统一带「示例」二字，避免被误认为真实数据。
+   播种只在「从未写过数据」时发生（SEED_FLAG 标记），
+   用户自己清空后不会再次被塞回。 */
+var DEMO_ITEMS = [
+  { id: "demo_qq_group", name: "示例：QQ 交流群", content: "https://qm.qq.com/q/evbox-demo" },
+  { id: "demo_wechat", name: "示例：微信打赏", content: "wxp://f2f0i7FYfQ5xBhxQtXDwsQpkyGZLB7UsjrRjsrXn02Qx8NQHjn8WlZEnozT2BURX_JRy" }
+]
+var DEFAULT_ITEM = DEMO_ITEMS[0]
 var loadingStorage = false
+
+function demoList() {
+  var out = []
+  for (var i = 0; i < DEMO_ITEMS.length; i++) out.push(cloneItem(DEMO_ITEMS[i]))
+  return out
+}
+
+function finishLoad(arr, callback) {
+  for (var i = 0; i < arr.length; i++) {
+    if (!arr[i].expanded) arr[i].expanded = false
+  }
+  callback(arr)
+}
 
 function generateId() {
   return "qrc_" + Date.now() + "_" + Math.floor(Math.random() * 10000)
@@ -77,18 +99,28 @@ function loadItems(callback) {
           arr = []
         }
       }
-      if (arr.length === 0) {
-        arr = [cloneItem(DEFAULT_ITEM)]
-        saveItems(arr)
-      }
-      for (var i = 0; i < arr.length; i++) {
-        if (!arr[i].expanded) arr[i].expanded = false
-      }
-      callback(arr)
+      if (arr.length > 0) { finishLoad(arr, callback); return }
+
+      // 空列表：查是否已播种过
+      storage.get({
+        key: SEED_FLAG,
+        success: function(flag) {
+          if (flag) { finishLoad([], callback); return }   // 用户自己清空过
+          var seeds = demoList()
+          saveItems(seeds)
+          storage.set({ key: SEED_FLAG, value: "1", success: function() {}, fail: function() {} })
+          finishLoad(seeds, callback)
+        },
+        fail: function() {
+          var seeds = demoList()
+          saveItems(seeds)
+          finishLoad(seeds, callback)
+        }
+      })
     },
     fail: function() {
       loadingStorage = false
-      callback([cloneItem(DEFAULT_ITEM)])
+      finishLoad(demoList(), callback)
     }
   })
 }
@@ -428,6 +460,7 @@ export default {
   font-weight: bold;
   line-height: 30px;
   lines: 1;
+  min-width: 0;
 }
 
 .list-area {
@@ -443,6 +476,7 @@ export default {
 
 .accordion-header {
   flex-direction: row;
+  width: 100%;
   align-items: center;
   padding: 10px 12px;
 }
@@ -453,6 +487,7 @@ export default {
   font-weight: bold;
   line-height: 34px;
   lines: 1;
+  min-width: 0;
   text-overflow: ellipsis;
 }
 
@@ -513,6 +548,7 @@ export default {
   font-weight: bold;
   line-height: 28px;
   lines: 1;
+  min-width: 0;
 }
 
 .empty-state {

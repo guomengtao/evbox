@@ -183,6 +183,50 @@ function createItem(fields) {
 
 // ---------------------------------------------------------------- 存储
 
+/**
+ * 示例数据（demo seeds）
+ *
+ * 2026-10-02 按用户反馈新增：首次使用（storage 为空）时写入 3 条示例，
+ * 让用户打开就能看到效果，不必先自己录数据。
+ *
+ * 三条原则：
+ *   1. 只在「从未写过数据」时播种一次 —— 用独立 SEED_FLAG 标记，
+ *      用户自己清空列表后不会再次被塞回来。
+ *   2. 名称一律带「示例」二字，界面上明确可辨，不会被误认为真实日程。
+ *   3. 其中一条钉到首页，让首页大数字模块也有内容可显示。
+ */
+var SEED_FLAG = "countdownSeeded"
+
+function buildDemoSeeds() {
+  var today = startOfDay(new Date())
+  var base = today.getTime()
+
+  function at(offsetDays) {
+    var t = new Date(base + offsetDays * 86400000)
+    return {
+      year: t.getFullYear(),
+      month: t.getMonth() + 1,
+      day: t.getDate()
+    }
+  }
+
+  var d1 = at(30)
+  var d2 = at(100)
+  var d3 = at(365)
+
+  var seeds = [
+    createItem({ title: "示例：距离期末还有 30 天", year: d1.year, month: d1.month, day: d1.day, repeat: "none", pinnedHome: true }),
+    createItem({ title: "示例：距离旅行出发 100 天", year: d2.year, month: d2.month, day: d2.day, repeat: "none" }),
+    createItem({ title: "示例：年度总结 365 天", year: d3.year, month: d3.month, day: d3.day, repeat: "yearly" })
+  ]
+
+  var out = []
+  for (var i = 0; i < seeds.length; i++) {
+    if (seeds[i]) out.push(seeds[i])
+  }
+  return out
+}
+
 function loadList(cb) {
   var storage = require("@system.storage")
   storage.get({
@@ -196,7 +240,29 @@ function loadList(cb) {
           raw = []
         }
       }
-      cb(normalizeList(raw))
+
+      var list = normalizeList(raw)
+
+      // 已有数据：绝不覆盖用户数据
+      if (list.length > 0) {
+        cb(list)
+        return
+      }
+
+      // 空列表：查是否已播种过
+      storage.get({
+        key: SEED_FLAG,
+        success: function(flag) {
+          if (flag) { cb(list); return }   // 用户自己清空过，不再塞 demo
+          var seeds = buildDemoSeeds()
+          if (!seeds.length) { cb(list); return }
+          saveList(seeds, function() {
+            storage.set({ key: SEED_FLAG, value: "1", success: function() {}, fail: function() {} })
+            cb(normalizeList(seeds))
+          })
+        },
+        fail: function() { cb(list) }
+      })
     },
     fail: function() {
       cb([])

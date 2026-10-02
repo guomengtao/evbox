@@ -563,6 +563,7 @@ export default {
 
 .lab-nav-item {
   flex-direction: row;
+  width: 100%;
   align-items: center;
   padding: 12px 14px;
   border-radius: 8px;
@@ -584,6 +585,7 @@ export default {
 
 .footer-actions {
   flex-direction: row;
+  width: 100%;
   justify-content: center;
   padding: 16px 0 8px 0;
 }
@@ -611,6 +613,7 @@ export default {
   text-align: center;
   line-height: 36px;
   lines: 1;
+  min-width: 0;
   text-overflow: ellipsis;
 }
 
@@ -619,11 +622,13 @@ export default {
   margin-top: 4px;
   text-align: center;
   lines: 1;
+  min-width: 0;
   text-overflow: ellipsis;
 }
 
 .hero-btns {
   flex-direction: row;
+  width: 100%;
   margin-top: 10px;
 }
 
@@ -658,11 +663,13 @@ export default {
   font-weight: bold;
   margin-bottom: 6px;
   lines: 1;
+  min-width: 0;
   text-overflow: ellipsis;
 }
 
 .stepper-row {
   flex-direction: row;
+  width: 100%;
   align-items: center;
   justify-content: center;
   margin-bottom: 8px;
@@ -685,11 +692,13 @@ export default {
   text-align: center;
   line-height: 32px;
   lines: 1;
+  min-width: 0;
   text-overflow: ellipsis;
 }
 
 .quick-row {
   flex-direction: row;
+  width: 100%;
   flex-wrap: wrap;
   justify-content: center;
 }
@@ -709,6 +718,7 @@ export default {
 
 .preset-grid {
   flex-direction: row;
+  width: 100%;
   flex-wrap: wrap;
   justify-content: space-between;
 }
@@ -726,6 +736,7 @@ export default {
   font-size: 20px; line-height: 28px;
   font-weight: bold;
   lines: 1;
+  min-width: 0;
   text-overflow: ellipsis;
 }
 
@@ -733,6 +744,7 @@ export default {
   font-size: 20px; line-height: 28px;
   margin-top: 2px;
   lines: 1;
+  min-width: 0;
   text-overflow: ellipsis;
 }
 
@@ -745,11 +757,13 @@ export default {
   font-size: 20px; line-height: 28px;
   text-align: center;
   lines: 1;
+  min-width: 0;
   text-overflow: ellipsis;
 }
 
 .saved-item {
   flex-direction: row;
+  width: 100%;
   align-items: center;
   justify-content: space-between;
   border-radius: 8px;
@@ -761,6 +775,7 @@ export default {
   font-size: 20px; line-height: 28px;
   font-weight: bold;
   lines: 1;
+  min-width: 0;
   text-overflow: ellipsis;
 }
 
@@ -770,6 +785,7 @@ export default {
   margin-left: 8px;
   margin-right: 6px;
   lines: 1;
+  min-width: 0;
   text-overflow: ellipsis;
 }
 
@@ -783,6 +799,7 @@ export default {
 
 .save-section {
   flex-direction: row;
+  width: 100%;
   justify-content: center;
   margin-top: 8px;
   padding-bottom: 16px;
@@ -799,6 +816,7 @@ export default {
 
 .notice-banner {
   flex-direction: row;
+  width: 100%;
   align-items: center;
   border-radius: 10px;
   border: 1px solid;
@@ -818,11 +836,13 @@ export default {
   line-height: 28px;
   flex: 1;
   lines: 1;
+  min-width: 0;
   text-overflow: ellipsis;
 }
 
 .remind-toggle-row {
   flex-direction: row;
+  width: 100%;
   justify-content: space-between;
   align-items: center;
   padding: 4px 0;
@@ -832,6 +852,7 @@ export default {
   font-size: 20px; line-height: 28px;
   flex-shrink: 0;
   lines: 1;
+  min-width: 0;
   text-overflow: ellipsis;
 }
 
@@ -846,6 +867,7 @@ export default {
 
 .minute-row {
   flex-direction: row;
+  width: 100%;
   align-items: center;
 }
 
@@ -869,6 +891,7 @@ export default {
 
 .vibe-grid {
   flex-direction: row;
+  width: 100%;
   flex-wrap: wrap;
   justify-content: space-between;
 }
@@ -884,6 +907,7 @@ export default {
 
 .vibe-top {
   flex-direction: row;
+  width: 100%;
   justify-content: space-between;
   align-items: center;
 }
@@ -892,17 +916,23 @@ export default {
   font-size: 20px; line-height: 28px;
   font-weight: bold;
   lines: 1;
+  min-width: 0;
+  /* 2026-10-02 按用户反馈「短轻/长持/双轻被挤成竖排单字」：
+     需 flex:1 占据剩余空间并允许收缩，右侧 ✓ 用 flex-shrink:0 固定 */
+  flex: 1;
   text-overflow: ellipsis;
 }
 
 .vibe-check {
   font-size: 20px; line-height: 28px;
+  flex-shrink: 0;
 }
 
 .vibe-desc {
   font-size: 20px; line-height: 28px;
   margin-top: 2px;
   lines: 1;
+  min-width: 0;
   text-overflow: ellipsis;
 }
 
@@ -911,6 +941,7 @@ export default {
   text-align: center;
   margin-top: 6px;
   lines: 1;
+  min-width: 0;
   text-overflow: ellipsis;
 }
 
@@ -1124,7 +1155,7 @@ export default {
   }
   .vibe-item {
     width: 100%;
-    padding: 8px 10px;
+    padding: 8px 6px;
     margin-bottom: 4px;
     border: 1px solid transparent;
   }

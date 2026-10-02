@@ -137,6 +137,7 @@ export default {
   font-weight: bold;
   line-height: 42px;
   lines: 1;
+  min-width: 0;
   text-overflow: ellipsis;
 }
 
@@ -166,6 +167,7 @@ export default {
   font-weight: bold;
   line-height: 34px;
   lines: 1;
+  min-width: 0;
   margin-bottom: 10px;
 }
 
@@ -181,10 +183,12 @@ export default {
   line-height: 28px;
   text-align: center;
   lines: 1;
+  min-width: 0;
 }
 
 .thanks-section {
   flex-direction: row;
+  width: 100%;
   align-items: center;
   justify-content: center;
   height: 28px;
@@ -202,14 +206,16 @@ export default {
   font-size: 20px;
   line-height: 28px;
   lines: 1;
+  min-width: 0;
 }
 
 @media (shape: capsule), (shape: pill-shaped) {
   .header-title {
-    font-size: 24px;
+    font-size: 20px;
     font-weight: bold;
     line-height: 32px;
     lines: 1;
+    min-width: 0;
     text-overflow: ellipsis;
   }
 
@@ -262,6 +268,7 @@ export default {
     font-weight: bold;
     line-height: 42px;
     lines: 1;
+    min-width: 0;
     text-overflow: ellipsis;
   }
 
@@ -305,6 +312,7 @@ export default {
     font-weight: bold;
     line-height: 44px;
     lines: 1;
+    min-width: 0;
     text-overflow: ellipsis;
   }
 

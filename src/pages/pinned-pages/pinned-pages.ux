@@ -132,6 +132,10 @@ export default {
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  /* 2026-10-02 按用户反馈「弹窗不居中」：真机下仅靠 flex:1 不足以撑开，
+     必须显式 width:100%，justify-content:center 才在整屏水平垂直居中 */
+  width: 100%;
+  min-height: 0;
   padding-bottom: 40px;
 }
 
@@ -167,6 +171,7 @@ export default {
 
 .pinned-card {
   flex-direction: row;
+  width: 100%;
   align-items: center;
   justify-content: space-between;
   border-radius: 14px;
@@ -197,6 +202,7 @@ export default {
 /* Footer */
 .footer-area {
   flex-direction: row;
+  width: 100%;
   justify-content: center;
   padding: 14px 0 6px 0;
 }
@@ -240,6 +246,7 @@ export default {
     font-size: 26px;
     line-height: 34px;
     lines: 1;
+    min-width: 0;
   }
   .unpin-btn {
     font-size: 20px;

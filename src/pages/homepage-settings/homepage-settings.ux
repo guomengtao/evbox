@@ -340,6 +340,7 @@ export default {
 
 .item-row {
   flex-direction: row;
+  width: 100%;
   align-items: center;
   justify-content: space-between;
   padding: 16px 0;
@@ -352,6 +353,7 @@ export default {
 .item-label {
   font-size: 32px;
   lines: 1;
+  min-width: 0;
   text-overflow: ellipsis;
 }
 
@@ -361,6 +363,7 @@ export default {
 
 .row-right {
   flex-direction: row;
+  width: 100%;
   align-items: center;
   flex-shrink: 0;
 }
@@ -379,6 +382,7 @@ export default {
 
 .scale-row {
   flex-direction: row;
+  width: 100%;
   align-items: center;
   justify-content: center;
   margin-top: 16px;
@@ -440,6 +444,7 @@ export default {
 
 .input-row {
   flex-direction: row;
+  width: 100%;
   align-items: center;
   justify-content: space-between;
   padding: 16px 0;
@@ -449,6 +454,7 @@ export default {
   font-size: 32px;
   flex: 1;
   lines: 1;
+  min-width: 0;
   text-overflow: ellipsis;
 }
 
@@ -459,6 +465,7 @@ export default {
 
 .preview-row {
   flex-direction: row;
+  width: 100%;
   align-items: center;
   justify-content: center;
   padding: 14px 0 18px 0;
@@ -471,6 +478,7 @@ export default {
 
 .time-format-row {
   flex-direction: row;
+  width: 100%;
   align-items: center;
   flex-wrap: wrap;
   padding-top: 16px;
@@ -547,6 +555,7 @@ export default {
   font-size: 32px;
   margin-bottom: 10px;
   lines: 1;
+  min-width: 0;
   text-overflow: ellipsis;
 }
 
@@ -728,6 +737,7 @@ export default {
     margin-bottom: 6px;
     line-height: 32px;
     lines: 1;
+    min-width: 0;
     text-overflow: ellipsis;
   }
 

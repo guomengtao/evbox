@@ -188,6 +188,7 @@ export default {
 
 .menu-item {
   flex-direction: row;
+  width: 100%;
   justify-content: space-between;
   align-items: center;
   border-radius: 10px;
@@ -199,6 +200,7 @@ export default {
   font-size: 24px;
   line-height: 32px;
   lines: 1;
+  min-width: 0;
   flex-shrink: 0;
 }
 
@@ -208,10 +210,12 @@ export default {
   margin-left: 8px;
   line-height: 30px;
   lines: 1;
+  min-width: 0;
 }
 
 .pin-row {
   flex-direction: row;
+  width: 100%;
   justify-content: center;
   padding: 10px 0 6px 0;
 }
@@ -221,6 +225,7 @@ export default {
   font-size: 22px;
   line-height: 30px;
   lines: 1;
+  min-width: 0;
 }
 
 .loading {
@@ -240,6 +245,7 @@ export default {
   font-size: 24px;
   line-height: 32px;
   lines: 1;
+  min-width: 0;
 }
 
 .error-card {
@@ -262,6 +268,7 @@ export default {
   margin-bottom: 8px;
   line-height: 32px;
   lines: 1;
+  min-width: 0;
 }
 
 .retry-btn {

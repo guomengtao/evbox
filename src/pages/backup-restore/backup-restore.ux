@@ -418,6 +418,7 @@ export default {
 
 .create-section {
   flex-direction: row;
+  width: 100%;
   justify-content: center;
   margin-bottom: 14px;
 }
@@ -491,6 +492,7 @@ export default {
 
 .backup-row-footer {
   flex-direction: row;
+  width: 100%;
   align-items: center;
   justify-content: space-between;
 }
@@ -508,6 +510,7 @@ export default {
 
 .backup-row-actions {
   flex-direction: row;
+  width: 100%;
   align-items: center;
   flex-shrink: 0;
 }
@@ -651,6 +654,7 @@ export default {
 
   .backup-row-footer {
     flex-direction: row;
+    width: 100%;
     align-items: center;
     justify-content: space-between;
   }
@@ -765,6 +769,7 @@ export default {
 
   .backup-row-actions {
     flex-direction: row;
+    width: 100%;
     align-items: center;
     flex-shrink: 0;
     margin-left: 0;
@@ -886,6 +891,7 @@ export default {
 
   .backup-row-footer {
     flex-direction: row;
+    width: 100%;
     align-items: center;
     justify-content: space-between;
   }

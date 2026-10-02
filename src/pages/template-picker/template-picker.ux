@@ -108,6 +108,7 @@ export default {
 
 .card-left {
   flex-direction: row;
+  width: 100%;
   align-items: center;
   flex: 1;
 }
@@ -130,6 +131,7 @@ export default {
   font-weight: bold;
   line-height: 40px;
   lines: 1;
+  min-width: 0;
   text-overflow: ellipsis;
 }
 
@@ -187,11 +189,13 @@ export default {
   .card-name {
     font-size: 32px;
     lines: 1;
+    min-width: 0;
     text-overflow: ellipsis;
   }
   .card-desc {
     font-size: 28px;
     lines: 1;
+    min-width: 0;
     text-overflow: ellipsis;
   }
   .card-check {

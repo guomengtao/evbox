@@ -8,6 +8,7 @@
 /* ── Header row: 3 elements max ── */
 .capsule-header {
   flex-direction: row;
+  width: 100%;
   align-items: center;
   height: 44px;
   margin-bottom: 4px;
@@ -34,6 +35,7 @@
   font-weight: bold;
   text-align: center;
   lines: 1;
+  min-width: 0;
   text-overflow: ellipsis;
   line-height: 36px;
   margin: 0 4px;
@@ -56,6 +58,7 @@
 /* ── Toolbar row: overflow buttons go here ── */
 .capsule-toolbar {
   flex-direction: row;
+  width: 100%;
   justify-content: space-around;
   align-items: center;
   height: 48px;

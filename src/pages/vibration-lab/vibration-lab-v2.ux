@@ -527,6 +527,7 @@ export default {
 
 .header {
   flex-direction: row;
+  width: 100%;
   align-items: center;
   margin-bottom: 10px;
 }
@@ -547,6 +548,7 @@ export default {
   text-align: center;
   line-height: 44px;
   lines: 1;
+  min-width: 0;
   text-overflow: ellipsis;
 }
 
@@ -569,6 +571,7 @@ export default {
   text-align: center;
   line-height: 34px;
   lines: 1;
+  min-width: 0;
   text-overflow: ellipsis;
 }
 
@@ -578,11 +581,13 @@ export default {
   line-height: 28px;
   margin-top: 4px;
   lines: 1;
+  min-width: 0;
   text-overflow: ellipsis;
 }
 
 .hero-btns {
   flex-direction: row;
+  width: 100%;
   margin-top: 10px;
 }
 
@@ -620,6 +625,7 @@ export default {
   line-height: 32px;
   margin-bottom: 8px;
   lines: 1;
+  min-width: 0;
   text-overflow: ellipsis;
 }
 
@@ -628,6 +634,7 @@ export default {
   line-height: 28px;
   margin-bottom: 6px;
   lines: 1;
+  min-width: 0;
   text-overflow: ellipsis;
 }
 
@@ -637,6 +644,7 @@ export default {
 
 .remind-row-item {
   flex-direction: row;
+  width: 100%;
   justify-content: space-between;
   align-items: center;
   padding: 4px 0;
@@ -646,6 +654,7 @@ export default {
   font-size: 22px;
   line-height: 32px;
   lines: 1;
+  min-width: 0;
   text-overflow: ellipsis;
 }
 
@@ -661,6 +670,7 @@ export default {
 
 .minute-row {
   flex-direction: row;
+  width: 100%;
   align-items: center;
 }
 
@@ -690,6 +700,7 @@ export default {
 
 .vibe-item {
   flex-direction: row;
+  width: 100%;
   align-items: center;
   justify-content: space-between;
   border-radius: 8px;
@@ -702,6 +713,7 @@ export default {
   font-weight: bold;
   line-height: 32px;
   lines: 1;
+  min-width: 0;
   text-overflow: ellipsis;
 }
 
@@ -709,11 +721,13 @@ export default {
   font-size: 20px;
   line-height: 28px;
   lines: 1;
+  min-width: 0;
   text-overflow: ellipsis;
 }
 
 .stepper-row {
   flex-direction: row;
+  width: 100%;
   align-items: center;
   justify-content: center;
   margin-bottom: 8px;
@@ -736,11 +750,13 @@ export default {
   text-align: center;
   line-height: 34px;
   lines: 1;
+  min-width: 0;
   text-overflow: ellipsis;
 }
 
 .quick-row {
   flex-direction: row;
+  width: 100%;
   justify-content: center;
   margin-bottom: 6px;
 }
@@ -758,6 +774,7 @@ export default {
 
 .preset-row {
   flex-direction: row;
+  width: 100%;
   flex-wrap: wrap;
 }
 
@@ -776,6 +793,7 @@ export default {
   font-weight: bold;
   line-height: 28px;
   lines: 1;
+  min-width: 0;
   text-overflow: ellipsis;
 }
 
@@ -784,6 +802,7 @@ export default {
   line-height: 28px;
   margin-top: 2px;
   lines: 1;
+  min-width: 0;
   text-overflow: ellipsis;
 }
 
@@ -797,11 +816,13 @@ export default {
   line-height: 28px;
   text-align: center;
   lines: 1;
+  min-width: 0;
   text-overflow: ellipsis;
 }
 
 .saved-item {
   flex-direction: row;
+  width: 100%;
   align-items: center;
   justify-content: space-between;
   border-radius: 8px;
@@ -819,6 +840,7 @@ export default {
   font-weight: bold;
   line-height: 32px;
   lines: 1;
+  min-width: 0;
   text-overflow: ellipsis;
 }
 
@@ -826,6 +848,7 @@ export default {
   font-size: 20px;
   line-height: 28px;
   lines: 1;
+  min-width: 0;
   text-overflow: ellipsis;
 }
 
@@ -840,6 +863,7 @@ export default {
 
 .save-section {
   flex-direction: row;
+  width: 100%;
   justify-content: center;
   margin-top: 8px;
   padding-bottom: 8px;
@@ -857,6 +881,7 @@ export default {
 
 .footer-pin {
   flex-direction: row;
+  width: 100%;
   justify-content: center;
   padding: 12px 0;
 }
