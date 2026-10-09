@@ -1,0 +1,13 @@
+const fs = require("fs");
+const p = "/Users/Banner/Documents/guomengtao/ev/app-auth/admin_Dx23.html";
+const s = fs.readFileSync(p, "utf8");
+const out = [];
+const dIdx = s.indexOf('id="panel-bandbbs-detail"');
+out.push("=== tail before </main> (last 300 chars) ===");
+out.push(JSON.stringify(s.slice(s.indexOf('</main>')-300, s.indexOf('</main>'))));
+out.push("\n=== detail panel region (dIdx-40 .. dIdx+700) ===");
+out.push(JSON.stringify(s.slice(dIdx-40, dIdx+700)));
+out.push("\n=== around panel-bandbbs close (dIdx-200 .. dIdx) ===");
+out.push(JSON.stringify(s.slice(dIdx-300, dIdx)));
+fs.writeFileSync("/Users/Banner/Documents/guomengtao/ev/evbox/_probe_out.txt", out.join("\n"));
+console.log("written");

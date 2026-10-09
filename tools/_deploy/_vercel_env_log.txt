@@ -1,0 +1,25 @@
+Adding BANDBBS_EMAIL...
+Vercel CLI 59.11.7 (Node.js 22.22.0)
+Retrieving project…
+> Removed trailing newline from stdin input
+Saving…
+
+✓ Overrode        BANDBBS_EMAIL
+  Project         guomengtaos-projects-7a91cee5/app-auth
+  Environments    Production
+  Type            Secret
+  Stored as Secret by default. This value is hidden in the dashboard and unavailable to pulls; use `--type config` for values you need to read later.
+EXIT_CODE_EMAIL=0
+Adding BANDBBS_PASSWORD...
+Vercel CLI 59.11.7 (Node.js 22.22.0)
+Retrieving project…
+> Removed trailing newline from stdin input
+Saving…
+
+✓ Overrode        BANDBBS_PASSWORD
+  Project         guomengtaos-projects-7a91cee5/app-auth
+  Environments    Production
+  Type            Secret
+  Stored as Secret by default. This value is hidden in the dashboard and unavailable to pulls; use `--type config` for values you need to read later.
+EXIT_CODE_PASSWORD=0
+DONE
