@@ -42,6 +42,26 @@ echo "=========================================="
 echo "  批量构建 ${#CHANNELS[@]} 个渠道包"
 echo "=========================================="
 
+# ---- 版本号自动 +1（铁律 §3.2，2026-10-14 版本纠察员🚨 补；versionName/versionCode 同步 +1）----
+# 必须在 ORIGINAL 备份之前执行，否则构建后的恢复逻辑会把新版本号覆盖回旧值
+# --no-bump 不升号
+if [ "${1:-}" != "--no-bump" ]; then
+  node -e "
+const fs = require('fs');
+const p = '$ROOT/src/data/version.js';
+let s = fs.readFileSync(p, 'utf8');
+const m = s.match(/versionName: \"(\d+)\.(\d+)\.(\d+)\"/);
+if (m) {
+  const nv = m[1] + '.' + m[2] + '.' + (parseInt(m[3]) + 1);
+  const c = (s.match(/versionCode: (\d+)/) || [0, 0])[1];
+  s = s.replace(/versionName: \"[^\"]+\"/, 'versionName: \"' + nv + '\"');
+  s = s.replace(/versionCode: \d+/, 'versionCode: ' + (parseInt(c) + 1));
+  fs.writeFileSync(p, s);
+  console.log('  version → ' + nv);
+}
+"
+fi
+
 # 备份原始 version.js
 cd "$ROOT"
 
