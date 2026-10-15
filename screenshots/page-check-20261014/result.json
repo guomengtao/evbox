@@ -1,0 +1,186 @@
+[
+ {
+  "page": "welcome",
+  "nonzero": 188160,
+  "elapsed": 3.6,
+  "md5": "46307d3d",
+  "verdict": "OK",
+  "png": "/Users/Banner/Documents/guomengtao/ev/evbox/screenshots/page-check-20261014/01-welcome.png"
+ },
+ {
+  "page": "index",
+  "nonzero": 188160,
+  "elapsed": 1.9,
+  "md5": "239efdf4",
+  "verdict": "OK",
+  "png": "/Users/Banner/Documents/guomengtao/ev/evbox/screenshots/page-check-20261014/02-index.png"
+ },
+ {
+  "page": "tools",
+  "nonzero": 188160,
+  "elapsed": 6.9,
+  "md5": "b6593126",
+  "verdict": "OK",
+  "png": "/Users/Banner/Documents/guomengtao/ev/evbox/screenshots/page-check-20261014/03-tools.png"
+ },
+ {
+  "page": "countdown-manage",
+  "nonzero": -1,
+  "elapsed": -1,
+  "md5": "ERROR",
+  "verdict": "ERROR:Command '['/Users/Banner/.vela/sdk/tools/adb/mac/adb', '-s', 'emulator-13004', 'shell', 'dd if=/dev/fb0 of=/tmp/fbshot.raw bs=188160 count=2']' timed out after 30 seconds",
+  "png": null
+ },
+ {
+  "page": "lunar-calendar",
+  "nonzero": -1,
+  "elapsed": -1,
+  "md5": "ERROR",
+  "verdict": "ERROR:Command '['/Users/Banner/.vela/sdk/tools/adb/mac/adb', '-s', 'emulator-13004', 'pull', '/data/quickapp/app/com.application.watch.evbox/manifest.json', '/Users/Banner/Documents/guomengtao/ev/evbox/screenshots/page-check-20261014/_manifest.json']' timed out after 40 seconds",
+  "png": null
+ },
+ {
+  "page": "calculator",
+  "nonzero": -1,
+  "elapsed": -1,
+  "md5": "ERROR",
+  "verdict": "ERROR:Command '['/Users/Banner/.vela/sdk/tools/adb/mac/adb', '-s', 'emulator-13004', 'pull', '/data/quickapp/app/com.application.watch.evbox/manifest.json', '/Users/Banner/Documents/guomengtao/ev/evbox/screenshots/page-check-20261014/_manifest.json']' timed out after 40 seconds",
+  "png": null
+ },
+ {
+  "page": "daily-quote",
+  "nonzero": -1,
+  "elapsed": -1,
+  "md5": "ERROR",
+  "verdict": "ERROR:Command '['/Users/Banner/.vela/sdk/tools/adb/mac/adb', '-s', 'emulator-13004', 'pull', '/data/quickapp/app/com.application.watch.evbox/manifest.json', '/Users/Banner/Documents/guomengtao/ev/evbox/screenshots/page-check-20261014/_manifest.json']' timed out after 40 seconds",
+  "png": null
+ },
+ {
+  "page": "answer-book",
+  "nonzero": -1,
+  "elapsed": -1,
+  "md5": "ERROR",
+  "verdict": "ERROR:Command '['/Users/Banner/.vela/sdk/tools/adb/mac/adb', '-s', 'emulator-13004', 'pull', '/data/quickapp/app/com.application.watch.evbox/manifest.json', '/Users/Banner/Documents/guomengtao/ev/evbox/screenshots/page-check-20261014/_manifest.json']' timed out after 40 seconds",
+  "png": null
+ },
+ {
+  "page": "qrcode-generator",
+  "nonzero": -1,
+  "elapsed": -1,
+  "md5": "ERROR",
+  "verdict": "ERROR:Command '['/Users/Banner/.vela/sdk/tools/adb/mac/adb', '-s', 'emulator-13004', 'pull', '/data/quickapp/app/com.application.watch.evbox/manifest.json', '/Users/Banner/Documents/guomengtao/ev/evbox/screenshots/page-check-20261014/_manifest.json']' timed out after 40 seconds",
+  "png": null
+ },
+ {
+  "page": "vibration-lab",
+  "nonzero": -1,
+  "elapsed": -1,
+  "md5": "ERROR",
+  "verdict": "ERROR:Command '['/Users/Banner/.vela/sdk/tools/adb/mac/adb', '-s', 'emulator-13004', 'pull', '/data/quickapp/app/com.application.watch.evbox/manifest.json', '/Users/Banner/Documents/guomengtao/ev/evbox/screenshots/page-check-20261014/_manifest.json']' timed out after 40 seconds",
+  "png": null
+ },
+ {
+  "page": "vibration-lab-v2",
+  "nonzero": -1,
+  "elapsed": -1,
+  "md5": "ERROR",
+  "verdict": "ERROR:Command '['/Users/Banner/.vela/sdk/tools/adb/mac/adb', '-s', 'emulator-13004', 'pull', '/data/quickapp/app/com.application.watch.evbox/manifest.json', '/Users/Banner/Documents/guomengtao/ev/evbox/screenshots/page-check-20261014/_manifest.json']' timed out after 40 seconds",
+  "png": null
+ },
+ {
+  "page": "chinese-input",
+  "nonzero": -1,
+  "elapsed": -1,
+  "md5": "ERROR",
+  "verdict": "ERROR:Command '['/Users/Banner/.vela/sdk/tools/adb/mac/adb', '-s', 'emulator-13004', 'pull', '/data/quickapp/app/com.application.watch.evbox/manifest.json', '/Users/Banner/Documents/guomengtao/ev/evbox/screenshots/page-check-20261014/_manifest.json']' timed out after 40 seconds",
+  "png": null
+ },
+ {
+  "page": "settings",
+  "nonzero": -1,
+  "elapsed": -1,
+  "md5": "ERROR",
+  "verdict": "ERROR:Command '['/Users/Banner/.vela/sdk/tools/adb/mac/adb', '-s', 'emulator-13004', 'pull', '/data/quickapp/app/com.application.watch.evbox/manifest.json', '/Users/Banner/Documents/guomengtao/ev/evbox/screenshots/page-check-20261014/_manifest.json']' timed out after 40 seconds",
+  "png": null
+ },
+ {
+  "page": "homepage-settings",
+  "nonzero": -1,
+  "elapsed": -1,
+  "md5": "ERROR",
+  "verdict": "ERROR:Command '['/Users/Banner/.vela/sdk/tools/adb/mac/adb', '-s', 'emulator-13004', 'pull', '/data/quickapp/app/com.application.watch.evbox/manifest.json', '/Users/Banner/Documents/guomengtao/ev/evbox/screenshots/page-check-20261014/_manifest.json']' timed out after 40 seconds",
+  "png": null
+ },
+ {
+  "page": "pinned-pages",
+  "nonzero": -1,
+  "elapsed": -1,
+  "md5": "ERROR",
+  "verdict": "ERROR:Command '['/Users/Banner/.vela/sdk/tools/adb/mac/adb', '-s', 'emulator-13004', 'pull', '/data/quickapp/app/com.application.watch.evbox/manifest.json', '/Users/Banner/Documents/guomengtao/ev/evbox/screenshots/page-check-20261014/_manifest.json']' timed out after 40 seconds",
+  "png": null
+ },
+ {
+  "page": "sync-chat",
+  "nonzero": -1,
+  "elapsed": -1,
+  "md5": "ERROR",
+  "verdict": "ERROR:Command '['/Users/Banner/.vela/sdk/tools/adb/mac/adb', '-s', 'emulator-13004', 'pull', '/data/quickapp/app/com.application.watch.evbox/manifest.json', '/Users/Banner/Documents/guomengtao/ev/evbox/screenshots/page-check-20261014/_manifest.json']' timed out after 40 seconds",
+  "png": null
+ },
+ {
+  "page": "backup-restore",
+  "nonzero": -1,
+  "elapsed": -1,
+  "md5": "ERROR",
+  "verdict": "ERROR:Command '['/Users/Banner/.vela/sdk/tools/adb/mac/adb', '-s', 'emulator-13004', 'pull', '/data/quickapp/app/com.application.watch.evbox/manifest.json', '/Users/Banner/Documents/guomengtao/ev/evbox/screenshots/page-check-20261014/_manifest.json']' timed out after 40 seconds",
+  "png": null
+ },
+ {
+  "page": "activation",
+  "nonzero": -1,
+  "elapsed": -1,
+  "md5": "ERROR",
+  "verdict": "ERROR:Command '['/Users/Banner/.vela/sdk/tools/adb/mac/adb', '-s', 'emulator-13004', 'pull', '/data/quickapp/app/com.application.watch.evbox/manifest.json', '/Users/Banner/Documents/guomengtao/ev/evbox/screenshots/page-check-20261014/_manifest.json']' timed out after 40 seconds",
+  "png": null
+ },
+ {
+  "page": "device-info",
+  "nonzero": -1,
+  "elapsed": -1,
+  "md5": "ERROR",
+  "verdict": "ERROR:Command '['/Users/Banner/.vela/sdk/tools/adb/mac/adb', '-s', 'emulator-13004', 'pull', '/data/quickapp/app/com.application.watch.evbox/manifest.json', '/Users/Banner/Documents/guomengtao/ev/evbox/screenshots/page-check-20261014/_manifest.json']' timed out after 40 seconds",
+  "png": null
+ },
+ {
+  "page": "template-picker",
+  "nonzero": -1,
+  "elapsed": -1,
+  "md5": "ERROR",
+  "verdict": "ERROR:Command '['/Users/Banner/.vela/sdk/tools/adb/mac/adb', '-s', 'emulator-13004', 'pull', '/data/quickapp/app/com.application.watch.evbox/manifest.json', '/Users/Banner/Documents/guomengtao/ev/evbox/screenshots/page-check-20261014/_manifest.json']' timed out after 40 seconds",
+  "png": null
+ },
+ {
+  "page": "device-id-diagnosis",
+  "nonzero": -1,
+  "elapsed": -1,
+  "md5": "ERROR",
+  "verdict": "ERROR:Command '['/Users/Banner/.vela/sdk/tools/adb/mac/adb', '-s', 'emulator-13004', 'pull', '/data/quickapp/app/com.application.watch.evbox/manifest.json', '/Users/Banner/Documents/guomengtao/ev/evbox/screenshots/page-check-20261014/_manifest.json']' timed out after 40 seconds",
+  "png": null
+ },
+ {
+  "page": "black-screen-check",
+  "nonzero": -1,
+  "elapsed": -1,
+  "md5": "ERROR",
+  "verdict": "ERROR:Command '['/Users/Banner/.vela/sdk/tools/adb/mac/adb', '-s', 'emulator-13004', 'pull', '/data/quickapp/app/com.application.watch.evbox/manifest.json', '/Users/Banner/Documents/guomengtao/ev/evbox/screenshots/page-check-20261014/_manifest.json']' timed out after 40 seconds",
+  "png": null
+ },
+ {
+  "page": "donate",
+  "nonzero": -1,
+  "elapsed": -1,
+  "md5": "ERROR",
+  "verdict": "ERROR:Command '['/Users/Banner/.vela/sdk/tools/adb/mac/adb', '-s', 'emulator-13004', 'pull', '/data/quickapp/app/com.application.watch.evbox/manifest.json', '/Users/Banner/Documents/guomengtao/ev/evbox/screenshots/page-check-20261014/_manifest.json']' timed out after 40 seconds",
+  "png": null
+ }
+]

@@ -35,5 +35,8 @@
     "aiot-toolkit": "^2.0.5",
     "patch-package": "^8.0.1",
     "postinstall-postinstall": "^2.1.0"
+  },
+  "dependencies": {
+    "pngjs": "^7.0.0"
   }
 }
