@@ -20,3 +20,17 @@ _rpk_check/
 # Python 工具脚本编译缓存
 __pycache__/
 *.pyc
+
+# --- 清洁工追加 (2026-10-08) ---
+*.log
+*.tmp
+logs/
+# --- WIP 噪音抑制（2026-10-15 陈账催收员🧾 批量补入）---
+*.pyo
+*_out.txt
+_probe*.js
+_tmp_*
+_kc_*
+_persist_*
+_dbe_backup/
+trae_verify*
