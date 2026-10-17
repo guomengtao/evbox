@@ -1,1 +1,1 @@
-module.exports = { versionName: "1.0.54", versionCode: 55, channel: "t-9p-d" }
+module.exports = { versionName: "1.0.56", versionCode: 57, channel: "t-9p-d" }
