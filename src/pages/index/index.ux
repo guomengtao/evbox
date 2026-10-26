@@ -76,7 +76,8 @@
       </div>
     </scroll>
 
-    <div class="bottom-buttons">
+    <!-- 2026-10-26 底部按钮补底色：列表可滚动，滚到末行时卡片会从按钮背后透出来 -->
+    <div class="bottom-buttons" style="background-color: {{ theme.bg }}">
       <input class="style-btn" type="button" value="工具" onclick="openTools" style="margin-right: 4px; background-color: {{ theme.cardLight }}; color: {{ theme.text }}" />
       <input class="style-btn" type="button" value="设置" onclick="openSettings" style="background-color: {{ theme.cardLight }}; color: {{ theme.text }}" />
     </div>
@@ -1118,7 +1119,7 @@ export default {
     flex: 1;
     height: 48px;
     border-radius: 24px;
-    font-size: 20px;
+    font-size: 24px;
     line-height: 48px;
   }
   /* 胶囊屏：换行规则 */
@@ -1210,20 +1211,9 @@ export default {
     font-size: 24px;
     line-height: 52px;
   }
-  /* 图标模式：一行 2 个（卡片 76px 宽）+ 去掉文字，只留图标
-     （14 + 56 + 14 = 84px 的纯图标卡片） */
-  .tool-card {
-    width: 48%;
-    padding: 14px 0;
-    margin-bottom: 6px;
-  }
-  .tool-icon-img {
-    width: 56px;
-    height: 56px;
-  }
-  .tool-name {
-    display: none;
-  }
+  /* 2026-10-26 图标模式的卡片样式见文件末尾「首页工具卡片」段：
+     本文件 base 的 .tool-card/.tool-name 定义在 media 块之后，同权重后者胜，
+     覆盖必须写在 <style> 最末尾才生效（原始 display:none 之所以有效是因为 base 没这条） */
   .tool-row {
     height: 56px;
     padding: 0 8px;
@@ -1604,7 +1594,7 @@ export default {
 }
 
 .rich-name {
-  font-size: 26px;
+  font-size: 28px;
   line-height: 34px;
   lines: 1;
   min-width: 0;
@@ -1612,7 +1602,7 @@ export default {
 }
 
 .rich-sum {
-  font-size: 22px;
+  font-size: 24px;
   line-height: 30px;
   lines: 1;
   min-width: 0;
@@ -1635,6 +1625,109 @@ export default {
   .tool-name {
     font-size: 30px;
     line-height: 40px;
+  }
+}
+
+/* ==================================================================
+   2026-10-26 首页工具卡片：工具名常显 + 按屏型换版式（ev-twins 双屏）
+   ⚠️ 必须放在 <style> 最后：本文件 base 的 .tool-card/.tool-name/.rich-*
+      定义在 media 块**之后**，同权重下后者胜 —— 早期把覆盖写进前面的
+      @media(shape: rect) 完全不生效（改完截图仍是两列，排查半天）。
+   ================================================================== */
+
+/* —— 胶囊屏 192x490：原设计 display:none 把名字全砍，只剩 10 个无标注图标，
+      用户反馈「认不出是哪个工具」。内容区 160px(30/16 padding) → 卡片 48%≈77px，
+      3 字名 3×24=72px 放得下，名字取 v5 下限 24px，图标 56→40 把高度让出来。 */
+@media (shape: capsule), (shape: pill-shaped) {
+  /* 高度预算：490 − 上下 30 padding − 底部按钮 56 = 374；10 个工具 2 列 5 行，
+     每行 74（3+34+2+26+3 = 68 卡高 + 6 间距）→ 370，刚好不溢出（上一版 86/行
+     = 430，溢 56px：首行顶到屏外、末行被底部按钮压住） */
+  .tool-card {
+    width: 48%;
+    padding: 3px 2px 3px 2px;
+    margin-bottom: 6px;
+    border-radius: 10px;
+  }
+  .tool-icon-img {
+    width: 34px;
+    height: 34px;
+    margin-bottom: 2px;
+  }
+  .tool-name {
+    font-size: 24px;
+    line-height: 28px;
+    text-align: center;
+    lines: 1;
+    min-width: 0;
+    text-overflow: ellipsis;
+  }
+  .rich-name {
+    font-size: 26px;
+    line-height: 32px;
+  }
+  .rich-sum {
+    font-size: 24px;
+    line-height: 28px;
+  }
+}
+
+/* —— 矩形屏 336x480（手环 10 Pro）：336px 宽两列 48% 时卡片 155px、图标仅 56px，
+      右边整片空白。改三列 32%（≈103px），名字 3 字 3×28=84px 仍放得下，
+      一屏可见 9 个工具（旧版 6 个）。列表/图文两视图同步放大到 30px。 */
+@media (shape: rect) {
+  .tool-grid {
+    padding: 0;
+  }
+  .tool-card {
+    width: 32%;
+    padding: 10px 2px 8px 2px;
+    margin-bottom: 8px;
+  }
+  .tool-icon-img {
+    width: 52px;
+    height: 52px;
+    margin-bottom: 6px;
+  }
+  .tool-name {
+    font-size: 28px;
+    line-height: 34px;
+  }
+  .tool-row {
+    height: 64px;
+    padding: 0 12px;
+  }
+  .tool-row-icon-box {
+    width: 48px;
+    height: 48px;
+  }
+  .tool-row-icon {
+    width: 32px;
+    height: 32px;
+  }
+  .tool-row-name {
+    font-size: 30px;
+    line-height: 38px;
+    margin-left: 10px;
+  }
+  .rich-card {
+    height: 84px;
+    padding: 0 12px;
+  }
+  .rich-icon-box {
+    width: 52px;
+    height: 52px;
+  }
+  .rich-icon {
+    width: 40px;
+    height: 40px;
+  }
+  .rich-name {
+    font-size: 30px;
+    line-height: 36px;
+  }
+  .rich-sum {
+    font-size: 24px;
+    line-height: 30px;
   }
 }
 
