@@ -16,38 +16,35 @@
     </div>
 
     <scroll class="list-scroll" scroll-y="{{true}}">
-      <div for="{{ list }}" class="countdown-row" style="background-color: {{ theme.card }}">
-        <div class="row-left" onclick="startEdit($idx)">
-          <div class="row-badge" style="background-color: {{ $item.daysLeft >= 0 ? theme.accent : theme.textMuted }}">
-            <text class="badge-num" style="color: {{ theme.bg }}">{{ $item.badgeText }}</text>
-          </div>
-          <div class="row-info">
-            <div class="row-title-line">
-              <text class="row-name" style="color: {{ theme.text }}">{{ $item.title }}</text>
-              <text class="pin-chip" if="{{ $item.pinnedHome }}" style="color: {{ theme.bg }}; background-color: {{ theme.accent }}">已钉</text>
+      <div class="list-grid">
+        <div for="{{ list }}" class="countdown-row" onclick="openEdit($idx)" style="background-color: {{ theme.card }}">
+          <!-- 置顶态用左侧色条表达（ev-six v5 禁徽标：不再用「已钉」小标签） -->
+          <div class="row-accent" if="{{ $item.pinnedHome }}" style="background-color: {{ theme.accent }}"></div>
+          <div class="row-left">
+            <div class="row-badge" style="background-color: {{ $item.daysLeft >= 0 ? theme.accent : theme.textMuted }}">
+              <text class="badge-num" style="color: {{ theme.bg }}">{{ $item.badgeText }}</text>
             </div>
-            <div class="row-sub-line">
-              <text class="row-date" style="color: {{ theme.textSecondary }}">{{ $item.dateText }}</text>
-              <text class="row-repeat" style="color: {{ theme.accent }}">{{ $item.repeatText }}</text>
+            <div class="row-info">
+              <div class="row-title-line">
+                <text class="row-name" style="color: {{ theme.text }}">{{ $item.title }}</text>
+              </div>
+              <div class="row-sub-line">
+                <text class="row-date" style="color: {{ theme.textSecondary }}">{{ $item.dateText }}</text>
+                <text class="row-repeat" if="{{ $item.repeat !== 'none' }}" style="color: {{ theme.accent }}">{{ $item.repeatText }}</text>
+              </div>
+              <text class="row-days" if="{{ $item.enabled !== false }}" style="color: {{ $item.daysLeft >= 0 ? theme.accent : theme.deleteText }}">{{ $item.daysText }}</text>
+              <text class="row-days" if="{{ $item.enabled === false }}" style="color: {{ theme.textMuted }}">已停用</text>
             </div>
-            <text class="row-days" style="color: {{ $item.daysLeft >= 0 ? theme.accent : theme.deleteText }}">{{ $item.daysText }}{{ $item.nextText ? ' · ' + $item.nextText : '' }}</text>
           </div>
-        </div>
-        <div class="row-actions">
-          <input class="act-btn pin-act" type="button" value="{{ $item.pinnedHome ? '已钉' : '钉' }}" onclick="togglePin($idx)"
-                 style="background-color: {{ $item.pinnedHome ? theme.accent : theme.btnSecondary }}; color: {{ $item.pinnedHome ? theme.bg : theme.btnSecondaryText }}" />
-          <input class="act-btn" type="button" value="{{ $item.enabled ? 'ON' : 'OFF' }}" onclick="toggleItem($idx)"
-                 style="background-color: {{ $item.enabled ? theme.accent : theme.btnSecondary }}; color: {{ $item.enabled ? theme.bg : theme.btnSecondaryText }}" />
-          <input class="act-btn del-act" type="button" value="{{ deleteConfirmIndex === $idx ? '确认' : '删除' }}" onclick="deleteItem($idx)"
-                 style="background-color: {{ deleteConfirmIndex === $idx ? theme.deleteText : theme.deleteBg }}; color: {{ deleteConfirmIndex === $idx ? theme.text : theme.deleteText }}" />
         </div>
       </div>
       <text if="{{ list.length === 0 }}" class="empty-text" style="color: {{ theme.textMuted }}">暂无倒数日，点击下方按钮添加</text>
     </scroll>
 
     <!-- 2026-10-02 按用户反馈：「添加」按钮从标题栏移到列表下方固定区，
-         胶囊屏上标题栏太窄，按钮会被截断贴边 -->
-    <div class="bottom-bar">
+         胶囊屏上标题栏太窄，按钮会被截断贴边。
+         2026-10-26：固定条补底色，否则列表滚到底时行内容会从按钮背后透出来 -->
+    <div class="bottom-bar" style="background-color: {{ theme.bg }}">
       <input class="add-btn" type="button" value="+ 添加倒数日" onclick="startAdd"
              style="background-color: {{ theme.accent }}; color: {{ theme.bg }}" />
     </div>
@@ -59,6 +56,17 @@
         <div class="editor-name-row" onclick="editName" style="background-color: {{ theme.cardLight }}">
           <text class="editor-name" style="color: {{ theme.text }}">{{ editorTitle }}</text>
           <text class="editor-name-hint" style="color: {{ theme.textMuted }}">改名</text>
+        </div>
+
+        <!-- 2026-10-26 行内三颗操作按钮下沉到这里：胶囊屏上它们把正文挤成 0 宽，
+             且 10Pro 上正文被截断。状态用底色表达，标签固定不跳动 -->
+        <div class="editor-acts" if="{{ editorIsEdit }}">
+          <input class="ea-chip" type="button" value="置顶" onclick="toggleEditorPin"
+                 style="background-color: {{ editorPinned ? theme.accent : theme.btnSecondary }}; color: {{ editorPinned ? theme.bg : theme.btnSecondaryText }}" />
+          <input class="ea-chip" type="button" value="启用" onclick="toggleEditorEnable"
+                 style="background-color: {{ editorEnabled ? theme.accent : theme.btnSecondary }}; color: {{ editorEnabled ? theme.bg : theme.btnSecondaryText }}" />
+          <input class="ea-chip ea-del" type="button" value="{{ deleteConfirm ? '确认删除' : '删除' }}" onclick="deleteFromEditor"
+                 style="background-color: {{ deleteConfirm ? theme.deleteText : theme.deleteBg }}; color: {{ deleteConfirm ? theme.text : theme.deleteText }}" />
         </div>
 
         <div class="seg-row">
@@ -113,7 +121,7 @@
               <text class="repeat-text" style="color: {{ editorRepeat === $item.key ? theme.accent : theme.textSecondary }}">{{ $item.label }}</text>
             </div>
           </div>
-          <text class="editor-tip" style="color: {{ theme.textMuted }}">每年 + 农历 = 农历生日 / 节日自动推算</text>
+          <text class="editor-tip" style="color: {{ theme.textMuted }}">每年 + 农历 可推算农历生日与节日</text>
         </scroll>
 
         <div class="editor-btns">
@@ -159,7 +167,7 @@ export default {
     list: [],
     sortRecent: true,
     clearAllConfirm: false,
-    deleteConfirmIndex: -1,
+    deleteConfirm: false,
     deleteTimer: null,
     clearTimer: null,
 
@@ -238,36 +246,44 @@ export default {
     this.list = countdown.decorateList(this.rawList)
   },
 
-  toggleItem(idx) {
+  // 点行 = 直接进编辑（旧版是先进改名输入法，看日期也得先过一遍键盘，2026-10-26 改）
+  openEdit(idx) {
     var item = this.rawList[idx]
     if (!item) return
-    item.enabled = item.enabled === false
-    this.persist()
+    this.openEditor(item, item.title)
   },
 
-  togglePin(idx) {
-    var item = this.rawList[idx]
-    if (!item) return
-    var willPin = !item.pinnedHome
-    this.rawList = countdown.setPinned(this.rawList, item.id)
-    this.persist(function() {
-      prompt.showToast({ message: willPin ? "已钉到首页大数字" : "已取消钉首页" })
-    })
+  toggleEditorPin() {
+    this.editorPinned = !this.editorPinned
   },
 
-  deleteItem(idx) {
+  toggleEditorEnable() {
+    this.editorEnabled = !(this.editorEnabled !== false)
+  },
+
+  deleteFromEditor() {
     var self = this
-    if (this.deleteConfirmIndex === idx) {
-      this.rawList = countdown.removeAt(this.rawList, idx)
+    if (this.deleteConfirm) {
       clearTimeout(this.deleteTimer)
-      this.deleteConfirmIndex = -1
-      this.persist()
+      this.deleteConfirm = false
+      var idx = -1
+      for (var i = 0; i < this.rawList.length; i++) {
+        if (this.rawList[i].id === this.editorId) {
+          idx = i
+          break
+        }
+      }
+      if (idx >= 0) this.rawList = countdown.removeAt(this.rawList, idx)
+      this.showEditor = false
+      this.persist(function() {
+        prompt.showToast({ message: "已删除" })
+      })
       return
     }
-    this.deleteConfirmIndex = idx
+    this.deleteConfirm = true
     clearTimeout(this.deleteTimer)
     this.deleteTimer = setTimeout(function() {
-      self.deleteConfirmIndex = -1
+      self.deleteConfirm = false
     }, 3000)
   },
 
@@ -297,21 +313,6 @@ export default {
     storage.set({ key: "chinese_input_maxlen", value: "12", success: function() {} })
     storage.set({ key: "chinese_input_return_key", value: "countdown_add_title", success: function() {
       router.push({ uri: "/pages/chinese-input" })
-    }})
-  },
-
-  startEdit(idx) {
-    var item = this.rawList[idx]
-    if (!item) return
-    var storage = require("@system.storage")
-    storage.set({ key: "chinese_input_title", value: "编辑名称", success: function() {} })
-    storage.set({ key: "chinese_input_placeholder", value: "输入名称", success: function() {} })
-    storage.set({ key: "chinese_input_value", value: item.title, success: function() {} })
-    storage.set({ key: "chinese_input_maxlen", value: "12", success: function() {} })
-    storage.set({ key: "chinese_input_return_key", value: "countdown_edit_title", success: function() {
-      storage.set({ key: "countdown_edit_index", value: String(idx), success: function() {
-        router.push({ uri: "/pages/chinese-input" })
-      }})
     }})
   },
 
@@ -417,6 +418,8 @@ export default {
       this.editorEnabled = true
     }
     this.normalizeEditorDate()
+    this.deleteConfirm = false
+    clearTimeout(this.deleteTimer)
     this.showEditor = true
   },
 
@@ -427,6 +430,8 @@ export default {
   },
 
   closeEditor() {
+    clearTimeout(this.deleteTimer)
+    this.deleteConfirm = false
     this.showEditor = false
   },
 
@@ -602,6 +607,8 @@ export default {
 
 .page {
   flex: 1;
+  width: 100%;
+  height: 100%;
   flex-direction: column;
   padding: 30px 16px 30px 16px;
 }
@@ -639,26 +646,42 @@ export default {
 .toolbar-count {
   font-size: 24px;
   line-height: 32px;
+  flex-shrink: 0;
 }
 
 .toolbar-sort {
   font-size: 24px;
   line-height: 32px;
   padding: 0 8px;
+  flex-shrink: 0;
 }
 
 .toolbar-clear {
-  width: 70px;
-  height: 36px;
-  border-radius: 18px;
-  font-size: 22px;
+  width: 78px;
+  height: 40px;
+  border-radius: 20px;
+  font-size: 24px;
   text-align: center;
-  line-height: 36px;
+  line-height: 40px;
 }
 
 .list-scroll {
   flex: 1;
   flex-direction: column;
+}
+
+.list-grid {
+  flex-direction: column;
+  width: 100%;
+}
+
+/* 置顶态：左侧 4px 色条（替代旧的「已钉」小徽标，ev-six v5 禁徽标） */
+.row-accent {
+  width: 4px;
+  height: 44px;
+  border-radius: 2px;
+  margin-right: 8px;
+  flex-shrink: 0;
 }
 
 .countdown-row {
@@ -708,20 +731,11 @@ export default {
 
 .row-name {
   font-size: 28px;
-  line-height: 36px;
-  lines: 1;
+  line-height: 34px;
+  lines: 2;
   min-width: 0;
   text-overflow: ellipsis;
   flex-shrink: 1;
-}
-
-.pin-chip {
-  font-size: 18px;
-  line-height: 26px;
-  padding: 0 8px;
-  border-radius: 13px;
-  margin-left: 8px;
-  flex-shrink: 0;
 }
 
 .row-sub-line {
@@ -732,8 +746,8 @@ export default {
 }
 
 .row-date {
-  font-size: 22px;
-  line-height: 30px;
+  font-size: 24px;
+  line-height: 32px;
   flex-shrink: 1;
   lines: 1;
   min-width: 0;
@@ -741,36 +755,37 @@ export default {
 }
 
 .row-repeat {
-  font-size: 22px;
-  line-height: 30px;
+  font-size: 24px;
+  line-height: 32px;
   margin-left: 8px;
   flex-shrink: 0;
 }
 
 .row-days {
-  font-size: 22px;
-  line-height: 30px;
+  font-size: 24px;
+  line-height: 32px;
   margin-top: 2px;
-  lines: 2;
+  lines: 1;
+  text-overflow: ellipsis;
 }
 
-.row-actions {
-  flex-direction: column;
-  margin-left: 10px;
+/* 操作按钮已下沉到编辑页（见 .editor-acts），行内不再有按钮 */
+.editor-acts {
+  flex-direction: row;
+  width: 100%;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
   flex-shrink: 0;
 }
 
-.act-btn {
-  width: 62px;
-  height: 32px;
-  border-radius: 16px;
-  font-size: 20px;
+.ea-chip {
+  height: 44px;
+  border-radius: 22px;
+  font-size: 24px;
   text-align: center;
-  line-height: 32px;
-  margin-bottom: 4px;
-}
-
-.pin-act {
+  line-height: 44px;
+  padding: 0 16px;
+  margin-right: 8px;
   margin-bottom: 4px;
 }
 
@@ -834,8 +849,8 @@ export default {
 }
 
 .editor-name-hint {
-  font-size: 20px;
-  line-height: 28px;
+  font-size: 24px;
+  line-height: 32px;
   margin-left: 8px;
   flex-shrink: 0;
 }
@@ -922,15 +937,15 @@ export default {
 }
 
 .preview-sub {
-  font-size: 22px;
-  line-height: 30px;
+  font-size: 24px;
+  line-height: 32px;
   text-align: center;
   margin-top: 2px;
 }
 
 .block-label {
-  font-size: 22px;
-  line-height: 30px;
+  font-size: 24px;
+  line-height: 32px;
   margin-left: 4px;
   margin-bottom: 6px;
 }
@@ -956,8 +971,8 @@ export default {
 }
 
 .editor-tip {
-  font-size: 20px;
-  line-height: 28px;
+  font-size: 24px;
+  line-height: 32px;
   text-align: center;
   margin-bottom: 6px;
 }
@@ -990,116 +1005,86 @@ export default {
 }
 
 @media (shape: capsule), (shape: pill-shaped) {
+  /* 2026-10-26 ev-six v5 口径重写：字号只用 44/30/28/24 四档、24px 为绝对下限；
+     旧版此处把行内文字压到 20/18/16px，是「戴着看不清」的直接原因 */
   .page {
-    padding: 30px 8px 30px 8px;
+    padding: 28px 8px 14px 8px;
   }
 
   .add-btn {
-    width: 48px;
-    height: 30px;
-    border-radius: 15px;
-    font-size: 20px;
-    line-height: 30px;
+    width: 100%;
+    height: 52px;
+    border-radius: 26px;
+    font-size: 28px;
+    line-height: 52px;
   }
 
   .toolbar {
-    height: 30px;
+    height: 44px;
     padding: 0 4px;
     margin-bottom: 6px;
   }
 
   .toolbar-count {
-    font-size: 20px;
-    line-height: 28px;
-  }
-
-  .toolbar-sort {
-    font-size: 20px;
-    line-height: 28px;
-  }
-
-  .toolbar-clear {
-    width: 56px;
-    height: 40px;
-    border-radius: 20px;
-    font-size: 20px;
-    line-height: 36px;
-  }
-
-  .countdown-row {
-    flex-direction: column;
-    align-items: stretch;
-    padding: 8px 8px;
-    margin-bottom: 6px;
-  }
-
-  .row-left {
-    margin-bottom: 6px;
-  }
-
-  .row-badge {
-    min-width: 44px;
-    height: 44px;
-    border-radius: 22px;
-    padding: 0 8px;
-    margin-right: 8px;
-  }
-
-  .badge-num {
-    font-size: 20px;
-  }
-
-  .row-name {
     font-size: 24px;
     line-height: 32px;
   }
 
-  .pin-chip {
-    font-size: 16px;
-    line-height: 24px;
+  .toolbar-sort {
+    font-size: 24px;
+    line-height: 32px;
+  }
+
+  .toolbar-clear {
+    width: 68px;
+    height: 44px;
+    border-radius: 22px;
+    font-size: 24px;
+    line-height: 44px;
+  }
+
+  .countdown-row {
+    padding: 10px 10px;
+    margin-bottom: 8px;
+  }
+
+  .row-accent {
+    height: 40px;
+    margin-right: 6px;
+  }
+
+  /* 胶囊屏：徽标让位给正文（156px 正文宽里 46+8 的徽标太贵，
+     天数已由「还有 N 天」表达，不丢信息） */
+  .row-badge {
+    display: none;
+  }
+
+  .row-name {
+    font-size: 28px;
+    line-height: 34px;
   }
 
   .row-date {
-    font-size: 20px;
-    line-height: 26px;
+    font-size: 24px;
+    line-height: 30px;
   }
 
   .row-repeat {
-    font-size: 20px;
-    line-height: 26px;
+    display: none;
   }
 
   .row-days {
-    font-size: 20px;
-    line-height: 26px;
-  }
-
-  .row-actions {
-    flex-direction: row;
-    width: 100%;
-    justify-content: flex-end;
-    margin-left: 0;
-  }
-
-  .act-btn {
-    width: 52px;
-    height: 40px;
-    border-radius: 20px;
-    font-size: 18px;
-    line-height: 40px;
-    margin-bottom: 0;
-    margin-left: 6px;
-  }
-
-  .pin-act {
-    margin-bottom: 0;
+    font-size: 24px;
+    line-height: 30px;
   }
 
   .empty-text {
     font-size: 24px;
     line-height: 32px;
+    margin-top: 40px;
   }
 
+  /* 编辑器 */
   .editor-mask {
     padding: 10px;
   }
@@ -1112,24 +1097,37 @@ export default {
   }
 
   .editor-title {
-    font-size: 24px;
-    line-height: 30px;
+    font-size: 28px;
+    line-height: 34px;
     margin-bottom: 6px;
   }
 
   .editor-name-row {
-    padding: 6px 10px;
+    padding: 8px 10px;
     margin-bottom: 6px;
   }
 
   .editor-name {
-    font-size: 22px;
-    line-height: 30px;
+    font-size: 24px;
+    line-height: 32px;
   }
 
   .editor-name-hint {
-    font-size: 18px;
-    line-height: 26px;
+    font-size: 24px;
+    line-height: 32px;
+  }
+
+  .editor-acts {
+    margin-bottom: 6px;
+  }
+
+  .ea-chip {
+    height: 40px;
+    border-radius: 20px;
+    font-size: 24px;
+    line-height: 40px;
+    padding: 0 12px;
+    margin-right: 6px;
   }
 
   .seg-chip {
@@ -1138,8 +1136,8 @@ export default {
   }
 
   .seg-text {
-    font-size: 20px;
-    line-height: 26px;
+    font-size: 24px;
+    line-height: 30px;
   }
 
   .step-row {
@@ -1147,22 +1145,22 @@ export default {
   }
 
   .step-label {
-    font-size: 20px;
-    line-height: 28px;
-    width: 30px;
+    font-size: 24px;
+    line-height: 30px;
+    width: 32px;
   }
 
   .step-btn {
     width: 48px;
-    height: 40px;
-    border-radius: 20px;
+    height: 44px;
+    border-radius: 22px;
     font-size: 24px;
-    line-height: 40px;
+    line-height: 44px;
   }
 
   .step-value {
-    font-size: 24px;
-    line-height: 40px;
+    font-size: 28px;
+    line-height: 44px;
     width: 96px;
   }
 
@@ -1172,18 +1170,18 @@ export default {
   }
 
   .preview-main {
-    font-size: 22px;
+    font-size: 24px;
     line-height: 30px;
   }
 
   .preview-sub {
-    font-size: 20px;
-    line-height: 26px;
+    font-size: 24px;
+    line-height: 30px;
   }
 
   .block-label {
-    font-size: 20px;
-    line-height: 26px;
+    font-size: 24px;
+    line-height: 30px;
   }
 
   .repeat-chip {
@@ -1192,41 +1190,131 @@ export default {
   }
 
   .repeat-text {
-    font-size: 20px;
-    line-height: 28px;
+    font-size: 24px;
+    line-height: 30px;
   }
 
   .editor-tip {
-    font-size: 18px;
-    line-height: 24px;
+    font-size: 24px;
+    line-height: 30px;
   }
 
   .btn-cancel {
-    height: 40px;
-    border-radius: 20px;
-    font-size: 22px;
-    line-height: 40px;
+    height: 44px;
+    border-radius: 22px;
+    font-size: 24px;
+    line-height: 44px;
   }
 
   .btn-save {
-    height: 40px;
-    border-radius: 20px;
-    font-size: 22px;
-    line-height: 40px;
+    height: 44px;
+    border-radius: 22px;
+    font-size: 24px;
+    line-height: 44px;
   }
 }
 
 @media (shape: rect), (shape: rectangle) {
+  /* 2026-10-26 手环 10Pro（336x480）版式：换版式不换比例 —— 多出来的 144px 宽
+     换成「一行放两项信息」，纵向不再堆三行；同时修掉旧版把 .add-btn 压成 90px 宽
+     导致「+ 添加倒数日」被裁出屏的 bug */
   .page {
-    padding: 24px 24px 20px 24px;
+    padding: 24px 20px 16px 20px;
   }
 
   .add-btn {
-    width: 90px;
+    width: 100%;
+    height: 56px;
+    border-radius: 28px;
+    font-size: 28px;
+    line-height: 56px;
+  }
+
+  .toolbar {
+    height: 48px;
+    padding: 0 6px;
+    margin-bottom: 8px;
+  }
+
+  .toolbar-count {
+    font-size: 24px;
+    line-height: 32px;
+  }
+
+  .toolbar-sort {
+    font-size: 24px;
+    line-height: 32px;
+  }
+
+  .toolbar-clear {
+    width: 84px;
     height: 44px;
     border-radius: 22px;
-    font-size: 26px;
+    font-size: 24px;
     line-height: 44px;
   }
+
+  .countdown-row {
+    padding: 12px 14px;
+    margin-bottom: 10px;
+  }
+
+  .row-accent {
+    height: 52px;
+    margin-right: 10px;
+  }
+
+  .row-badge {
+    min-width: 56px;
+    height: 56px;
+    border-radius: 28px;
+    padding: 0 10px;
+    margin-right: 12px;
+  }
+
+  .badge-num {
+    font-size: 28px;
+  }
+
+  /* 三行整宽：日期串「公历 2026-10-26」在 24px 下约 190px，
+     并排给 52% 只会截成「公...」，实测后改回整宽 */
+
+  .row-name {
+    font-size: 30px;
+    line-height: 38px;
+  }
+
+  .row-date {
+    font-size: 24px;
+    line-height: 32px;
+  }
+
+  .row-repeat {
+    font-size: 24px;
+    line-height: 32px;
+  }
+
+  .empty-text {
+    font-size: 28px;
+    line-height: 36px;
+  }
+
+  .editor-card {
+    width: 94%;
+  }
+
+  .editor-name {
+    font-size: 28px;
+    line-height: 36px;
+  }
+
+  .ea-chip {
+    height: 48px;
+    border-radius: 24px;
+    font-size: 24px;
+    line-height: 48px;
+    padding: 0 20px;
+  }
 }
+
 </style>

@@ -428,7 +428,9 @@ function decorateItem(item, today) {
     out.dateText = lunar.formatLunarWithPrefix(item.lunar)
   } else {
     var b = parseKey(item.date)
-    out.dateText = b ? "公历 " + toKey(b.year, b.month, b.day) : item.date
+    // 2026-10-26 去掉「公历 」前缀：胶囊屏行内正文只有 156px，10 位日期已占 120px，
+    // 3 个汉字的前缀会把日期挤成「公历 2026…」；农历仍保留「农历」前缀以区分
+    out.dateText = b ? toKey(b.year, b.month, b.day) : item.date
   }
 
   if (next) {
