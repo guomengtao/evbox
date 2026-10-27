@@ -5,7 +5,7 @@ var bandbbs = require("./bandbbs_lib.js");
 var os = require("os");
 
 process.env.BANDBBS_EMAIL = "peipeijin@qq.com";
-process.env.BANDBBS_PASSWORD = "2023370321030120074";
+// 密码不硬编码：运行前从环境变量读取
 
 var outPath = process.env.BANDBBS_RESULT_FILE || "/Users/Banner/Documents/guomengtao/ev/evbox/bandbbs_dm_result.json";
 

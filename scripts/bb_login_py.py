@@ -67,7 +67,7 @@ try:
             try:
                 result, final_url = bb.post("https://www.bandbbs.cn/login/login", {
                     "login": "peipeijin@qq.com",
-                    "password": "2023370321030120074",
+                    "password": os.environ.get("BANDBBBS_PASSWORD", ""),
                     "_xfToken": token[0],
                     "_xfRedirect": "/",
                     "remember": "1"

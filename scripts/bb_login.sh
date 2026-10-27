@@ -32,7 +32,7 @@ LOGIN_RESULT=$(curl -s -L -w '\nHTTP_CODE:%{http_code}' \
   -H "Referer: https://www.bandbbs.cn/login" \
   -H "Content-Type: application/x-www-form-urlencoded" \
   --data-urlencode "login=peipeijin@qq.com" \
-  --data-urlencode "password=2023370321030120074" \
+  --data-urlencode "password=${BANDBBBS_PASSWORD:?请先 export BANDBBBS_PASSWORD}" \
   --data-urlencode "_xfToken=$TOKEN" \
   --data-urlencode "_xfRedirect=/" \
   --data-urlencode "remember=1" \

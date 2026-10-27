@@ -4,7 +4,7 @@ var https = require("https");
 var url = require("url");
 
 process.env.BANDBBS_EMAIL = "peipeijin@qq.com";
-process.env.BANDBBS_PASSWORD = "2023370321030120074";
+// 密码不硬编码：运行前从环境变量读取
 
 var BASE_URL = "https://www.bandbbs.cn";
 var UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";

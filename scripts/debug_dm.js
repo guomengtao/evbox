@@ -3,7 +3,7 @@
 var bandbbs = require("./bandbbs_lib.js");
 
 process.env.BANDBBS_EMAIL = "peipeijin@qq.com";
-process.env.BANDBBS_PASSWORD = "2023370321030120074";
+// 密码不硬编码：运行前从环境变量读取
 
 async function main() {
     var loginResult = await bandbbs.login();

@@ -6,7 +6,7 @@ var bandbbs = require("./bandbbs_lib.js");
 
 // Set credentials from the .env in app-auth
 process.env.BANDBBS_EMAIL = "peipeijin@qq.com";
-process.env.BANDBBS_PASSWORD = "2023370321030120074";
+// 密码不硬编码：运行前从环境变量读取
 
 var TEST_RESOURCE_ID = "7828";
 var TEST_DM_RECIPIENT = "peipeijin";
