@@ -10,6 +10,8 @@
 _rpk_check/
 /dist/
 /distrelease/
+# 渠道包产物目录（build_all_channels.sh 输出，每次全量重建）
+/release/
 /bak/
 /build_bak/
 
