@@ -156,11 +156,6 @@ export default {
     this._logStatus()
   },
 
-  onReady() {
-    dlog("[BACKUP] onReady: all components ready, checking premium...")
-    this.checkAndShowOverlay()
-  },
-
   onShow() {
     dlog("[BACKUP] onShow: page shown")
     var self = this
@@ -170,22 +165,6 @@ export default {
 
   updateIconSrc: function(themeName) {
     this.iconTheme = (themeName === "light" || themeName === "warm") ? "light" : "dark"
-  },
-
-  checkAndShowOverlay() {
-    dlog("[BACKUP] checkAndShowOverlay: START, calling store.isPremiumUnlocked...")
-    var self = this
-    store.isPremiumUnlocked(function(unlocked) {
-      dlog("[BACKUP] checkAndShowOverlay: CALLBACK fired, unlocked=" + unlocked)
-      if (!unlocked) {
-        dlog("[BACKUP] checkAndShowOverlay: setting showDialog=true, was=" + self.showDialog)
-        self.showDialog = true
-        dlog("[BACKUP] checkAndShowOverlay: showDialog now=" + self.showDialog)
-      } else {
-        dlog("[BACKUP] checkAndShowOverlay: user IS premium, skip overlay")
-      }
-    })
-    dlog("[BACKUP] checkAndShowOverlay: END (async pending)")
   },
 
   goToPremium() {
