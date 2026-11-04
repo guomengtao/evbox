@@ -601,7 +601,9 @@ export default {
       }
 
       var deviceIdLast4 = deviceId.substring(deviceId.length - 4)
-      if (decrypted.deviceId !== deviceIdLast4) {
+      // 大小写不敏感：DEVICE_CHARSET 中 A-Z 与 a-z 是两组不同字符，设备端 UUID 只生成小写，
+      // 生成端若做过大写归一，同一台设备会被判成他人设备。
+      if (String(decrypted.deviceId).toUpperCase() !== String(deviceIdLast4).toUpperCase()) {
         self.verifySuccess = false
         self.verifyResult = '设备ID不匹配'
         self.verifyDetail = '激活码设备ID: ' + decrypted.deviceId + ' | 本机设备ID后4位: ' + deviceIdLast4
