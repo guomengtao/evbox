@@ -1,7 +1,7 @@
 <template>
   <div class="home-page" style="background-color: {{ theme.bg }}">
     <div class="logo-area">
-      <text class="app-name" style="color: {{ theme.accent }}">EvBox工具箱</text>
+      <text class="app-name" style="color: {{ theme.accent }}">Ev工具箱</text>
       <text class="app-subtitle" style="color: {{ theme.textSecondary }}">你的随身工具箱</text>
     </div>
 
@@ -205,7 +205,7 @@ export default {
     padding: 60px 12px 30px 12px;
   }
   .app-name {
-    /* 胶囊屏内容宽约 160px：「EvBox工具箱」= 5 拉丁字符 + 3 汉字，
+    /* 胶囊屏内容宽约 160px：「Ev工具箱」= 5 拉丁字符 + 3 汉字，
        30px 下溢出换行，24px 可稳定单行（配合 lines:1 强制不换行） */
     font-size: 24px;
     line-height: 32px;

@@ -217,7 +217,7 @@ export default {
         self.isHomePinned = false
       })
     } else {
-      pinHelper.pinPage("EvBox工具箱", "/pages/index", function() {
+      pinHelper.pinPage("Ev工具箱", "/pages/index", function() {
         self.isHomePinned = true
       })
     }
