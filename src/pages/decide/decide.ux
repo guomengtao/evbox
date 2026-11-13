@@ -98,6 +98,29 @@
 
       <text class="status-line" style="color: {{ theme.textSecondary }}">{{ statusText }}</text>
     </div>
+
+    <!-- 组合抽取：逐槽串行，最后出汇总卡 -->
+    <div class="view" style="display: {{ view === 'combo' ? 'flex' : 'none' }}">
+      <div class="combo-stage" style="display: {{ phase === 'done' ? 'none' : 'flex' }}; background-color: {{ theme.card }}">
+        <text class="combo-slot-label" style="color: {{ theme.textSecondary }}">{{ slotLabel }}</text>
+        <div class="spin-row" for="{{ slotWindow }}"
+             style="background-color: {{ $item.mid ? theme.cardLight : 'transparent' }}">
+          <text class="spin-text" style="color: {{ $item.mid ? theme.text : theme.textSecondary }}">{{ $item.text }}</text>
+        </div>
+      </div>
+
+      <div class="combo-card" style="display: {{ phase === 'done' ? 'flex' : 'none' }}; background-color: {{ theme.card }}">
+        <text class="combo-card-title" style="color: {{ theme.text }}">{{ comboTitle }}</text>
+        <div class="combo-field" for="{{ comboResults }}" style="background-color: {{ theme.cardLight }}">
+          <text class="combo-field-label" style="color: {{ theme.textSecondary }}">{{ $item.label }}</text>
+          <text class="combo-field-value" style="color: {{ theme.text }}">{{ $item.value }}</text>
+        </div>
+      </div>
+
+      <div class="main-btn" onclick="drawCombo" style="background-color: {{ theme.accent }}">
+        <text class="main-btn-text" style="color: {{ theme.bg }}">{{ btnText }}</text>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -105,6 +128,7 @@
 import router from "@system.router"
 const store = require("../../data/store.js")
 var preset = require("../../data/decks/preset-decks.json")
+var food = require("../../data/decks/preset-food.json")
 
 var CUSTOM_DECK_KEY = "decide_custom_deck"
 var DRAFT_KEY = "decide_draft_items"
@@ -162,7 +186,19 @@ export default {
     pickRowOn: false,
     resultIndices: [],
     resultLines: [],
-    multiOn: false
+    multiOn: false,
+    foodMode: false,
+    comboTitle: "午饭搭配",
+    comboSlots: [],
+    comboPicks: [],
+    comboResults: [],
+    slotIndex: 0,
+    slotLabel: "",
+    slotItems: [],
+    slotWindow: [],
+    slotSpinIndex: 0,
+    slotStep: 0,
+    slotTotal: 12
   },
 
   onInit() {
@@ -196,7 +232,11 @@ export default {
     // 中断动画不改变结果，结果在 draw 时已先定
     if (this.phase === "spinning") {
       this.stopSpin()
-      this.finishDraw()
+      if (this.view === "combo") {
+        this.finishComboNow()
+      } else {
+        this.finishDraw()
+      }
     }
   },
 
@@ -487,17 +527,49 @@ export default {
       return
     }
     this.catIndex = idx
+    this.foodMode = false
     var cat = preset.categories[idx]
     var out = []
     for (var i = 0; i < preset.decks.length; i++) {
-      if (preset.decks[i].cat === cat) {
+      // F01 是空占位卡组，运行时由餐饮数据接管，不显示为死项
+      if (preset.decks[i].cat === cat && preset.decks[i].items && preset.decks[i].items.length >= 2) {
         out.push({ idx: out.length, title: preset.decks[i].title, deckIndex: i })
       }
+    }
+    // 餐饮类追加两个视图入口，不是新卡组，预设仍是 88 组
+    if (cat === "餐饮") {
+      out.push({ idx: out.length, title: "随便吃一道", deckIndex: -3 })
+      out.push({ idx: out.length, title: "搭配抽", deckIndex: -4 })
     }
     this.deckList = out
   },
 
   selectDeck(deckIndex) {
+    if (deckIndex === -3) {
+      this.openFoodCats()
+      return
+    }
+    if (deckIndex === -4) {
+      this.startCombo()
+      return
+    }
+    // -10 - i 编码餐饮 L1 大类索引
+    if (deckIndex <= -10) {
+      var ci = -10 - deckIndex
+      var fc = food.categories[ci]
+      if (!fc) {
+        return
+      }
+      var names = []
+      for (var q = 0; q < fc.items.length; q++) {
+        names.push(fc.items[q].name)
+      }
+      this.setDeck({ id: "FOOD" + ci, title: fc.short, cat: "餐饮", items: names, anim: "wheel" })
+      this.foodMode = false
+      this.view = "main"
+      this.pageTitle = "抉择"
+      return
+    }
     if (deckIndex < 0) {
       if (!this.customDeck) {
         return
@@ -508,6 +580,161 @@ export default {
     }
     this.view = "main"
     this.pageTitle = "抉择"
+  },
+
+  // OR：12 类选 1 类，再在该类里 wheel 抽 1 项
+  openFoodCats() {
+    this.stopSpin()
+    this.foodMode = true
+    this.catIndex = 5
+    var out = []
+    for (var i = 0; i < food.categories.length; i++) {
+      out.push({ idx: i, title: food.categories[i].short, deckIndex: -10 - i })
+    }
+    this.deckList = out
+    this.view = "decks"
+    this.pageTitle = "吃什么"
+  },
+
+  // 槽位只从已有数据读取，不新增任何餐饮条目
+  resolveSlot(slot) {
+    var ref = slot.ref || ""
+    if (ref.indexOf("deck:food/") === 0) {
+      var cname = ref.slice(10)
+      var rows = []
+      for (var i = 0; i < food.categories.length; i++) {
+        if (food.categories[i].name === cname) {
+          rows = food.categories[i].items
+        }
+      }
+      var f = slot.filter || {}
+      var out = []
+      for (var j = 0; j < rows.length; j++) {
+        var r = rows[j]
+        if ((f["口味"] && r["口味"] !== f["口味"]) ||
+            (f["荤素"] && r["荤素"] !== f["荤素"]) ||
+            (f["冷热"] && r["冷热"] !== f["冷热"]) ||
+            (f["场景"] && r["场景"] !== f["场景"]) ||
+            (f["sub"] && r["sub"] !== f["sub"])) {
+          continue
+        }
+        out.push(r.name)
+      }
+      return out
+    }
+    if (ref.indexOf("deck:preset/") === 0) {
+      var key = ref.slice(12)
+      for (var m = 0; m < preset.decks.length; m++) {
+        if (preset.decks[m].id === key || preset.decks[m].title === key) {
+          return preset.decks[m].items.slice(0)
+        }
+      }
+      return []
+    }
+    return (slot.items || []).slice(0)
+  },
+
+  // AND：多槽各抽 1 项拼成一个元组，逐槽串行揭晓
+  startCombo() {
+    this.stopSpin()
+    var c = food.combos[0]
+    var slots = []
+    for (var i = 0; i < c.slots.length; i++) {
+      slots.push({ label: c.slots[i].label, items: this.resolveSlot(c.slots[i]) })
+    }
+    this.comboTitle = c.title
+    this.comboSlots = slots
+    this.compassOn = false
+    this.view = "combo"
+    this.pageTitle = "搭配"
+    this.foodMode = false
+    this.drawCombo()
+  },
+
+  drawCombo() {
+    if (this.phase === "spinning") {
+      return
+    }
+    this.stopSpin()
+    var picks = []
+    for (var i = 0; i < this.comboSlots.length; i++) {
+      var its = this.comboSlots[i].items
+      picks.push(its.length ? its[Math.floor(Math.random() * its.length)] : "暂无")
+    }
+    this.comboPicks = picks
+    this.comboResults = []
+    this.slotIndex = 0
+    this.phase = "spinning"
+    this.btnText = "抽取中"
+    this.runSlot()
+  },
+
+  runSlot() {
+    var slot = this.comboSlots[this.slotIndex]
+    if (!slot || !slot.items.length) {
+      this.finishSlot()
+      return
+    }
+    this.slotItems = slot.items.slice(0)
+    this.slotLabel = slot.label
+    this.slotSpinIndex = 0
+    this.slotStep = 0
+    this.slotTotal = 10 + Math.floor(Math.random() * 5)
+    this.buildSlotWindow()
+    this.tickSlot()
+  },
+
+  buildSlotWindow() {
+    var n = this.slotItems.length
+    var out = []
+    for (var k = -1; k <= 1; k++) {
+      var idx = ((this.slotSpinIndex + k) % n + n) % n
+      out.push({ text: this.slotItems[idx], mid: k === 0 })
+    }
+    this.slotWindow = out
+  },
+
+  tickSlot() {
+    var self = this
+    this.slotStep = this.slotStep + 1
+    if (this.slotStep >= this.slotTotal) {
+      this.finishSlot()
+      return
+    }
+    this.slotSpinIndex = (this.slotSpinIndex + 1) % this.slotItems.length
+    this.buildSlotWindow()
+    var t = this.slotStep / this.slotTotal
+    var delay = 45 + Math.floor(150 * t * t * t)
+    this.timer = setTimeout(function () {
+      self.tickSlot()
+    }, delay)
+  },
+
+  finishSlot() {
+    this.stopSpin()
+    var slot = this.comboSlots[this.slotIndex]
+    var out = this.comboResults.slice(0)
+    out.push({ label: slot ? slot.label : "", value: this.comboPicks[this.slotIndex] || "暂无" })
+    this.comboResults = out
+    this.slotIndex = this.slotIndex + 1
+    if (this.slotIndex < this.comboSlots.length) {
+      this.runSlot()
+      return
+    }
+    this.phase = "done"
+    this.btnText = "整套重抽"
+    this.vibrate()
+  },
+
+  finishComboNow() {
+    this.stopSpin()
+    var out = []
+    for (var i = 0; i < this.comboSlots.length; i++) {
+      out.push({ label: this.comboSlots[i].label, value: this.comboPicks[i] || "暂无" })
+    }
+    this.comboResults = out
+    this.phase = "done"
+    this.btnText = "整套重抽"
   },
 
   addItem() {
@@ -663,7 +890,21 @@ export default {
   },
 
   goBack() {
+    if (this.view === "combo") {
+      this.stopSpin()
+      this.phase = "idle"
+      this.btnText = "抽一个"
+      this.view = "decks"
+      this.pageTitle = "卡组"
+      this.pickCat(5)
+      return
+    }
     if (this.view === "decks") {
+      if (this.foodMode) {
+        this.foodMode = false
+        this.pickCat(5)
+        return
+      }
       if (this.catIndex !== -1) {
         this.catIndex = -1
         return
@@ -823,6 +1064,70 @@ export default {
   font-size: 24px;
   line-height: 34px;
   text-align: center;
+  lines: 1;
+}
+
+/* 组合卡：字段标签 24 字段值 28 纵向排版，不用分隔符 */
+.combo-stage {
+  flex-direction: column;
+  width: 100%;
+  height: 180px;
+  border-radius: 14px;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+
+.combo-slot-label {
+  width: 100%;
+  font-size: 24px;
+  line-height: 34px;
+  text-align: center;
+  lines: 1;
+  margin-bottom: 8px;
+}
+
+.combo-card {
+  flex-direction: column;
+  width: 100%;
+  border-radius: 14px;
+  padding: 8px 8px;
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+
+.combo-card-title {
+  width: 100%;
+  font-size: 30px;
+  font-weight: bold;
+  line-height: 40px;
+  text-align: center;
+  lines: 1;
+  margin-bottom: 8px;
+}
+
+.combo-field {
+  flex-direction: column;
+  width: 100%;
+  height: 72px;
+  border-radius: 8px;
+  padding: 0 8px;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+.combo-field-label {
+  width: 100%;
+  font-size: 24px;
+  line-height: 34px;
+  lines: 1;
+}
+
+.combo-field-value {
+  width: 100%;
+  font-size: 28px;
+  line-height: 38px;
   lines: 1;
 }
 
