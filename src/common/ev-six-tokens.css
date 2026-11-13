@@ -1,0 +1,54 @@
+/**
+ * ev-six 设计令牌 · EvBox 帮助抉择
+ * 正本：总纲 §3.21「六位开发准则」v5 / 手环页面开工手册-20261023.md §六
+ * 适用范围：全部 Vela 手环页面（§3.21 第 8 条点名 EvBox 一并适用）
+ *
+ * 一、字号只有四档，没有第五档
+ *   44px 状态大字(行高60) / 30px 页面标题(40) / 28px 主信息与操作行(38) / 24px 次级与7P行(34)
+ *   24px 是绝对下限，12~23px 全面禁用。需要更小 = 内容该删，不是字该缩。
+ *   禁止在页面里散写 font-size，一律引用本文件的 class。
+ *
+ * 二、六位置（P = Σ 字符宽度，无免费字符）
+ *   汉字 1.0 / 全角标点 0.5 / 数字拉丁 0.55 / 空格 0.3 / 徽标 1.0
+ *   一行 ≤6P；7P 是硬极限且整行必须 24px。
+ *   192px 屏：页面左右 padding 12px → 内容宽 168px = 6P@28 或 7P@24。
+ *   点税：「·」单体 0.5P 但必带两侧空格 → 1.1P，一个分隔点就是一个汉字。
+ *
+ * 三、留白只从高度买
+ *   横向 padding 直接扣位置预算，实测把文案截成「购买兑换」且不报任何错。
+ *   顺序：抬 line-height(1.36~1.42) → 纵向 padding → 纵向 margin → 横向几乎不动。
+ *
+ * 四、禁符号三件套
+ *   禁导航箭头 › → >；禁分隔符 · / | -；禁序号徽标与「推荐/备用」标签。
+ *   可点性靠底色三级层次（裸文 / 卡片 / 亮底）表达，不靠符号。
+ *
+ * 五、优先级：可读性 > 信息完整度 > 一屏容纳 > 版面美观
+ *   每屏文字预算 48~60 字（8~10 行 × 6P）；超过 8 行拆页，绝不压字号。
+ */
+
+/* ---- 字号四档（唯一合法值） ---- */
+.t44 { font-size: 44px; line-height: 60px; }
+.t30 { font-size: 30px; line-height: 40px; }
+.t28 { font-size: 28px; line-height: 38px; }
+.t24 { font-size: 24px; line-height: 34px; }
+
+/* ---- 宽度硬预算 ---- */
+.page { padding-left: 12px; padding-right: 12px; }
+.card { padding-left: 8px; padding-right: 8px; padding-top: 12px; padding-bottom: 12px; }
+.row  { padding-left: 8px; padding-right: 8px; padding-top: 10px; padding-bottom: 10px; }
+
+/* ---- 纵向留白（允许从这里买呼吸感） ---- */
+.gap-s { margin-top: 8px; margin-bottom: 8px; }
+.gap-m { margin-top: 16px; margin-bottom: 16px; }
+.gap-l { margin-top: 24px; margin-bottom: 24px; }
+
+/* ---- 底色三级层次：表达可点性，替代箭头与徽标 ---- */
+.level-plain  { background-color: transparent; }
+.level-card   { background-color: rgba(255, 255, 255, 0.06); }
+.level-bright { background-color: rgba(255, 255, 255, 0.16); }
+
+/* ---- 结果态 ---- */
+.result-main { font-size: 44px; line-height: 60px; }
+.result-sub  { font-size: 24px; line-height: 34px; }
+.hit         { background-color: rgba(255, 255, 255, 0.16); }
+.dim         { opacity: 0.55; }
