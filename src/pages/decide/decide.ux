@@ -14,7 +14,21 @@
         <text class="deck-name" style="color: {{ theme.text }}">{{ deckTitle }}</text>
       </div>
 
-      <div class="stage" style="background-color: {{ theme.card }}">
+      <!-- 罗盘：盘面文字固定，只换一根指针，点盘面即抽 -->
+      <div class="compass-box" onclick="draw" style="display: {{ compassOn ? 'flex' : 'none' }}">
+        <div class="dial" style="width: {{ dialSize }}px; height: {{ dialSize }}px; border-radius: {{ dialRadius }}px; background-color: {{ theme.card }}">
+          <div class="dial-tick" for="{{ dialLabels }}"
+               style="left: {{ $item.left }}px; top: {{ $item.top }}px; background-color: {{ $item.hit ? theme.accent : 'transparent' }}">
+            <text class="dial-tick-text" style="color: {{ $item.hit ? theme.bg : theme.text }}">{{ $item.text }}</text>
+          </div>
+          <image class="needle" src="{{ needleSrc }}"></image>
+        </div>
+        <div class="compass-result" style="display: {{ phase === 'done' ? 'flex' : 'none' }}">
+          <text class="compass-result-text" style="color: {{ theme.accent }}">{{ resultText }}</text>
+        </div>
+      </div>
+
+      <div class="stage" style="display: {{ compassOn ? 'none' : 'flex' }}; background-color: {{ theme.card }}">
         <div class="spin-box" style="display: {{ phase === 'done' ? 'none' : 'flex' }}">
           <div class="spin-row" for="{{ windowItems }}"
                style="background-color: {{ $item.mid ? theme.cardLight : 'transparent' }}">
@@ -22,22 +36,29 @@
           </div>
         </div>
         <div class="result-box" style="display: {{ phase === 'done' ? 'flex' : 'none' }}">
-          <text class="result-text" style="color: {{ theme.accent }}">{{ resultText }}</text>
+          <text class="result-text" style="display: {{ multiOn ? 'none' : 'flex' }}; color: {{ theme.accent }}">{{ resultText }}</text>
+          <div class="multi-result" style="display: {{ multiOn ? 'flex' : 'none' }}">
+            <text class="multi-line" for="{{ resultLines }}" style="color: {{ theme.text }}">{{ $item }}</text>
+          </div>
         </div>
       </div>
 
-      <div class="main-btn" onclick="draw" style="background-color: {{ theme.accent }}">
+      <div class="pick-row" onclick="changePick" style="display: {{ pickRowOn ? 'flex' : 'none' }}; background-color: {{ theme.card }}">
+        <text class="pick-text" style="color: {{ theme.text }}">{{ pickText }}</text>
+      </div>
+
+      <div class="main-btn" onclick="draw" style="display: {{ compassOn ? 'none' : 'flex' }}; background-color: {{ theme.accent }}">
         <text class="main-btn-text" style="color: {{ theme.bg }}">{{ btnText }}</text>
       </div>
 
-      <div class="sub-row" onclick="openDecks" style="background-color: {{ theme.card }}">
+      <div class="sub-row" onclick="openDecks" style="display: {{ compassOn || pickRowOn ? 'none' : 'flex' }}; background-color: {{ theme.card }}">
         <text class="sub-text" style="color: {{ theme.text }}">换卡组</text>
       </div>
-      <div class="sub-row" onclick="openCustom" style="background-color: {{ theme.card }}">
+      <div class="sub-row" onclick="openCustom" style="display: {{ compassOn ? 'none' : 'flex' }}; background-color: {{ theme.card }}">
         <text class="sub-text" style="color: {{ theme.text }}">我的卡组</text>
       </div>
 
-      <text class="status-line" style="color: {{ theme.textSecondary }}">{{ statusText }}</text>
+      <text class="status-line" style="display: {{ compassOn ? 'none' : 'flex' }}; color: {{ theme.textSecondary }}">{{ statusText }}</text>
     </div>
 
     <!-- 卡组列表：先选类，再选组 -->
@@ -90,6 +111,14 @@ var DRAFT_KEY = "decide_draft_items"
 var ADD_RESULT_KEY = "decide_add_item"
 var MAX_ITEMS = 30
 var MAX_P = 6
+// 三行 24px 结果 102px 不超胶囊屏舞台 126px，四个及以上留 P2 拆页
+var MAX_PICK = 3
+var FRAMES = 24
+var FRAME_STEP = 15
+var PICK_LABEL = ["抽一个", "抽两个", "抽三个"]
+// 罗盘上限由 ev-six 24px 下限与标签留白共同决定，圆屏 8 胶囊屏 4
+var COMPASS_LIMIT_CIRCLE = 8
+var COMPASS_LIMIT_PILL = 4
 
 // 分类屏显短名：原名五到六字超过 168px 容器，按 ev-six 删字不缩字号
 var CAT_SHORT = ["二元", "方位", "学科", "数字", "果蔬", "餐饮", "日常", "娱乐", "社交", "运动", "心情", "模板"]
@@ -118,15 +147,44 @@ export default {
     catIndex: -1,
     catList: [],
     deckList: [],
-    customItems: []
+    customItems: [],
+    compassOn: false,
+    screenShape: "",
+    dialSize: 160,
+    dialRadius: 80,
+    dialLabels: [],
+    dialAngles: [],
+    needleFrame: 0,
+    needleSrc: "/common/icons/compass/needle_00.png",
+    targetFrame: 0,
+    pickCount: 1,
+    pickText: "抽一个",
+    pickRowOn: false,
+    resultIndices: [],
+    resultLines: [],
+    multiOn: false
   },
 
   onInit() {
     this.applyTheme()
     this.buildCatList()
     this.setDeck(preset.decks[0])
+    this.readShape()
     this.loadDraft()
     this.loadCustomDeck()
+  },
+
+  readShape() {
+    var self = this
+    try {
+      require("@system.device").getInfo({
+        success: function (data) {
+          self.screenShape = data.screenShape || ""
+          self.resolveAnim()
+        },
+        fail: function () {}
+      })
+    } catch (e) {}
   },
 
   onShow() {
@@ -169,17 +227,119 @@ export default {
     if (!deck || !deck.items || deck.items.length < 2) {
       return
     }
+    this.stopSpin()
     this.currentDeck = deck
     this.deckTitle = deck.title
     this.items = deck.items.slice(0)
-    this.animKind = (deck.anim === "flip" && this.items.length === 2) ? "flip" : "wheel"
+    this.pickCount = 1
     this.phase = "idle"
     this.resultText = ""
+    this.resultLines = []
+    this.multiOn = false
+    this.resultIndices = []
     this.resultIndex = 0
     this.spinIndex = 0
     this.btnText = "抽一个"
-    this.statusText = (deck.anim === "compass") ? "暂用滚动" : "点下面抽取"
+    this.resolveAnim()
     this.buildWindow()
+  },
+
+  // auto 策略：抽取规则优先，再判语义与项数上限；不满足一律回退 wheel
+  resolveAnim() {
+    var limit = (this.screenShape === "circle") ? COMPASS_LIMIT_CIRCLE : COMPASS_LIMIT_PILL
+    var want = this.currentDeck && this.currentDeck.anim === "compass" && this.pickCount === 1
+    var ok = want && this.items.length >= 2 && this.items.length <= limit
+    if (ok) {
+      for (var i = 0; i < this.items.length; i++) {
+        if (this.posOf(this.items[i]) > 2) {
+          ok = false
+          break
+        }
+      }
+    }
+    this.compassOn = ok
+    if (ok) {
+      this.animKind = "compass"
+      this.dialSize = (this.screenShape === "circle") ? 240 : 160
+      this.dialRadius = this.dialSize / 2
+      this.buildDial()
+    } else {
+      var flip = this.currentDeck && this.currentDeck.anim === "flip" && this.items.length === 2 && this.pickCount === 1
+      this.animKind = flip ? "flip" : "wheel"
+    }
+    this.pickRowOn = !ok && this.items.length >= 3
+    this.pickText = PICK_LABEL[this.pickCount - 1] || "抽一个"
+    this.statusText = ok ? "点盘面抽取" : "点下面抽取"
+  },
+
+  // 刻度角度量化到 15 度帧，保证指针必然精确指向某个标签中心
+  buildDial() {
+    var n = this.items.length
+    var cx = this.dialSize / 2
+    var r = cx - 30
+    var labels = []
+    var angles = []
+    for (var i = 0; i < n; i++) {
+      var deg = (Math.round((i * 360 / n) / FRAME_STEP) * FRAME_STEP) % 360
+      var rad = deg * Math.PI / 180
+      angles.push(deg / FRAME_STEP)
+      labels.push({
+        text: this.items[i],
+        left: Math.round(cx + r * Math.sin(rad) - 24),
+        top: Math.round(cx - r * Math.cos(rad) - 17),
+        hit: false
+      })
+    }
+    this.dialAngles = angles
+    this.dialLabels = labels
+    this.updateNeedle(0, -1)
+  },
+
+  // 指针不用 transform rotate，全库无该能力用例，改用预渲染帧图换 src
+  updateNeedle(frame, hitIndex) {
+    this.needleFrame = frame
+    var s = frame < 10 ? "0" + frame : "" + frame
+    this.needleSrc = "/common/icons/compass/needle_" + s + ".png"
+    var out = []
+    for (var i = 0; i < this.dialLabels.length; i++) {
+      var hit = hitIndex >= 0 ? (i === hitIndex) : (this.dialAngles[i] === frame)
+      out.push({
+        text: this.dialLabels[i].text,
+        left: this.dialLabels[i].left,
+        top: this.dialLabels[i].top,
+        hit: hit
+      })
+    }
+    this.dialLabels = out
+  },
+
+  // 单次内强制不重复，replace 固定 false
+  pickIndices() {
+    var pool = []
+    for (var i = 0; i < this.items.length; i++) {
+      pool.push(i)
+    }
+    for (var j = pool.length - 1; j > 0; j--) {
+      var t = Math.floor(Math.random() * (j + 1))
+      var tmp = pool[j]
+      pool[j] = pool[t]
+      pool[t] = tmp
+    }
+    return pool.slice(0, Math.min(this.pickCount, pool.length))
+  },
+
+  changePick() {
+    if (this.phase === "spinning") {
+      return
+    }
+    var max = Math.min(MAX_PICK, this.items.length - 1)
+    this.pickCount = this.pickCount >= max ? 1 : this.pickCount + 1
+    this.phase = "idle"
+    this.resultText = ""
+    this.resultLines = []
+    this.multiOn = false
+    this.btnText = "抽一次"
+    this.resolveAnim()
   },
 
   draw() {
@@ -191,16 +351,27 @@ export default {
       return
     }
     this.stopSpin()
-    this.resultIndex = Math.floor(Math.random() * this.items.length)
+    // 结果先定后演，中断动画不改变结果
+    this.resultIndices = this.pickIndices()
+    this.resultIndex = this.resultIndices[0]
+    this.resultLines = []
+    this.multiOn = false
+    this.resultText = ""
     this.spinStep = 0
-    this.totalSteps = 18 + Math.floor(Math.random() * 6)
     this.spinIndex = 0
     this.phase = "spinning"
-    this.resultText = ""
     this.btnText = "抽取中"
     this.statusText = "正在抽取"
-    this.buildWindow()
-    this.tick()
+    if (this.compassOn) {
+      this.targetFrame = this.dialAngles[this.resultIndex]
+      this.totalSteps = FRAMES + this.targetFrame
+      this.updateNeedle(0, -1)
+      this.tickCompass()
+    } else {
+      this.totalSteps = 18 + Math.floor(Math.random() * 6)
+      this.buildWindow()
+      this.tick()
+    }
   },
 
   tick() {
@@ -220,18 +391,51 @@ export default {
     }, delay)
   },
 
+  tickCompass() {
+    var self = this
+    this.spinStep = this.spinStep + 1
+    if (this.spinStep >= this.totalSteps) {
+      this.finishDraw()
+      return
+    }
+    this.updateNeedle((this.needleFrame + 1) % FRAMES, -1)
+    var t = this.spinStep / this.totalSteps
+    var delay = 35 + Math.floor(190 * t * t * t)
+    this.timer = setTimeout(function () {
+      self.tickCompass()
+    }, delay)
+  },
+
   finishDraw() {
     this.stopSpin()
     this.spinIndex = this.resultIndex
     this.phase = "done"
-    this.resultText = this.items[this.resultIndex]
     this.btnText = "再抽一次"
     this.statusText = "已出结果"
+    if (this.compassOn) {
+      this.updateNeedle(this.targetFrame, this.resultIndex)
+      this.resultText = this.items[this.resultIndex]
+    } else if (this.resultIndices.length > 1) {
+      var lines = []
+      for (var i = 0; i < this.resultIndices.length; i++) {
+        lines.push(this.items[this.resultIndices[i]])
+      }
+      this.resultLines = lines
+      this.multiOn = true
+      this.resultText = ""
+    } else {
+      this.resultLines = []
+      this.multiOn = false
+      this.resultText = this.items[this.resultIndex]
+    }
     this.buildWindow()
     this.vibrate()
   },
 
   buildWindow() {
+    if (this.compassOn) {
+      return
+    }
     var n = this.items.length
     var out = []
     if (this.animKind === "flip") {
@@ -550,6 +754,95 @@ export default {
   lines: 1;
 }
 
+/* 罗盘：盘面文字固定水平排布，只有指针帧在动 */
+.compass-box {
+  flex-direction: column;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+
+.dial {
+  position: relative;
+  border-width: 2px;
+  border-color: #444444;
+  justify-content: center;
+  align-items: center;
+}
+
+.dial-tick {
+  position: absolute;
+  width: 48px;
+  height: 34px;
+  border-radius: 8px;
+  justify-content: center;
+  align-items: center;
+}
+
+.dial-tick-text {
+  font-size: 24px;
+  line-height: 34px;
+  text-align: center;
+  lines: 1;
+}
+
+.needle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.compass-result {
+  width: 100%;
+  height: 60px;
+  justify-content: center;
+  align-items: center;
+}
+
+.compass-result-text {
+  font-size: 44px;
+  font-weight: bold;
+  line-height: 60px;
+  text-align: center;
+  lines: 2;
+}
+
+.multi-result {
+  flex-direction: column;
+  width: 100%;
+  justify-content: center;
+  align-items: center;
+}
+
+.multi-line {
+  width: 100%;
+  font-size: 24px;
+  line-height: 34px;
+  text-align: center;
+  lines: 1;
+}
+
+.pick-row {
+  width: 100%;
+  height: 40px;
+  border-radius: 12px;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.pick-text {
+  font-size: 24px;
+  line-height: 34px;
+  text-align: center;
+  lines: 1;
+}
+
 .stage {
   flex-direction: column;
   width: 100%;
@@ -698,10 +991,13 @@ export default {
 
 @media (shape: circle) {
   .page {
-    padding: 40px 20px 20px 20px;
+    padding: 24px 20px 16px 20px;
   }
   .stage {
     height: 150px;
+  }
+  .compass-box {
+    margin-bottom: 0;
   }
 }
 
