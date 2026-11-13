@@ -102,6 +102,11 @@
         "group": "实用工具",
         "name_cn": "答案之书"
       },
+      "pages/decide": {
+        "component": "decide",
+        "group": "实用工具",
+        "name_cn": "帮助抉择"
+      },
       "pages/qrcode-generator": {
         "component": "qrcode-generator",
         "group": "实用工具",

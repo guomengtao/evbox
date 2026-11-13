@@ -99,7 +99,8 @@ var TOOLS = [
   { id: "quote", name: "一言", iconFile: "tool_quote.png", uri: "/pages/daily-quote" },
   { id: "answer", name: "答案", iconFile: "tool_answer.png", uri: "/pages/answer-book" },
   { id: "qrcode", name: "二维码", iconFile: "tool_qrcode.png", uri: "/pages/qrcode-generator" },
-  { id: "vibrate", name: "震动", iconFile: "tool_vibrate.png", uri: "/pages/vibration-lab" }
+  { id: "vibrate", name: "震动", iconFile: "tool_vibrate.png", uri: "/pages/vibration-lab" },
+  { id: "decide", name: "抉择", iconFile: "tool_decide.png", uri: "/pages/decide" }
 ]
 
 export default {

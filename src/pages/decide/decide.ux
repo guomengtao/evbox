@@ -1,0 +1,716 @@
+<template>
+  <div class="page" style="background-color: {{ theme.bg }}">
+    <div class="back-header">
+      <div class="back-btn-wrapper" onclick="goBack" style="background-color: {{ theme.card }}">
+        <image class="back-btn-icon" src="/common/icons/{{ iconTheme }}/icon_back.png"></image>
+      </div>
+      <text class="header-title" style="color: {{ theme.text }}">{{ pageTitle }}</text>
+      <div class="header-placeholder"></div>
+    </div>
+
+    <!-- 主屏：一屏只做抽取这件事 -->
+    <div class="view" style="display: {{ view === 'main' ? 'flex' : 'none' }}">
+      <div class="deck-head" onclick="openDecks" style="background-color: {{ theme.card }}">
+        <text class="deck-name" style="color: {{ theme.text }}">{{ deckTitle }}</text>
+      </div>
+
+      <div class="stage" style="background-color: {{ theme.card }}">
+        <div class="spin-box" style="display: {{ phase === 'done' ? 'none' : 'flex' }}">
+          <div class="spin-row" for="{{ windowItems }}"
+               style="background-color: {{ $item.mid ? theme.cardLight : 'transparent' }}">
+            <text class="spin-text" style="color: {{ $item.mid ? theme.text : theme.textSecondary }}">{{ $item.text }}</text>
+          </div>
+        </div>
+        <div class="result-box" style="display: {{ phase === 'done' ? 'flex' : 'none' }}">
+          <text class="result-text" style="color: {{ theme.accent }}">{{ resultText }}</text>
+        </div>
+      </div>
+
+      <div class="main-btn" onclick="draw" style="background-color: {{ theme.accent }}">
+        <text class="main-btn-text" style="color: {{ theme.bg }}">{{ btnText }}</text>
+      </div>
+
+      <div class="sub-row" onclick="openDecks" style="background-color: {{ theme.card }}">
+        <text class="sub-text" style="color: {{ theme.text }}">换卡组</text>
+      </div>
+      <div class="sub-row" onclick="openCustom" style="background-color: {{ theme.card }}">
+        <text class="sub-text" style="color: {{ theme.text }}">我的卡组</text>
+      </div>
+
+      <text class="status-line" style="color: {{ theme.textSecondary }}">{{ statusText }}</text>
+    </div>
+
+    <!-- 卡组列表：先选类，再选组 -->
+    <div class="view" style="display: {{ view === 'decks' ? 'flex' : 'none' }}">
+      <scroll class="list-scroll" scroll-y="true" style="display: {{ catIndex < 0 ? 'flex' : 'none' }}">
+        <div class="list-row" for="{{ catList }}" onclick="pickCat($item.idx)"
+             style="background-color: {{ theme.card }}">
+          <text class="list-text" style="color: {{ theme.text }}">{{ $item.name }}</text>
+        </div>
+      </scroll>
+      <scroll class="list-scroll" scroll-y="true" style="display: {{ catIndex < 0 ? 'none' : 'flex' }}">
+        <div class="list-row" for="{{ deckList }}" onclick="selectDeck($item.deckIndex)"
+             style="background-color: {{ theme.card }}">
+          <text class="list-text" style="color: {{ theme.text }}">{{ $item.title }}</text>
+        </div>
+      </scroll>
+    </div>
+
+    <!-- 自定义卡组：逐项添加，保存即抽 -->
+    <div class="view" style="display: {{ view === 'custom' ? 'flex' : 'none' }}">
+      <text class="edit-tip" style="color: {{ theme.textSecondary }}">已加选项</text>
+      <scroll class="item-scroll" scroll-y="true">
+        <div class="item-row" for="{{ customItems }}" style="background-color: {{ theme.card }}">
+          <text class="item-text" style="color: {{ theme.text }}">{{ $item }}</text>
+        </div>
+      </scroll>
+
+      <div class="main-btn" onclick="addItem" style="background-color: {{ theme.accent }}">
+        <text class="main-btn-text" style="color: {{ theme.bg }}">加一项</text>
+      </div>
+      <div class="main-btn" onclick="saveCustom" style="background-color: {{ theme.cardLight }}">
+        <text class="main-btn-text" style="color: {{ theme.text }}">保存并抽</text>
+      </div>
+      <div class="sub-row" onclick="clearCustom" style="background-color: {{ theme.card }}">
+        <text class="sub-text" style="color: {{ theme.text }}">清空重来</text>
+      </div>
+
+      <text class="status-line" style="color: {{ theme.textSecondary }}">{{ statusText }}</text>
+    </div>
+  </div>
+</template>
+
+<script>
+import router from "@system.router"
+const store = require("../../data/store.js")
+var preset = require("../../data/decks/preset-decks.json")
+
+var CUSTOM_DECK_KEY = "decide_custom_deck"
+var DRAFT_KEY = "decide_draft_items"
+var ADD_RESULT_KEY = "decide_add_item"
+var MAX_ITEMS = 30
+var MAX_P = 6
+
+// 分类屏显短名：原名五到六字超过 168px 容器，按 ev-six 删字不缩字号
+var CAT_SHORT = ["二元", "方位", "学科", "数字", "果蔬", "餐饮", "日常", "娱乐", "社交", "运动", "心情", "模板"]
+
+export default {
+  private: {
+    iconTheme: "dark",
+    theme: store.DEFAULT_THEME,
+    view: "main",
+    pageTitle: "抉择",
+    phase: "idle",
+    animKind: "wheel",
+    currentDeck: null,
+    customDeck: null,
+    deckTitle: "要不要",
+    items: ["要", "不要"],
+    windowItems: [],
+    resultText: "",
+    resultIndex: 0,
+    spinIndex: 0,
+    spinStep: 0,
+    totalSteps: 20,
+    timer: null,
+    btnText: "抽一个",
+    statusText: "点下面抽取",
+    catIndex: -1,
+    catList: [],
+    deckList: [],
+    customItems: []
+  },
+
+  onInit() {
+    this.applyTheme()
+    this.buildCatList()
+    this.setDeck(preset.decks[0])
+    this.loadDraft()
+    this.loadCustomDeck()
+  },
+
+  onShow() {
+    this.applyTheme()
+    this.checkInputResult()
+  },
+
+  onHide() {
+    // 中断动画不改变结果，结果在 draw 时已先定
+    if (this.phase === "spinning") {
+      this.stopSpin()
+      this.finishDraw()
+    }
+  },
+
+  onDestroy() {
+    this.stopSpin()
+  },
+
+  applyTheme() {
+    var self = this
+    store.getTheme(function (t, themeName) {
+      self.theme = t
+      self.iconTheme = (themeName === "light" || themeName === "warm") ? "light" : "dark"
+    })
+  },
+
+  buildCatList() {
+    var out = []
+    for (var i = 0; i < preset.categories.length; i++) {
+      out.push({ idx: i, name: CAT_SHORT[i] || preset.categories[i] })
+    }
+    if (this.customDeck) {
+      out.push({ idx: -2, name: "我的" })
+    }
+    this.catList = out
+  },
+
+  setDeck(deck) {
+    if (!deck || !deck.items || deck.items.length < 2) {
+      return
+    }
+    this.currentDeck = deck
+    this.deckTitle = deck.title
+    this.items = deck.items.slice(0)
+    this.animKind = (deck.anim === "flip" && this.items.length === 2) ? "flip" : "wheel"
+    this.phase = "idle"
+    this.resultText = ""
+    this.resultIndex = 0
+    this.spinIndex = 0
+    this.btnText = "抽一个"
+    this.statusText = (deck.anim === "compass") ? "暂用滚动" : "点下面抽取"
+    this.buildWindow()
+  },
+
+  draw() {
+    if (this.phase === "spinning") {
+      return
+    }
+    if (!this.items || this.items.length < 2) {
+      this.statusText = "至少两项"
+      return
+    }
+    this.stopSpin()
+    this.resultIndex = Math.floor(Math.random() * this.items.length)
+    this.spinStep = 0
+    this.totalSteps = 18 + Math.floor(Math.random() * 6)
+    this.spinIndex = 0
+    this.phase = "spinning"
+    this.resultText = ""
+    this.btnText = "抽取中"
+    this.statusText = "正在抽取"
+    this.buildWindow()
+    this.tick()
+  },
+
+  tick() {
+    var self = this
+    var n = this.items.length
+    this.spinStep = this.spinStep + 1
+    if (this.spinStep >= this.totalSteps) {
+      this.finishDraw()
+      return
+    }
+    this.spinIndex = (this.spinIndex + 1) % n
+    this.buildWindow()
+    var t = this.spinStep / this.totalSteps
+    var delay = 40 + Math.floor(190 * t * t * t)
+    this.timer = setTimeout(function () {
+      self.tick()
+    }, delay)
+  },
+
+  finishDraw() {
+    this.stopSpin()
+    this.spinIndex = this.resultIndex
+    this.phase = "done"
+    this.resultText = this.items[this.resultIndex]
+    this.btnText = "再抽一次"
+    this.statusText = "已出结果"
+    this.buildWindow()
+    this.vibrate()
+  },
+
+  buildWindow() {
+    var n = this.items.length
+    var out = []
+    if (this.animKind === "flip") {
+      out.push({ text: this.items[this.spinIndex % n], mid: true })
+    } else {
+      for (var k = -1; k <= 1; k++) {
+        var idx = ((this.spinIndex + k) % n + n) % n
+        out.push({ text: this.items[idx], mid: k === 0 })
+      }
+    }
+    this.windowItems = out
+  },
+
+  stopSpin() {
+    if (this.timer) {
+      clearTimeout(this.timer)
+      this.timer = null
+    }
+  },
+
+  vibrate() {
+    try {
+      require("@system.vibrator").vibrate({ mode: "short" })
+    } catch (e) {}
+  },
+
+  openDecks() {
+    this.stopSpin()
+    this.view = "decks"
+    this.pageTitle = "卡组"
+    this.catIndex = -1
+    this.buildCatList()
+  },
+
+  openCustom() {
+    this.stopSpin()
+    this.view = "custom"
+    this.pageTitle = "自定"
+    this.statusText = "点加一项"
+  },
+
+  pickCat(idx) {
+    if (idx === -2) {
+      if (!this.customDeck) {
+        return
+      }
+      this.catIndex = -2
+      this.deckList = [{ idx: 0, title: "我的卡组", deckIndex: -1 }]
+      return
+    }
+    this.catIndex = idx
+    var cat = preset.categories[idx]
+    var out = []
+    for (var i = 0; i < preset.decks.length; i++) {
+      if (preset.decks[i].cat === cat) {
+        out.push({ idx: out.length, title: preset.decks[i].title, deckIndex: i })
+      }
+    }
+    this.deckList = out
+  },
+
+  selectDeck(deckIndex) {
+    if (deckIndex < 0) {
+      if (!this.customDeck) {
+        return
+      }
+      this.setDeck(this.customDeck)
+    } else {
+      this.setDeck(preset.decks[deckIndex])
+    }
+    this.view = "main"
+    this.pageTitle = "抉择"
+  },
+
+  addItem() {
+    var storage = require("@system.storage")
+    storage.set({ key: "chinese_input_title", value: "加一项", fail: function () {} })
+    storage.set({ key: "chinese_input_placeholder", value: "唱歌 不唱歌", fail: function () {} })
+    storage.set({ key: "chinese_input_value", value: "", fail: function () {} })
+    storage.set({ key: "chinese_input_maxlen", value: "24", fail: function () {} })
+    storage.set({
+      key: "chinese_input_return_key",
+      value: ADD_RESULT_KEY,
+      success: function () {
+        router.push({ uri: "/pages/chinese-input" })
+      },
+      fail: function () {}
+    })
+  },
+
+  checkInputResult() {
+    var self = this
+    var storage = require("@system.storage")
+    storage.get({
+      key: ADD_RESULT_KEY,
+      success: function (data) {
+        if (!data) {
+          return
+        }
+        storage.delete({ key: ADD_RESULT_KEY, fail: function () {} })
+        var parsed = self.parseText(data)
+        if (!parsed.length) {
+          self.statusText = "选项为空"
+          return
+        }
+        var items = self.customItems.slice(0)
+        for (var i = 0; i < parsed.length; i++) {
+          if (items.indexOf(parsed[i]) < 0 && items.length < MAX_ITEMS) {
+            items.push(parsed[i])
+          }
+        }
+        self.customItems = items
+        self.statusText = "已加好"
+        self.saveDraft()
+      },
+      fail: function () {}
+    })
+  },
+
+  parseText(raw) {
+    var parts = String(raw || "").split(/[\s,，、;；]+/)
+    var out = []
+    for (var i = 0; i < parts.length; i++) {
+      var s = parts[i]
+      if (!s || this.posOf(s) > MAX_P) {
+        continue
+      }
+      if (out.indexOf(s) < 0) {
+        out.push(s)
+      }
+      if (out.length >= MAX_ITEMS) {
+        break
+      }
+    }
+    return out
+  },
+
+  posOf(s) {
+    var p = 0
+    for (var i = 0; i < s.length; i++) {
+      var c = s.charAt(i)
+      if (/[\u4e00-\u9fa5]/.test(c)) {
+        p = p + 1
+      } else if (/[0-9A-Za-z]/.test(c)) {
+        p = p + 0.55
+      } else {
+        p = p + 0.5
+      }
+    }
+    return p
+  },
+
+  saveCustom() {
+    if (this.customItems.length < 2) {
+      this.statusText = "至少两项"
+      return
+    }
+    var deck = {
+      id: "CUSTOM",
+      title: "我的卡组",
+      cat: "我的",
+      items: this.customItems.slice(0),
+      anim: this.customItems.length === 2 ? "flip" : "wheel"
+    }
+    this.customDeck = deck
+    var storage = require("@system.storage")
+    storage.set({ key: CUSTOM_DECK_KEY, value: JSON.stringify(deck), fail: function () {} })
+    this.setDeck(deck)
+    this.view = "main"
+    this.pageTitle = "抉择"
+    this.buildCatList()
+    this.draw()
+  },
+
+  clearCustom() {
+    this.customItems = []
+    this.saveDraft()
+    this.statusText = "已清空"
+  },
+
+  saveDraft() {
+    var storage = require("@system.storage")
+    storage.set({ key: DRAFT_KEY, value: JSON.stringify(this.customItems), fail: function () {} })
+  },
+
+  loadDraft() {
+    var self = this
+    var storage = require("@system.storage")
+    storage.get({
+      key: DRAFT_KEY,
+      success: function (data) {
+        if (!data) {
+          return
+        }
+        try {
+          var arr = JSON.parse(data)
+          if (arr && arr.length) {
+            self.customItems = arr.slice(0, MAX_ITEMS)
+          }
+        } catch (e) {}
+      },
+      fail: function () {}
+    })
+  },
+
+  loadCustomDeck() {
+    var self = this
+    var storage = require("@system.storage")
+    storage.get({
+      key: CUSTOM_DECK_KEY,
+      success: function (data) {
+        if (!data) {
+          return
+        }
+        try {
+          var deck = JSON.parse(data)
+          if (deck && deck.items && deck.items.length >= 2) {
+            self.customDeck = deck
+            self.buildCatList()
+          }
+        } catch (e) {}
+      },
+      fail: function () {}
+    })
+  },
+
+  goBack() {
+    if (this.view === "decks") {
+      if (this.catIndex !== -1) {
+        this.catIndex = -1
+        return
+      }
+      this.view = "main"
+      this.pageTitle = "抉择"
+      return
+    }
+    if (this.view === "custom") {
+      this.view = "main"
+      this.pageTitle = "抉择"
+      return
+    }
+    this.stopSpin()
+    router.back()
+  }
+}
+</script>
+
+<style>
+.page {
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  padding: 32px 12px 16px 12px;
+}
+
+.back-header {
+  flex-direction: row;
+  align-items: center;
+  width: 100%;
+  height: 36px;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
+
+.back-btn-wrapper {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.back-btn-icon {
+  width: 22px;
+  height: 22px;
+}
+
+.header-title {
+  flex: 1;
+  font-size: 28px;
+  font-weight: bold;
+  line-height: 38px;
+  text-align: center;
+  lines: 1;
+  min-width: 0;
+}
+
+.header-placeholder {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+}
+
+.view {
+  flex-direction: column;
+  width: 100%;
+  flex: 1;
+}
+
+.deck-head {
+  width: 100%;
+  height: 40px;
+  border-radius: 12px;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.deck-name {
+  font-size: 28px;
+  font-weight: bold;
+  line-height: 38px;
+  text-align: center;
+  lines: 1;
+}
+
+.stage {
+  flex-direction: column;
+  width: 100%;
+  height: 138px;
+  border-radius: 14px;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+
+.spin-box {
+  flex-direction: column;
+  width: 100%;
+  justify-content: center;
+  align-items: center;
+}
+
+.spin-row {
+  width: 100%;
+  height: 40px;
+  border-radius: 10px;
+  justify-content: center;
+  align-items: center;
+}
+
+.spin-text {
+  font-size: 28px;
+  line-height: 38px;
+  text-align: center;
+  lines: 1;
+}
+
+.result-box {
+  flex-direction: column;
+  width: 100%;
+  justify-content: center;
+  align-items: center;
+}
+
+.result-text {
+  font-size: 44px;
+  font-weight: bold;
+  line-height: 60px;
+  text-align: center;
+  lines: 2;
+}
+
+.main-btn {
+  width: 100%;
+  height: 56px;
+  border-radius: 14px;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+
+.main-btn-text {
+  font-size: 28px;
+  font-weight: bold;
+  line-height: 38px;
+  text-align: center;
+  lines: 1;
+}
+
+.sub-row {
+  width: 100%;
+  height: 40px;
+  border-radius: 12px;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.sub-text {
+  font-size: 24px;
+  line-height: 34px;
+  text-align: center;
+  lines: 1;
+}
+
+.status-line {
+  width: 100%;
+  height: 34px;
+  font-size: 24px;
+  line-height: 34px;
+  text-align: center;
+  lines: 1;
+}
+
+.list-scroll {
+  flex-direction: column;
+  width: 100%;
+  flex: 1;
+}
+
+.list-row {
+  width: 100%;
+  height: 52px;
+  border-radius: 12px;
+  padding: 0 8px;
+  justify-content: center;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.list-text {
+  font-size: 28px;
+  line-height: 38px;
+  lines: 1;
+}
+
+.edit-tip {
+  width: 100%;
+  font-size: 24px;
+  line-height: 34px;
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.item-scroll {
+  flex-direction: column;
+  width: 100%;
+  flex: 1;
+  min-height: 100px;
+  margin-bottom: 10px;
+}
+
+.item-row {
+  width: 100%;
+  height: 44px;
+  border-radius: 10px;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.item-text {
+  font-size: 28px;
+  line-height: 38px;
+  lines: 1;
+}
+
+@media (shape: circle) {
+  .page {
+    padding: 40px 20px 20px 20px;
+  }
+  .stage {
+    height: 150px;
+  }
+}
+
+@media (shape: capsule), (shape: pill-shaped) {
+  .page {
+    padding: 24px 12px 12px 12px;
+  }
+  .stage {
+    height: 126px;
+  }
+}
+</style>
