@@ -107,6 +107,21 @@ var TASKS = [
         }
       })
     }
+  },
+  {
+    // v3 首页默认推荐「一言」需要的当日一句。同 daily-quote 页用同一取句函数，
+    // 保证首页 teaser 与点进去看到的正文是同一句（按日确定性）。
+    id: "quote",
+    run: function(next) {
+      var quotes = require("../../../data/daily-quotes.js")
+      var text = ""
+      try {
+        text = quotes.quoteOfDay(new Date(), 0) || ""
+      } catch (e) {
+        text = ""
+      }
+      next(text)
+    }
   }
 ]
 
@@ -117,15 +132,27 @@ function getAll(callback) {
   var finished = 0
   var done = false
 
+  // 兜底：device.getInfo 等系统 API 在某些 guest 上既不 success 也不 fail，
+  // 会让整批摘要永远不回调（首页 v3 将因此只剩空卡名）。
+  // 1.5s 后强制结算已拿到的部分，缺的按「取不到就不渲染那行」处理。
+  var guard = setTimeout(function() {
+    if (done) return
+    done = true
+    callback(out)
+  }, 1500)
+
   function tick() {
     finished++
     if (finished >= total && !done) {
       done = true
+      try { clearTimeout(guard) } catch (e) {}
       callback(out)
     }
   }
 
   if (total === 0) {
+    done = true
+    try { clearTimeout(guard) } catch (e) {}
     callback(out)
     return
   }

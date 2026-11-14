@@ -602,7 +602,9 @@ module.exports = {
       showQuickAdd: true,
       showCustomContent: false,
       customContent: randomPick(DEFAULT_QUOTES),
-      showTime: false,
+      // v3：首页是「抬腕即得的信息面」，首启必须有两行信息。
+      // 旧默认 false 会让新用户第一眼只剩一行品牌字（见职责重定位分析 §4）。
+      showTime: true,
       showStatusBar: true,
       showPinnedBar: false,
       showDayNavZong: true,

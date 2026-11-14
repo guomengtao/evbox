@@ -1,8 +1,8 @@
 <template>
   <div class="page" style="background-color: {{ theme.bg }}">
     <scroll class="content" scroll-y="true">
-      <!-- ① 状态区：裸文锚点，始终占位、不可点。
-           钟开 → 44px 时刻 + 24px 短日期；钟关 → 28px 品牌行，首页不至于空半屏 -->
+      <!-- ① 状态层：裸文、无底色、不可点。
+           钟开 44px 时刻 + 24px 短日期；钟关改为品牌 + 日期两行，首帧绝不空半屏 -->
       <div class="status">
         <div class="status-clock" style="display: {{ showTime ? 'flex' : 'none' }}">
           <text class="clock-main" style="color: {{ theme.accent }}">{{ currentTime }}</text>
@@ -10,35 +10,35 @@
         </div>
         <div class="status-brand" style="display: {{ showTime ? 'none' : 'flex' }}">
           <text class="brand-main" style="color: {{ theme.accent }}">Ev工具箱</text>
+          <text class="date-sub" style="color: {{ subColor }}">{{ dateText }}</text>
         </div>
       </div>
 
-      <!-- ② 焦点卡：倒数日。card 底色表达可点性，不用箭头、不用「钉」徽标 -->
-      <div class="focus" onclick="openCountdown" style="display: {{ showCountdown && hasCountdown ? 'flex' : 'none' }}; background-color: {{ theme.card }}">
-        <div class="focus-num-row">
-          <text class="num-main" style="color: {{ theme.accent }}">{{ cdBadge }}</text>
-          <text class="num-unit" style="color: {{ subColor }}">{{ cdUnit }}</text>
+      <!-- ② 内容层：默认推荐 + 用户钉选混排，每款带实时摘要。
+           倒数日有数据时同一张卡切 44px 大数字，不另起焦点层，避免同内容出现两次 -->
+      <div class="slot" for="{{ slots }}" onclick="openSlot($idx)" style="background-color: {{ theme.card }}">
+        <div class="slot-hero" style="display: {{ $item.hero ? 'flex' : 'none' }}">
+          <div class="hero-num-row">
+            <text class="num-main" style="color: {{ theme.accent }}">{{ $item.badge }}</text>
+            <text class="num-unit" style="color: {{ subColor }}">{{ $item.unit }}</text>
+          </div>
+          <text class="hero-title" style="color: {{ theme.text }}">{{ $item.heroTitle }}</text>
         </div>
-        <text class="focus-title" style="color: {{ theme.text }}">{{ cdTitle }}</text>
+        <div class="slot-normal" style="display: {{ $item.hero ? 'none' : 'flex' }}">
+          <text class="slot-name" style="color: {{ theme.text }}">{{ $item.name }}</text>
+          <text class="slot-summary" style="display: {{ $item.summary ? 'flex' : 'none' }}; color: {{ subColor }}">{{ $item.summary }}</text>
+        </div>
       </div>
 
-      <!-- ③ 入口行：亮底 = P0 主操作，card = 次操作。无图标、无箭头、无徽标 -->
+      <!-- 槽位被全部移除时的空态，不用 toast -->
+      <text class="empty-hint" style="display: {{ hasSlots ? 'none' : 'flex' }}; color: {{ subColor }}">去管理首页添加</text>
+
+      <!-- ③ 入口层：只留两个内容相关入口，设置与退出不再与内容同权 -->
       <div class="action action-primary" onclick="openTools" style="background-color: {{ theme.cardLight }}">
         <text class="action-text" style="color: {{ theme.text }}">全部工具</text>
       </div>
-      <div class="action" onclick="openPinned" style="background-color: {{ theme.card }}">
-        <text class="action-text" style="color: {{ theme.text }}">已钉页面</text>
-      </div>
-      <div class="action" onclick="openSettings" style="background-color: {{ theme.card }}">
-        <text class="action-text" style="color: {{ theme.text }}">设置</text>
-      </div>
-      <div class="action" onclick="exitBox" style="background-color: {{ theme.card }}">
-        <text class="action-text" style="color: {{ theme.text }}">退出</text>
-      </div>
-
-      <!-- 内联状态条：固定 34px 高，只换文字不换高度；禁用 toast -->
-      <div class="hint-wrap" style="display: {{ exitHint ? 'flex' : 'none' }}">
-        <text class="inline-hint" style="color: {{ subColor }}">{{ exitHint }}</text>
+      <div class="action" onclick="openManage" style="background-color: {{ theme.card }}">
+        <text class="action-text" style="color: {{ theme.text }}">管理首页</text>
       </div>
     </scroll>
 
@@ -53,21 +53,24 @@ import router from "@system.router"
 
 const store = require("../../data/store.js")
 const utils = require("../../data/utils.js")
+var slotStore = require("../../data/homepage-slots.js")
+var toolSummaries = require("./modules/tool-summaries.js")
 
 /**
- * EvBox 首页 · ev-six 合规实现
- * 正本：docs/pages/core/index.md ／ 总纲 §3.21 ／ 手环页面开工手册 v7
+ * EvBox 首页 v3 · 内容承载页
+ * 正本：docs/pages/core/index.md v3 ／ docs/pages/core/index-职责重定位分析-20261114.md
+ * 规范：总纲 §3.21 ev-six 六位开发准则
  *
- * 三条硬约束：
- *  1) 字号只出现 44 / 30 / 28 / 24（见 style），24px 是绝对下限；
- *  2) 页面左右 padding 12px、卡片/行 8px，留白只从高度买；
- *  3) 无行内箭头 / 分隔符 / 徽标 / text-overflow / showToast / if 指令。
+ * v2 把首页做成导航页（5 行约 20 字，连 48~60 字预算一半都没到）。
+ * v3 = 状态层 + 内容槽位（每款带实时摘要）+ 两个入口，首帧不点也有内容。
+ *
+ * 硬约束：字号只出现 44/28/24；页面左右 padding 12px、卡片 8px；
+ * 无行内箭头 / 分隔符 / 徽标 / text-overflow / showToast / if 指令 / 逗号媒体查询。
  */
 
 var modules = {}
 var moduleNames = [
   { key: "clock" },
-  { key: "pinnedPages", defer: true },
   { key: "countdownHero", defer: true }
 ]
 
@@ -76,17 +79,13 @@ function loadModule(key, mod) {
 }
 
 loadModule("clock", require("./modules/clock.js"))
-loadModule("pinnedPages", require("./modules/pinned-pages.js"))
 loadModule("countdownHero", require("./modules/countdown-hero.js"))
 
 function dateShort(d) {
   return (d.getMonth() + 1) + "月" + d.getDate() + "日"
 }
 
-/**
- * 派生次要文字色。theme.textSecondary (#888899) 对深底约 4.0:1，
- * 低于 WCAG AA 的 4.5:1；深底提亮、浅底压深，自动适配全部 THEMES。
- */
+/** 派生次要文字色：theme.textSecondary 对深底约 4.0:1，低于 WCAG AA，按底色亮度重新派生 */
 function resolveSubColor(bg) {
   var hex = (bg || "#1a1a2e").replace("#", "")
   if (hex.length !== 6) return "#a8a8bd"
@@ -100,26 +99,79 @@ function resolveSubColor(bg) {
   return L > 0.45 ? "#3a3a4e" : "#a8a8bd"
 }
 
+/**
+ * 摘要清洗：ev-six 的点税与宽度预算
+ *  - tool-summaries.js 的文案带 " · "（单体 0.5P + 两侧空格 = 1.1P）→ 去掉，不改原文案
+ *    （tools 页图文视图复用同一模块，不能动它的输出）；
+ *  - 中文长句优先取第一个逗号前的分句；
+ *  - 按 P 计费（汉字 1.0 / 拉丁数字 0.55 / 空格 0.3）裁到 6.0P：
+ *    卡片内容宽 152px，24px 汉字 6 字 = 144px 才不折行；
+ *  - 绝不压字号、绝不加省略号、绝不靠 text-overflow 截断。
+ */
+function fitSummary(text) {
+  if (!text) return ""
+  var s = String(text).split(" · ").join("").split("·").join("")
+  var comma = s.indexOf("，")
+  if (comma > 0) s = s.slice(0, comma)
+  var out = ""
+  var p = 0
+  for (var i = 0; i < s.length; i++) {
+    var ch = s.charAt(i)
+    var c = s.charCodeAt(i)
+    var w = 1.0
+    if ((c >= 48 && c <= 57) || (c >= 65 && c <= 90) || (c >= 97 && c <= 122)) w = 0.55
+    else if (c === 32) w = 0.3
+    if (p + w > 6.0) break
+    out += ch
+    p += w
+  }
+  return out
+}
+
+/** 把数据层槽位 + 摘要表 + 倒数日 hero 数据合并成模板直接可渲染的视图模型 */
+function buildViewSlots(list, summaryMap, heroOn, hero) {
+  var out = []
+  for (var i = 0; i < list.length; i++) {
+    var s = list[i]
+    var isHero = !!(heroOn && s.id === "countdown" && hero.badge)
+    var summary = ""
+    if (s.summaryKey && summaryMap[s.summaryKey]) summary = fitSummary(summaryMap[s.summaryKey])
+    out.push({
+      id: s.id,
+      name: s.name,
+      uri: s.uri,
+      summary: summary,
+      hero: isHero,
+      badge: isHero ? hero.badge : "",
+      unit: isHero ? hero.unit : "",
+      heroTitle: isHero ? fitSummary(hero.title) : ""
+    })
+  }
+  return out
+}
+
+/** 首帧同步占位：storage 摘要未回来前，三张卡也必须有名称可读 */
+function placeholderSlots() {
+  return buildViewSlots(slotStore.getDefaults().slice(0, 3), {}, false, { badge: "", unit: "", title: "" })
+}
+
 export default {
   private: {
     showTime: true,
     showCountdown: true,
-    showPinnedBar: true,
     hasCountdown: false,
-    hasPinned: false,
     currentTime: "",
     dateText: "",
     cdBadge: "",
     cdUnit: "",
     cdTitle: "",
-    cdSubText: "",
-    cdPinned: false,
-    pinnedPages: [],
-    exitHint: "",
+    slots: placeholderSlots(),
+    hasSlots: true,
+    slotTotal: 3,
     needScroll: false,
     subColor: "#a8a8bd",
-    // ev-six：44px 只放得下 HH:MM(2.7P → 158px)。带秒 4.3P → 252px、
-    // 完整日期 12.3P，均超 168px 内容宽，故首页不消费 timeFormat 的年月日/秒设置。
+    slotData: null,
+    summaryMap: null,
     timeFormat: { hour: true, minute: true, second: false },
     theme: {
       bg: '#1a1a2e',
@@ -136,10 +188,11 @@ export default {
 
   onInit() {
     var self = this
-    self.initialized = false
+    self.dateText = dateShort(new Date())
     self.applyTheme(false)
     self.loadHomepageSettings()
     self.initAllModules()
+    self.loadSlots()
   },
 
   onShow() {
@@ -147,28 +200,33 @@ export default {
     self.applyTheme(true)
     self.loadHomepageSettings()
     self.dateText = dateShort(new Date())
-    self.exitHint = ""
     if (self.loadCountdownHero && typeof self.loadCountdownHero === 'function') {
       self.loadCountdownHero()
     }
-    // 焦点数据由 storage 异步回填，延迟重算一次滚动提示（只影响一行提示文案）
+    self.loadSlots()
+    // 槽位配置、摘要、倒数日 hero 三路都是 storage 异步回填：
+    // 延迟两次重算，保证最终画面与 needScroll 落定，不做「点了才刷新」
     if (self.hintTimer) clearTimeout(self.hintTimer)
     self.hintTimer = setTimeout(function() {
       self.hintTimer = null
-      self.updateScrollHint()
-      try { self.$forceUpdate() } catch (e) {}
-    }, 200)
+      self.mergeSlots()
+    }, 350)
+    if (self.settleTimer) clearTimeout(self.settleTimer)
+    self.settleTimer = setTimeout(function() {
+      self.settleTimer = null
+      self.mergeSlots()
+    }, 900)
   },
 
   onDestroy() {
     if (this.deferTimer) clearTimeout(this.deferTimer)
     if (this.hintTimer) clearTimeout(this.hintTimer)
+    if (this.settleTimer) clearTimeout(this.settleTimer)
     if (this.stopClockTimer && typeof this.stopClockTimer === 'function') this.stopClockTimer()
   },
 
   applyTheme(forceRefresh) {
     var self = this
-    // 防黑屏十诫：异步回调里的异常不能让整页不渲染，保底沿用 private 里的默认主题
     store.getTheme(function(t) {
       try {
         self.theme = t
@@ -184,27 +242,53 @@ export default {
     store.getHomepageSettings(function(settings) {
       self.showTime = settings.showTime !== false
       self.showCountdown = settings.showCountdown !== false
-      self.showPinnedBar = settings.showPinnedBar !== false
-      // 首页强制短时刻格式，理由见 private.timeFormat 注释。
-      // homepage_settings.toolViewMode 首页不再消费，仍由 pages/tools 使用。
       self.timeFormat = { hour: true, minute: true, second: false }
       if (typeof self.updateClock === 'function') self.updateClock()
-      self.updateScrollHint()
-      self.initialized = true
-      try { self.$forceUpdate() } catch (e) {}
+      self.mergeSlots()
     }, true)
   },
 
-  /** 单屏可用 442px；按实际区块高度估算是否需要下滑提示，绝不靠压字号容纳 */
+  /** 两路异步源谁先回来都能重算，避免互相等待导致首帧空白 */
+  loadSlots() {
+    var self = this
+    slotStore.getSlots(function(data) {
+      self.slotData = data
+      self.mergeSlots()
+    })
+    toolSummaries.getAll(function(map) {
+      self.summaryMap = map
+      self.mergeSlots()
+    })
+  },
+
+  mergeSlots() {
+    var list = this.slotData ? this.slotData.slots : slotStore.getDefaults().slice(0, 3)
+    var map = this.summaryMap || {}
+    var hero = {
+      badge: this.cdBadge,
+      unit: this.cdUnit,
+      title: this.cdTitle
+    }
+    this.slots = buildViewSlots(list, map, this.showCountdown && this.hasCountdown, hero)
+    this.hasSlots = this.slots.length > 0
+    this.slotTotal = this.slotData ? this.slotData.total : this.slots.length
+    this.updateScrollHint()
+    try { this.$forceUpdate() } catch (e) {}
+  },
+
+  /** 按实际渲染高度估算，超 442px 就给下滑提示；绝不靠压字号容纳 */
   updateScrollHint() {
-    // 56 页 padding + 314 四个操作行(58×4 + 20×3 + 22) + 状态区(钟开 106 / 钟关 50)
-    var h = 56 + 314 + (this.showTime ? 106 : 50)
-    if (this.showCountdown && this.hasCountdown) h += 128
+    var h = 56 + (this.showTime ? 106 : 84)
+    for (var i = 0; i < this.slots.length; i++) {
+      if (this.slots[i].hero) h += 120
+      else if (this.slots[i].summary) h += 98
+      else h += 64
+    }
+    h += 148
     this.needScroll = h > 442
   },
 
-  // 防黑屏十诫第 1 条：onInit 链路上的 for 必须包 try-catch，
-  // 渲染引擎可能在盒模型算完前执行，崩了会整页黑。
+  // 防黑屏十诫第 1 条：onInit 链路上的 for 必须包 try-catch
   initAllModules() {
     var self = this
     try {
@@ -237,27 +321,17 @@ export default {
     }
   },
 
-  openCountdown() {
-    router.push({ uri: "/pages/countdown-manage" })
+  openSlot(idx) {
+    var s = this.slots[idx]
+    if (s && s.uri) router.push({ uri: s.uri })
   },
 
   openTools() {
     router.push({ uri: "/pages/tools" })
   },
 
-  openPinned() {
+  openManage() {
     router.push({ uri: "/pages/pinned-pages" })
-  },
-
-  openSettings() {
-    router.push({ uri: "/pages/settings" })
-  },
-
-  /** 退出失败走内联状态条，不用 prompt.showToast（系统浮层会压住页面） */
-  exitBox() {
-    if (utils.exitApp() === true) return
-    this.exitHint = "手势返回"
-    try { this.$forceUpdate() } catch (e) {}
   },
 
   onBackPress() {
@@ -268,22 +342,18 @@ export default {
 
 <style>
 /**
- * EvBox 首页 · ev-six 设计令牌落地
- * 正本：docs/pages/core/index.md ／ 总纲 §3.21 ／ 手环页面开工手册 v7
- *
- * 字号只有四档：44/60、30/40、28/38、24/34（本页实际只用 44/28/24）。
- * 宽度是硬预算：屏 192 − 页面 padding 12×2 = 168px；卡片再扣 8×2 = 152px。
- * 留白只从高度买：抬 line-height → 纵向 padding → 纵向 margin，横向一律不动。
- * 三级底色：裸文（信息）→ card（次操作）→ cardLight（P0 主操作），不靠符号表达可点性。
+ * EvBox 首页 v3 · ev-six 设计令牌
+ * 字号三档：44/60、28/38、24/34（30 档本页无节点）。
+ * 宽度硬预算：屏 192 − 页面 padding 12×2 = 168px；卡片再扣 8×2 = 152px。
+ * 留白只从高度买；三级底色：裸文（信息）→ card（内容卡/次操作）→ cardLight（P0 主操作）。
+ * 刻意不用 @media：快应用不支持逗号分隔的媒体查询列表（防黑屏十诫第 5 条）。
  */
 
 .page {
   flex-direction: column;
   width: 100%;
   height: 100%;
-  /* 顶部 40px 留胶囊屏圆角安全区。刻意不用 @media：快应用引擎不支持
-     逗号分隔的媒体查询列表（防黑屏十诫第 5 条，会令布局规则全失配）；
-     本页只面向 192×490 手环 9 胶囊屏，固定值即唯一正确值。 */
+  /* 固定 40px 胶囊屏圆角安全区 */
   padding: 40px 12px 16px 12px;
 }
 
@@ -293,7 +363,7 @@ export default {
   flex: 1;
 }
 
-/* ---- ① 状态区：裸文，无底色，不参与可点性层级 ---- */
+/* ---- ① 状态层 ---- */
 .status {
   flex-direction: column;
   width: 100%;
@@ -301,17 +371,12 @@ export default {
   flex-shrink: 0;
 }
 
-.status-clock {
+.status-clock,
+.status-brand {
   flex-direction: column;
   width: 100%;
 }
 
-.status-brand {
-  flex-direction: row;
-  width: 100%;
-}
-
-/* 钟关时的锚点：与操作行同字号，靠 accent 色 + 无底色区分层级 */
 .brand-main {
   font-size: 28px;
   line-height: 38px;
@@ -335,17 +400,23 @@ export default {
   width: 100%;
 }
 
-/* ---- ② 焦点卡：上下 12px 免费，左右 8px 占位置 ---- */
-.focus {
+/* ---- ② 内容槽位：纵向 8px 免费，横向 8px 占位置 ---- */
+.slot {
   flex-direction: column;
   width: 100%;
-  padding: 12px 8px;
+  padding: 8px 8px;
   border-radius: 14px;
   margin-bottom: 10px;
   flex-shrink: 0;
 }
 
-.focus-num-row {
+.slot-hero,
+.slot-normal {
+  flex-direction: column;
+  width: 100%;
+}
+
+.hero-num-row {
   flex-direction: row;
   align-items: flex-end;
   width: 100%;
@@ -366,14 +437,36 @@ export default {
   margin-bottom: 8px;
 }
 
-.focus-title {
+.hero-title {
   font-size: 24px;
   line-height: 34px;
   lines: 1;
   width: 100%;
 }
 
-/* ---- ③ 操作行：min-height 58 = 38 行高 + 上下 10 padding ---- */
+.slot-name {
+  font-size: 28px;
+  line-height: 38px;
+  font-weight: bold;
+  lines: 1;
+  width: 100%;
+}
+
+.slot-summary {
+  font-size: 24px;
+  line-height: 34px;
+  lines: 1;
+  width: 100%;
+}
+
+.empty-hint {
+  font-size: 24px;
+  line-height: 34px;
+  lines: 1;
+  width: 100%;
+}
+
+/* ---- ③ 入口层 ---- */
 .action {
   flex-direction: row;
   align-items: center;
@@ -381,14 +474,12 @@ export default {
   min-height: 58px;
   padding: 10px 8px;
   border-radius: 14px;
-  /* 留白只从高度买：拉开纵向间距填满一屏，横向 padding 保持 8px 不动 */
-  margin-bottom: 20px;
+  margin-bottom: 10px;
   flex-shrink: 0;
 }
 
-/* 主操作只从高度买一点区隔，横向一丝不动 */
 .action-primary {
-  margin-bottom: 22px;
+  margin-bottom: 20px;
 }
 
 .action-text {
@@ -399,23 +490,7 @@ export default {
   width: 100%;
 }
 
-/* ---- 内联状态条：固定 34px，只换文字不换高度 ---- */
-.hint-wrap {
-  flex-direction: row;
-  align-items: center;
-  width: 100%;
-  height: 34px;
-  flex-shrink: 0;
-}
-
-.inline-hint {
-  font-size: 24px;
-  line-height: 34px;
-  lines: 1;
-  width: 100%;
-}
-
-/* ---- 溢出时的滚动提示（1.5 屏 ≤735px 才需要） ---- */
+/* ---- 溢出时的滚动提示（1.5 屏 ≤735px） ---- */
 .scroll-hint-wrap {
   flex-direction: row;
   justify-content: center;
@@ -431,5 +506,4 @@ export default {
   lines: 1;
   text-align: center;
 }
-
 </style>

@@ -1,52 +1,106 @@
 <template>
-  <div class="pinned-pages-page" style="background-color: {{ theme.bg }}">
+  <div class="page" style="background-color: {{ theme.bg }}">
     <div class="header">
-      <div class="back-btn-wrapper" onclick="goBack" style="background-color: {{ theme.card }}">
-        <image class="back-btn-icon" src="/common/icons/{{ iconTheme }}/icon_back.png"></image>
+      <div class="back" onclick="goBack" style="background-color: {{ theme.card }}">
+        <image class="back-icon" src="/common/icons/{{ iconTheme }}/icon_back.png"></image>
       </div>
-      <text class="header-title" style="color: {{ theme.text }}">已钉页面</text>
-      <div class="header-placeholder"></div>
+      <text class="header-title" style="color: {{ theme.text }}">管理首页</text>
     </div>
 
-    <div class="empty-state" if="pinnedList.length === 0">
-      <text class="empty-icon">📌</text>
-      <text class="empty-title" style="color: {{ theme.textSecondary }}">暂无已钉页面</text>
-      <text class="empty-desc" style="color: {{ theme.textMuted }}">打开任意页面，将其钉到首页可快速访问。</text>
-    </div>
+    <scroll class="body" scroll-y="true">
+      <text class="section-label" style="color: {{ subColor }}">首页内容</text>
 
-    <scroll class="pinned-scroll" scroll-y="true" if="pinnedList.length > 0">
-      <div class="pinned-section">
-        <div class="pinned-card" for="{{ pinnedList }}" style="background-color: {{ theme.card }}">
-          <div class="card-body" onclick="openPage($item.uri)">
-            <text class="card-name" style="color: {{ theme.text }}">{{ $item.name }}</text>
-          </div>
-          <text class="unpin-btn" onclick="unpinPage($idx)" style="color: {{ theme.textMuted }}">取消</text>
-        </div>
+      <div class="row" onclick="cycleLimit" style="background-color: {{ theme.card }}">
+        <text class="row-text" style="color: {{ theme.text }}">显示数量</text>
+        <text class="row-value" style="color: {{ theme.accent }}">{{ limit }}</text>
+      </div>
+
+      <div class="row" for="{{ allSlots }}" style="background-color: {{ theme.card }}">
+        <text class="row-text" style="color: {{ theme.text }}">{{ $item.name }}</text>
+        <text class="row-action" onclick="removeSlot($idx)" style="color: {{ subColor }}">{{ $item.actionText }}</text>
+      </div>
+
+      <text class="empty" style="display: {{ hasAny ? 'none' : 'flex' }}; color: {{ subColor }}">去钉页面</text>
+
+      <text class="section-label" style="display: {{ hasHidden ? 'flex' : 'none' }}; color: {{ subColor }}">已移除</text>
+      <div class="row" onclick="restoreDefaults" style="display: {{ hasHidden ? 'flex' : 'none' }}; background-color: {{ theme.card }}">
+        <text class="row-text" style="color: {{ theme.text }}">恢复默认</text>
+        <text class="row-value" style="color: {{ subColor }}">{{ hiddenCount }}</text>
+      </div>
+
+      <text class="section-label" style="color: {{ subColor }}">其他</text>
+      <div class="row" onclick="openTools" style="background-color: {{ theme.card }}">
+        <text class="row-text" style="color: {{ theme.text }}">全部工具</text>
+      </div>
+      <div class="row" onclick="openHomepageSettings" style="background-color: {{ theme.card }}">
+        <text class="row-text" style="color: {{ theme.text }}">首页设置</text>
+      </div>
+      <div class="row" onclick="openSettings" style="background-color: {{ theme.card }}">
+        <text class="row-text" style="color: {{ theme.text }}">设置</text>
       </div>
     </scroll>
-
-    <div class="footer-area">
-      <text class="pin-self-btn" onclick="togglePinSelf" style="color: {{ theme.textMuted }}">{{ isThisPinned ? '取消钉本页' : '钉本页到首页' }}</text>
-    </div>
   </div>
 </template>
 
 <script>
 import router from "@system.router"
-const store = require("../../data/store.js")
-var pinHelper = require("../../data/pin-helper.js")
 
-var PAGE_URI = "/pages/pinned-pages"
-var PAGE_NAME = "已钉页面"
+const store = require("../../data/store.js")
+var slotStore = require("../../data/homepage-slots.js")
+
+/**
+ * 管理首页（原「已钉页面」）· v3
+ *
+ * 首页 v3 把「产品默认推荐」与「用户钉选」合并成槽位，本页是槽位的管理端：
+ * 移除默认项、恢复默认、取消钉选、调首页显示数量（2~4）。
+ * 首页不再放「设置」行，故此处补齐设置 / 首页设置入口，保证路由不断路。
+ *
+ * 刻意不 import common/header.css：那份样式带逗号分隔的媒体查询列表
+ * （防黑屏十诫第 5 条），本页按 192 胶囊屏写固定值。
+ * 取消钉选走 slotStore.removePinned，不用 pin-helper.unpinPage（后者弹 showToast）。
+ */
+
+function resolveSubColor(bg) {
+  var hex = (bg || "#1a1a2e").replace("#", "")
+  if (hex.length !== 6) return "#a8a8bd"
+  var parts = [hex.slice(0, 2), hex.slice(2, 4), hex.slice(4, 6)]
+  var lin = []
+  for (var i = 0; i < 3; i++) {
+    var v = parseInt(parts[i], 16) / 255
+    lin.push(v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4))
+  }
+  var L = 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]
+  return L > 0.45 ? "#3a3a4e" : "#a8a8bd"
+}
+
+/** 行内名称按 4P 裁，右侧还要留 2P 给「移除/取消」，绝不靠 text-overflow 截断 */
+function fitName(text) {
+  var s = String(text || "")
+  var out = ""
+  var p = 0
+  for (var i = 0; i < s.length; i++) {
+    var c = s.charCodeAt(i)
+    var w = (c >= 48 && c <= 57) || (c >= 65 && c <= 90) || (c >= 97 && c <= 122) ? 0.55 : 1.0
+    if (p + w > 4.0) break
+    out += s.charAt(i)
+    p += w
+  }
+  return out
+}
 
 export default {
   private: {
     iconTheme: "dark",
-    pinnedList: [],
-    isThisPinned: false,
+    allSlots: [],
+    hasAny: true,
+    hasHidden: false,
+    hiddenCount: 0,
+    limit: 3,
+    subColor: "#a8a8bd",
     theme: {
       bg: '#1a1a2e',
       card: '#16213e',
+      cardLight: '#0f3460',
       accent: '#7ec8e3',
       text: '#ffffff',
       textSecondary: '#888899',
@@ -55,59 +109,83 @@ export default {
   },
 
   onInit() {
-    var self = this
-    store.getTheme(function(t, themeName) {
-      self.theme = t
-      self.updateIconSrc(themeName)
-    })
+    this.applyTheme()
+    this.loadData()
   },
 
   onShow() {
+    this.applyTheme()
+    this.loadData()
+  },
+
+  applyTheme() {
     var self = this
     store.getTheme(function(t, themeName) {
-      self.theme = t
-      self.updateIconSrc(themeName)
+      try {
+        self.theme = t
+        self.subColor = resolveSubColor(t.bg)
+        self.iconTheme = (themeName === "light" || themeName === "warm") ? "light" : "dark"
+      } catch (e) {
+        console.error("[manage-home] theme fallback: " + (e.message || e))
+      }
     })
-    self.loadData()
   },
 
   loadData() {
     var self = this
-    pinHelper.getList(function(list) {
-      self.pinnedList = list
-    })
-    pinHelper.isPinned(PAGE_URI, function(yes) {
-      self.isThisPinned = yes
+    slotStore.getSlots(function(data) {
+      var list = []
+      for (var i = 0; i < data.all.length; i++) {
+        var s = data.all[i]
+        list.push({
+          id: s.id,
+          name: fitName(s.name),
+          uri: s.uri,
+          source: s.source,
+          actionText: s.source === "default" ? "移除" : "取消"
+        })
+      }
+      self.allSlots = list
+      self.hasAny = list.length > 0
+      self.limit = data.limit
+      self.hiddenCount = data.hidden.length
+      self.hasHidden = data.hidden.length > 0
+      try { self.$forceUpdate() } catch (e) {}
     })
   },
 
-  openPage(uri) {
-    router.push({ uri: uri })
-  },
-
-  unpinPage(idx) {
+  removeSlot(idx) {
     var self = this
-    var item = self.pinnedList[idx]
-    pinHelper.unpinPage(item.uri, function() {
-      self.loadData()
-    })
-  },
-
-  togglePinSelf() {
-    var self = this
-    if (self.isThisPinned) {
-      pinHelper.unpinPage(PAGE_URI, function() {
-        self.isThisPinned = false
-      })
+    var s = self.allSlots[idx]
+    if (!s) return
+    if (s.source === "default") {
+      slotStore.hideDefault(s.id, function() { self.loadData() })
     } else {
-      pinHelper.pinPage(PAGE_NAME, PAGE_URI, function() {
-        self.isThisPinned = true
-      })
+      slotStore.removePinned(s.uri, function() { self.loadData() })
     }
   },
 
-  updateIconSrc: function(themeName) {
-    this.iconTheme = (themeName === "light" || themeName === "warm") ? "light" : "dark"
+  cycleLimit() {
+    var self = this
+    var next = self.limit >= 4 ? 2 : self.limit + 1
+    slotStore.setLimit(next, function() { self.loadData() })
+  },
+
+  restoreDefaults() {
+    var self = this
+    slotStore.restoreDefaults(function() { self.loadData() })
+  },
+
+  openTools() {
+    router.push({ uri: "/pages/tools" })
+  },
+
+  openHomepageSettings() {
+    router.push({ uri: "/pages/homepage-settings" })
+  },
+
+  openSettings() {
+    router.push({ uri: "/pages/settings" })
   },
 
   goBack() {
@@ -117,173 +195,97 @@ export default {
 </script>
 
 <style>
-@import '../../common/header.css';
-
-.pinned-pages-page {
+/**
+ * 管理首页 · 固定 192×490 胶囊屏值，不用 @media（含逗号列表一律禁用）
+ * 字号两档：28/38、24/34；页面左右 padding 12px、行 8px。
+ */
+.page {
   flex-direction: column;
-  padding: 44px 10px 12px 10px;
   width: 100%;
   height: 100%;
+  padding: 40px 12px 16px 12px;
 }
 
-/* Empty state */
-.empty-state {
-  flex: 1;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  /* 2026-10-02 按用户反馈「弹窗不居中」：真机下仅靠 flex:1 不足以撑开，
-     必须显式 width:100%，justify-content:center 才在整屏水平垂直居中 */
-  width: 100%;
-  min-height: 0;
-  padding-bottom: 40px;
-}
-
-.empty-icon {
-  font-size: 48px;
-  margin-bottom: 16px;
-  line-height: 58px;
-}
-
-.empty-title {
-  font-size: 28px;
-  margin-bottom: 10px;
-  line-height: 36px;
-}
-
-.empty-desc {
-  font-size: 24px;
-  text-align: center;
-  line-height: 32px;
-  padding: 0 20px;
-}
-
-/* Scroll area */
-.pinned-scroll {
-  flex: 1;
-  flex-direction: column;
-}
-
-.pinned-section {
-  flex-direction: column;
-  padding-bottom: 10px;
-}
-
-.pinned-card {
+.header {
   flex-direction: row;
-  width: 100%;
   align-items: center;
-  justify-content: space-between;
-  border-radius: 14px;
-  padding: 16px 18px;
-  margin-bottom: 10px;
-}
-
-.card-body {
-  flex-direction: column;
-  flex: 1;
-  min-width: 0;
-}
-
-.card-name {
-  font-size: 30px;
-  line-height: 38px;
-  lines: 1;
-  min-width: 0;
-}
-
-.unpin-btn {
-  font-size: 22px;
-  padding: 6px 0 6px 14px;
+  width: 100%;
+  height: 44px;
+  margin-bottom: 12px;
   flex-shrink: 0;
-  line-height: 28px;
 }
 
-/* Footer */
-.footer-area {
-  flex-direction: row;
-  width: 100%;
+.back {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  align-items: center;
   justify-content: center;
-  padding: 14px 0 6px 0;
+  margin-right: 8px;
+  flex-shrink: 0;
 }
 
-.pin-self-btn {
-  font-size: 26px;
-  text-align: center;
-  padding: 6px 20px;
-  border-radius: 16px;
+.back-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.header-title {
+  font-size: 28px;
+  line-height: 38px;
+  font-weight: bold;
+  lines: 1;
+}
+
+.body {
+  flex-direction: column;
+  width: 100%;
+  flex: 1;
+}
+
+.section-label {
+  font-size: 24px;
   line-height: 34px;
+  lines: 1;
+  width: 100%;
+  margin-top: 6px;
+  margin-bottom: 8px;
 }
 
-/* Capsule primary */
-@media (shape: capsule), (shape: pill-shaped) {
-  .pinned-pages-page {
-    padding: 38px 8px 10px 8px;
-  }
-  
-  
-  
-  .empty-icon {
-    font-size: 40px;
-    margin-bottom: 12px;
-    line-height: 48px;
-  }
-  .empty-title {
-    font-size: 24px;
-    line-height: 32px;
-  }
-  .empty-desc {
-    font-size: 20px;
-    line-height: 28px;
-    padding: 0 16px;
-  }
-  .pinned-card {
-    padding: 12px 14px;
-    margin-bottom: 8px;
-    border-radius: 12px;
-  }
-  .card-name {
-    font-size: 26px;
-    line-height: 34px;
-    lines: 1;
-    min-width: 0;
-  }
-  .unpin-btn {
-    font-size: 20px;
-    line-height: 26px;
-  }
-  .pin-self-btn {
-    font-size: 22px;
-    line-height: 30px;
-    padding: 4px 16px;
-  }
-  .footer-area {
-    padding: 10px 0 4px 0;
-  }
+.row {
+  flex-direction: row;
+  align-items: center;
+  width: 100%;
+  min-height: 54px;
+  padding: 8px 8px;
+  border-radius: 14px;
+  margin-bottom: 8px;
+  flex-shrink: 0;
 }
 
-@media (shape: circle) {
-  .pinned-pages-page {
-    padding: 44px 36px 44px 36px;
-  }
-  
-  
-  .card-name {
-    font-size: 26px;
-  }
-  .card-hint {
-    font-size: 20px;
-  }
+.row-text {
+  font-size: 24px;
+  line-height: 34px;
+  lines: 1;
+  flex: 1;
 }
 
-@media (shape: rect) {
-  .pinned-pages-page {
-    padding: 6px 12px 16px 12px;
-  }
-  
-  
-  .card-name {
-    font-size: 28px;
-  }
+.row-value {
+  font-size: 24px;
+  line-height: 34px;
+  lines: 1;
+}
+
+.row-action {
+  font-size: 24px;
+  line-height: 34px;
+  lines: 1;
+}
+
+.empty {
+  font-size: 24px;
+  line-height: 34px;
+  lines: 1;
+  width: 100%;
 }
 </style>
