@@ -23,13 +23,13 @@
           </div>
           <image class="needle" src="{{ needleSrc }}"></image>
         </div>
-        <div class="compass-result" style="display: {{ phase === 'done' ? 'flex' : 'none' }}">
+        <div class="compass-result" style="display: {{ hasResult ? 'flex' : 'none' }}">
           <text class="compass-result-text" style="color: {{ theme.accent }}">{{ resultText }}</text>
         </div>
       </div>
 
       <div class="stage" style="display: {{ compassOn ? 'none' : 'flex' }}; background-color: {{ theme.card }}">
-        <div class="spin-box" style="display: {{ phase === 'done' ? 'none' : 'flex' }}">
+        <div class="spin-box" style="display: {{ hasResult ? 'none' : 'flex' }}">
           <div class="spin-row" style="display: {{ flipOn ? 'none' : 'flex' }}">
             <text class="spin-text" style="color: {{ theme.textSecondary }}">{{ prevText }}</text>
           </div>
@@ -40,7 +40,7 @@
             <text class="spin-text" style="color: {{ theme.textSecondary }}">{{ nextText }}</text>
           </div>
         </div>
-        <div class="result-box" style="display: {{ phase === 'done' ? 'flex' : 'none' }}">
+        <div class="result-box" style="display: {{ hasResult ? 'flex' : 'none' }}">
           <text class="result-text" style="display: {{ multiOn ? 'none' : 'flex' }}; color: {{ theme.accent }}">{{ resultText }}</text>
           <div class="multi-result" style="display: {{ multiOn ? 'flex' : 'none' }}">
             <text class="multi-line" for="{{ resultLines }}" style="color: {{ theme.text }}">{{ $item }}</text>
@@ -106,7 +106,7 @@
 
     <!-- 组合抽取：逐槽串行，最后出汇总卡 -->
     <div class="view" style="display: {{ view === 'combo' ? 'flex' : 'none' }}">
-      <div class="combo-stage" style="display: {{ phase === 'done' ? 'none' : 'flex' }}; background-color: {{ theme.card }}">
+      <div class="combo-stage" style="display: {{ hasResult ? 'none' : 'flex' }}; background-color: {{ theme.card }}">
         <text class="combo-slot-label" style="color: {{ theme.textSecondary }}">{{ slotLabel }}</text>
         <div class="spin-row">
           <text class="spin-text" style="color: {{ theme.textSecondary }}">{{ slotPrevText }}</text>
@@ -119,7 +119,7 @@
         </div>
       </div>
 
-      <div class="combo-card" style="display: {{ phase === 'done' ? 'flex' : 'none' }}; background-color: {{ theme.card }}">
+      <div class="combo-card" style="display: {{ hasResult ? 'flex' : 'none' }}; background-color: {{ theme.card }}">
         <text class="combo-card-title" style="color: {{ theme.text }}">{{ comboTitle }}</text>
         <div class="combo-field" for="{{ comboResults }}" style="background-color: {{ theme.cardLight }}">
           <text class="combo-field-label" style="color: {{ theme.textSecondary }}">{{ $item.label }}</text>
@@ -180,6 +180,7 @@ export default {
     view: "main",
     pageTitle: "抉择",
     phase: "idle",
+    hasResult: false,
     animKind: "wheel",
     currentDeck: null,
     customDeck: null,
@@ -307,6 +308,7 @@ export default {
     this.items = deck.items.slice(0)
     this.pickCount = 1
     this.phase = "idle"
+    this.hasResult = false
     this.resultText = ""
     this.resultLines = []
     this.multiOn = false
@@ -409,10 +411,11 @@ export default {
     var max = Math.min(MAX_PICK, this.items.length - 1)
     this.pickCount = this.pickCount >= max ? 1 : this.pickCount + 1
     this.phase = "idle"
+    this.hasResult = false
     this.resultText = ""
     this.resultLines = []
     this.multiOn = false
-    this.btnText = "抽一次"
+    this.btnText = PICK_LABEL[this.pickCount - 1] || "抽一个"
     this.resolveAnim()
   },
 
@@ -427,6 +430,13 @@ export default {
       this.statusText = "至少两项"
       return
     }
+    // 同步揭晓模式不进 spinning 中间态。快应用框架对同一事件回调内
+    // 同一字段的连续赋值只应用首次：先写 spinning 再写 done 会让 phase
+    // 卡在 spinning，结果区条件不成立（真机点一次无结果、需连点触发兜底）。
+    if (!ANIM_ASYNC) {
+      this.drawNow()
+      return
+    }
     this.stopSpin()
     // 结果先定后演，中断动画不改变结果
     this.resultIndices = this.pickIndices()
@@ -434,6 +444,7 @@ export default {
     this.resultLines = []
     this.multiOn = false
     this.resultText = ""
+    this.hasResult = false
     this.spinStep = 0
     this.spinIndex = 0
     this.phase = "spinning"
@@ -443,20 +454,42 @@ export default {
       this.targetFrame = this.dialAngles[this.resultIndex]
       this.totalSteps = FRAMES + this.targetFrame
       this.updateNeedle(0, -1)
-      if (ANIM_ASYNC) {
-        this.tickCompass()
-      } else {
-        this.finishDraw()
-      }
+      this.tickCompass()
     } else {
       this.totalSteps = 18 + Math.floor(Math.random() * 6)
       this.buildWindow()
-      if (ANIM_ASYNC) {
-        this.tick()
-      } else {
-        this.finishDraw()
-      }
+      this.tick()
     }
+  },
+
+  // 一次点击即出结果：每个字段只赋值一次，不依赖定时器
+  drawNow() {
+    this.stopSpin()
+    var idxs = this.pickIndices()
+    this.resultIndices = idxs
+    this.resultIndex = idxs[0]
+    this.spinIndex = idxs[0]
+    if (this.compassOn) {
+      this.targetFrame = this.dialAngles[this.resultIndex]
+      this.updateNeedle(this.targetFrame, this.resultIndex)
+      this.resultLines = []
+      this.multiOn = false
+      this.resultText = this.items[this.resultIndex]
+    } else if (idxs.length > 1) {
+      var lines = []
+      for (var i = 0; i < idxs.length; i++) {
+        lines.push(this.items[idxs[i]])
+      }
+      this.resultLines = lines
+      this.multiOn = true
+      this.resultText = ""
+    } else {
+      this.resultLines = []
+      this.multiOn = false
+      this.resultText = this.items[this.resultIndex]
+    }
+    this.buildWindow()
+    this.commitReveal()
   },
 
   tick() {
@@ -546,6 +579,7 @@ export default {
   // 会把 phase / btnText / statusText 整帧丢掉，画面停在「正在抽取」。
   commitReveal(btn, status) {
     spinTimer = null
+    this.hasResult = true
     this.phase = "done"
     this.btnText = btn || "再抽一次"
     this.statusText = status || "已出结果"
@@ -735,6 +769,8 @@ export default {
 
   drawCombo() {
     if (this.phase === "spinning") {
+      this.stopSpin()
+      this.finishComboNow()
       return
     }
     this.stopSpin()
@@ -744,13 +780,15 @@ export default {
       picks.push(its.length ? its[Math.floor(Math.random() * its.length)] : "暂无")
     }
     this.comboPicks = picks
-    this.comboResults = []
     this.slotIndex = 0
-    this.phase = "spinning"
-    this.btnText = "抽取中"
     if (ANIM_ASYNC) {
+      this.comboResults = []
+      this.hasResult = false
+      this.phase = "spinning"
+      this.btnText = "抽取中"
       this.runSlot()
     } else {
+      // 同 draw：不写 spinning 中间态，一次点击即出组合卡
       this.finishComboNow()
     }
   },
@@ -977,6 +1015,7 @@ export default {
     if (this.view === "combo") {
       this.stopSpin()
       this.phase = "idle"
+      this.hasResult = false
       this.btnText = "抽一个"
       this.view = "decks"
       this.pageTitle = "卡组"

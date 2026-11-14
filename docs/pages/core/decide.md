@@ -214,3 +214,24 @@ P0 实际使用的子集：`id` / `title` / `cat` / `items` / `anim` / `hint`。
 **验收结果（带机身外壳截图）**：点击后中央出现 **44px 结果大字「不要」**、主按钮变「再抽一次」、状态行「已出结果」，结果先定后演的语义保持。截图见工作区 `EvBox-同步揭晓-结果3-20261114.png`。新增文案「正在抽取 / 正在抽取。/ 正在抽取。。/ 正在抽取。。。」最长 5.5P，字号仍只用 44/30/28/24 四档，禁符号 0，**ev-six 静态口径通过，违 0 项**。
 
 **仍未闭环**：① rect 336×480 / circle 466×466 三屏同包并排（§3.24）未做；② 罗盘指针与午餐组合卡专项截图未采；③ `ANIM_ASYNC` / `VIBRATE_ENABLED` 两个开关需真机复核后再打开，当前模拟器上动画为「点击即出结果」；④ 随机源仍是 `Math.random()`，未接 `crypto.js`。
+
+### 7.7 真机「点一次不出结果」· 同 tick 双赋值修复（2026-11-14 22:02 +0800）
+
+**领单** `evtask-D-evapp-auth-261114-s7ehdy` / 认领 `20261114-215445-61848`。
+
+**真机反馈**：1.0.66 经 `ev-install` / AstroBox 装入 `Xiaomi Smart Band 9 B885` 后，点击抽取按钮不出结果。
+
+**根因（修正 §7.6 的归因）**：§7.6 把「抽取中」不揭晓归为 JSC 定时器不派发，改同步揭晓后，模拟器上其实仍需**连点 3 次**才出结果，当时误判为触摸通道时序。真机复现后查明：`draw()` / `drawCombo()` 在**同一个触摸事件回调内**先写 `phase="spinning"`，再由 `commitReveal()` 写 `phase="done"`；快应用框架对同一事件循环内同一字段的连续赋值只应用首次，`phase` 卡在 `spinning`，模板里所有 `phase === 'done'` 条件不成立，结果区永不显示。第二次点击命中 `draw()` 的 `spinning` 兜底分支才揭晓 —— 这正好解释模拟器上的 3 次点击，说明 §7.6 的「定时器不派发」只是叠加症状，不是这一次的主因。
+
+**修复**（`src/pages/decide/decide.ux`）：
+
+- 新增 `hasResult` 布尔，模板 5 处结果区／滚动区显示条件由 `phase === 'done'` 改为 `hasResult`，与状态机解耦；
+- 同步模式抽出 `drawNow()`：不进入 `spinning` 中间态，`phase` / `btnText` / `statusText` / `resultText` / `resultLines` / `multiOn` / `comboResults` 每个字段在一次点击里**只赋值一次**；原先「先清空再赋值」的写法同样会被框架合并，一并消除；
+- `drawCombo()` 同步分支去掉 `spinning` 中间态，`comboResults = []` 只保留在动画分支；
+- `commitReveal()` 统一置 `hasResult = true`；`setDeck` / `changePick` / `goBack` / 动画分支置 `false`；
+- 顺带修正 `changePick()` 写死的「抽一次」文案，改用 `PICK_LABEL[pickCount - 1]`（抽两个／抽三个）；
+- 版本号 `1.0.66/vc67` → **`1.0.67/vc68`**，便于 AstroBox 历史精确追溯（同名同版重复投喂无法区分是哪一次）。
+
+**交付与验收**：`aiot release --enable-jsc` 出包 761K（含 `app.jsc`、`decide.jsc`），`ev-install -w 25` 投喂，AX 树回执 `Ev工具箱-1.0.67-vc68.rpk -> 安装成功`，设备已连接、电量 76%，截图见工作区 `EvBox-AstroBox-1.0.67安装成功-20261114.png`。**「点一次即出结果」仍需 Tom 真机肉眼复核** —— 本仓只能证明包被设备接受，不能替真机 UI 背书（同 §7.3 边界）。
+
+**ev-six**：本次未新增文案，字号仍 44/30/28/24 四档，禁符号 0，静态口径违 0 项。
