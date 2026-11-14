@@ -109,8 +109,10 @@ var TASKS = [
     }
   },
   {
-    // v3 首页默认推荐「一言」需要的当日一句。同 daily-quote 页用同一取句函数，
-    // 保证首页 teaser 与点进去看到的正文是同一句（按日确定性）。
+    // v3 首页默认推荐「一言」的当日一句。
+    // ev-six 第 8 条禁折行：首页一行只有 6P，当日句超过 6 字时按日确定性
+    // 从同一文案池换一条 ≤6 字的完整短句，保证首页永远有完整内容、绝不出残句。
+    // 点进 daily-quote 页看到的仍是 quoteOfDay 的完整当日句，首页只取短句做 teaser。
     id: "quote",
     run: function(next) {
       var quotes = require("../../../data/daily-quotes.js")
@@ -119,6 +121,20 @@ var TASKS = [
         text = quotes.quoteOfDay(new Date(), 0) || ""
       } catch (e) {
         text = ""
+      }
+      if (text.length > 6) {
+        var shorts = []
+        var pool = quotes.QUOTES || []
+        for (var i = 0; i < pool.length; i++) {
+          if (pool[i].length <= 6) shorts.push(pool[i])
+        }
+        if (shorts.length) {
+          var d = new Date()
+          var seed = d.getFullYear() * 372 + (d.getMonth() + 1) * 31 + d.getDate()
+          text = shorts[seed % shorts.length]
+        } else {
+          text = ""
+        }
       }
       next(text)
     }
