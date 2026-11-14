@@ -209,6 +209,11 @@ var LOCK3 = [420, 860, 1300]
 // 四连抽（2026-11-14 第三组动画）：0-800ms 只在中行集中快滚，800ms 四行同时落内容，
 // 再按 LOCK4 逐行「点亮」（灰字 -> accent + 底条），像四张牌同时翻出、再逐张盖章。
 // 与双签（两行同时滚）、接力（一次一行逐条出内容）都不同：内容一次给全，只逐行点亮。
+// 多选一（2026-11-15 第五组动画）：滚筒窗。三行显示相邻候选，整窗滚动后渐慢，
+// WHEEL_T 后收敛成只剩中行结果（上下清空），再由揭晓切 44px 大字。
+// 与「单签」的区别：单签只有一行在换字，滚筒窗是整窗位移，能看到「上一项/下一项」在动。
+var WHEEL_T = 1150
+var WHEEL_CHG = [0, 70, 140, 210, 280, 350, 420, 490, 560, 700, 840, 1050]
 var GATHER4 = 800
 var LOCK4 = [900, 1000, 1100, 1200]
 // 落定前多少毫秒开始减速：候选切换变慢，视觉上「沉」一下再停，不是硬切
@@ -248,6 +253,39 @@ function frameAt(el, count, lines, items) {
   var n = items.length
   var l = ["", "", "", ""]
   var h = [false, false, false, false]
+
+  // 多选一（项数 >= 5）：滚筒窗
+  // 以中行为「窗心」，上下两行是窗口里相邻的候选，整窗按 ease-out 位移：
+  // 起步每帧换一项，越接近停止位移越小，读起来是「滚轮慢慢咬合到位」。
+  // WHEEL_T 后收敛：只留中行结果，上下清空——「窗」收成「一条」。
+  if (count === 1 && n >= 5) {
+    if (el >= WHEEL_T) {
+      return { l1: "", l2: lines[0] || "", l3: "", l4: "", h1: false, h2: true, h3: false, h4: false, step: step }
+    }
+    var wi = items.indexOf(lines[0])
+    if (wi < 0) {
+      wi = 0
+    }
+    // 换字节奏表：前 8 跳每 70ms（跟着心跳走，最快），之后 140 / 140 / 210 逐步拉长，
+    // 最后一跳落在 1050ms，离收敛只隔 100ms——是「咬合到位」而不是「提前冻住」。
+    // 反向算：还剩几次没换，就把窗口往回退这么多项，末跳必落在 wi。
+    // 不用位移取整（末段增量 <1 会整段静止），也不用来不及刹住的纯 ease-out（末跳离终点太远）。
+    var jumped = 0
+    for (var ci = 0; ci < WHEEL_CHG.length; ci++) {
+      if (el >= WHEEL_CHG[ci]) {
+        jumped = ci + 1
+      }
+    }
+    var wi2 = ((wi - (WHEEL_CHG.length - jumped)) % n + n) % n
+    return {
+      l1: items[(wi2 - 1 + n) % n],
+      l2: items[wi2],
+      l3: items[(wi2 + 1) % n],
+      l4: "",
+      h1: false, h2: true, h3: false, h4: false,
+      step: step
+    }
+  }
 
   // 四连抽：集中滚动 -> 四行同时落内容 -> 逐行点亮
   if (count >= 4) {
