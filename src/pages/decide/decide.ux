@@ -1,11 +1,13 @@
 <template>
   <div class="page" style="background-color: {{ theme.bg }}">
-    <div class="back-header">
-      <div class="back-btn-wrapper" onclick="goBack" style="background-color: {{ theme.card }}">
-        <image class="back-btn-icon" src="/common/icons/{{ iconTheme }}/icon_back.png"></image>
+    <!-- 一体返回胶囊（2026-11-14）：对齐易微课程表设置页 .hdr/.hdr-pill，
+         箭头与标题合成一颗按钮、整块可点，取代三段式「30 方块 + flex:1 标题 + 30 占位」。
+         命中面积从 30×30 提到整颗胶囊，手环上更稳、更防震、更好点。 -->
+    <div class="hdr">
+      <div class="hdr-pill" onclick="goBack" style="background-color: {{ theme.card }}">
+        <image class="hdr-pill-ic" src="/common/icons/{{ iconTheme }}/icon_back.png"></image>
+        <text class="hdr-pill-t" style="color: {{ theme.text }}">{{ pageTitle }}</text>
       </div>
-      <text class="header-title" style="color: {{ theme.text }}">{{ pageTitle }}</text>
-      <div class="header-placeholder"></div>
     </div>
 
     <!-- 主屏：一屏只做抽取这件事 -->
@@ -46,9 +48,18 @@
              改为绝对定位覆盖在滚动窗上，未出结果时内容为空、透明无感。 -->
         <div class="result-box">
           <text class="result-text" style="color: {{ theme.accent }}">{{ resultText }}</text>
-          <div class="multi-result">
-            <text class="multi-line" for="{{ resultLines }}" style="color: {{ theme.text }}">{{ $item }}</text>
-          </div>
+        </div>
+
+        <!-- 过程 / 多结果共用行层（2026-11-14 动画）：
+             抽两个时上下两行各自滚候选，先定格第一行、再定格第二行（错峰开奖），
+             抽一个/抽三个同理。三个 text **全常驻**：不切 display、不用 if 建节点、
+             不用 for 数组（真机 JSC for 数组更新不重绘），内容空/非空表达状态。
+             节点从首屏一直活到揭晓，绑定依赖永不重建，绕开隐藏子树懒渲染坑。
+             行位按结果数分配：1 个用中行，2 个用上+下行，3 个用满三行，整体居中。 -->
+        <div class="line-box">
+          <text class="line" style="color: {{ lineHot1 ? theme.accent : theme.textSecondary }}">{{ line1 }}</text>
+          <text class="line" style="color: {{ lineHot2 ? theme.accent : theme.textSecondary }}">{{ line2 }}</text>
+          <text class="line" style="color: {{ lineHot3 ? theme.accent : theme.textSecondary }}">{{ line3 }}</text>
         </div>
       </div>
 
@@ -60,8 +71,10 @@
            又用 #888899 低对比灰，真机上几乎看不见（2026-11-14 真机反馈）。 -->
       <text class="status-line" style="display: {{ compassOn ? 'none' : 'flex' }}; color: {{ theme.text }}">{{ statusText }}</text>
 
-      <div class="main-btn" onclick="draw" style="display: {{ compassOn ? 'none' : 'flex' }}; background-color: {{ theme.accent }}">
-        <text class="main-btn-text" style="color: {{ theme.bg }}">{{ btnText }}</text>
+      <!-- 抽取中按钮变暗 + 文案变「抽取中」：给出「有反应」的即时反馈，
+           并由 phase=spinning 在 2 秒内忽略重复点击（防误触）；2 秒硬兜底必解锁。 -->
+      <div class="main-btn" onclick="draw" style="display: {{ compassOn ? 'none' : 'flex' }}; background-color: {{ busy ? theme.cardLight : theme.accent }}">
+        <text class="main-btn-text" style="color: {{ busy ? theme.textSecondary : theme.bg }}">{{ btnText }}</text>
       </div>
 
       <div class="sub-row" onclick="openDecks" style="display: {{ compassOn || pickRowOn ? 'none' : 'flex' }}; background-color: {{ theme.card }}">
@@ -133,8 +146,8 @@
         </div>
       </div>
 
-      <div class="main-btn" onclick="drawCombo" style="background-color: {{ theme.accent }}">
-        <text class="main-btn-text" style="color: {{ theme.bg }}">{{ btnText }}</text>
+      <div class="main-btn" onclick="drawCombo" style="background-color: {{ busy ? theme.cardLight : theme.accent }}">
+        <text class="main-btn-text" style="color: {{ busy ? theme.textSecondary : theme.bg }}">{{ btnText }}</text>
       </div>
     </div>
   </div>
@@ -163,14 +176,67 @@ var spinTimer = null
 // Vela 模拟器 JSC 实测：动画定时器回调链内调用 @system.vibrator 会让 vapp 退出，
 // 真机复核通过后再置 true（方案 §4.2 的咔哒手感属 P3 增强，不阻塞抽取）
 var VIBRATE_ENABLED = false
-// Vela 模拟器 JSC：触摸事件回调里安排的 setTimeout 回调不派发（onReady 里安排则可以）。
-// 默认同步揭晓保证功能可用；完整逐帧动画代码保留，真机复核后把此开关置 true。
+// 旧「逐帧 setTimeout 链」开关，1.0.72 起由 onReady 常驻心跳接管，恒 false。
+// 保留 tick / scheduleTick / finishDraw 等实现仅供真机对照，不要重新打开：
+// 它们在触摸回调里起链、且揭晓依赖末次回调，真机上会停在「正在抽取」。
 var ANIM_ASYNC = false
 // Vela JSC 下动画帧必须持续改一个已渲染的顶层文本才会重绘并推进定时器链；
 // 用状态行的 loading 省略号承载，最长 5.5P 满足 ev-six 一行 ≤6P
 var SPIN_TIPS = ["正在抽取", "正在抽取。", "正在抽取。。", "正在抽取。。。"]
 function spinTip(step) {
   return SPIN_TIPS[step % 4]
+}
+
+// ===== 抽取过程动画（2026-11-14 / 1.0.72）=====
+// 真机 JSC 两条硬约束（docs/pages/core/decide.md §7.8）：
+//  ① 一次触摸回调内跨方法写 data，只有最后一个方法的赋值批次进渲染
+//     → 起帧帧、揭晓帧都必须是「同一个方法内的连续赋值块」，不调用任何会写 this 的方法；
+//  ② 触摸回调里安排的 setTimeout 可能不派发，而 onReady 里安排的链可以
+//     → 定时链在 onReady 起常驻心跳，点击只改状态字段，不在回调里起定时器。
+// 心跳按「绝对时间」推帧：丢帧能自动追上，不靠帧计数累加到终点。
+// 揭晓幂等；点击本身是第二条兜底通道（>= HARD_LOCK_MS 强制揭晓），
+// 所以即便整条心跳链死掉，用户也绝不会永久卡在「抽取中」。
+var BEAT_MS = 70
+var ROLL_MS = 90
+var REVEAL_MS = 1600
+var HARD_LOCK_MS = 2000
+var beatTimer = null
+var lastBeatAt = 0
+var spinStart = 0
+var pending = null
+var pageAlive = true
+var BTN_SPIN = ["抽取中", "抽取中。", "抽取中。。", "抽取中。。。"]
+
+// 结果数 → 行位：1 个用中行、2 个用上+下行、3 个铺满，
+// 三行块重心恒在舞台中心，且不依赖任何条件渲染节点。
+function rowSlots(count) {
+  if (count === 1) { return [1] }
+  if (count === 2) { return [0, 2] }
+  return [0, 1, 2]
+}
+
+// 纯函数：算出某一时刻的过程帧，不写 this，可在触摸回调里安全调用。
+// 抽两个：两行各自滚候选，约 533ms 第一行定格、1066ms 第二行定格（错峰开奖），
+// 抽一个/三个按 (k+1)/(count+1) 同理缩放节奏。
+function frameAt(el, count, lines, items) {
+  var step = Math.floor(el / ROLL_MS)
+  var n = items.length
+  var l = ["", "", ""]
+  var h = [false, false, false]
+  var slots = rowSlots(count)
+  for (var k = 0; k < slots.length; k++) {
+    var r = slots[k]
+    var lockAt = Math.floor(REVEAL_MS * (k + 1) / (count + 1))
+    h[r] = el >= lockAt
+    l[r] = h[r] ? lines[k] : items[((step * 7 + k * 13 + 3) % n + n) % n]
+  }
+  return { l1: l[0], l2: l[1], l3: l[2], h1: h[0], h2: h[1], h3: h[2], step: step }
+}
+
+function needlePath(frame) {
+  var f = frame % FRAMES
+  var s = f < 10 ? "0" + f : "" + f
+  return "/common/icons/compass/needle_" + s + ".png"
 }
 // 罗盘上限由 ev-six 24px 下限与标签留白共同决定，圆屏 8 胶囊屏 4
 var COMPASS_LIMIT_CIRCLE = 8
@@ -225,6 +291,14 @@ export default {
     resultIndices: [],
     resultLines: [],
     multiOn: false,
+    // 动画过程态：busy 驱动按钮忙碌视觉，line1~3 承载候选/定格文字
+    busy: false,
+    line1: "",
+    line2: "",
+    line3: "",
+    lineHot1: false,
+    lineHot2: false,
+    lineHot3: false,
     foodMode: false,
     comboTitle: "午饭搭配",
     comboSlots: [],
@@ -243,12 +317,93 @@ export default {
   },
 
   onInit() {
+    pageAlive = true
     this.applyTheme()
     this.buildCatList()
     this.setDeck(preset.decks[0])
     this.readShape()
     this.loadDraft()
     this.loadCustomDeck()
+  },
+
+  // 定时链必须在 onReady 起：真机 JSC 里触摸回调安排的 setTimeout 可能不派发，
+  // 而生命周期回调里安排的链可以。链自续，idle 时不写任何字段。
+  onReady() {
+    this.startBeat()
+  },
+
+  startBeat() {
+    var self = this
+    // 起链即打时间戳：避免 onShow 紧接着又补一条链
+    lastBeatAt = Date.now()
+    var loop = function () {
+      if (!pageAlive) {
+        return
+      }
+      lastBeatAt = Date.now()
+      try {
+        self.beat()
+      } catch (e) {}
+      // idle 降频到 250ms，spinning 才用 70ms，避免手环上空转费电
+      try {
+        beatTimer = setTimeout(loop, self.phase === "spinning" ? BEAT_MS : 250)
+      } catch (e) {
+        beatTimer = null
+      }
+    }
+    try {
+      beatTimer = setTimeout(loop, BEAT_MS)
+    } catch (e) {
+      beatTimer = null
+    }
+  },
+
+  // 链若死掉，点击/回到页面时补起一条；多条链并存无害（beat 按绝对时间、reveal 幂等）
+  kickBeat() {
+    if (Date.now() - lastBeatAt > 500) {
+      this.startBeat()
+    }
+  },
+
+  // 独立看门狗：第二条自动解锁通道。即使整条心跳链都死了，
+  // 只要这次触摸回调安排的定时器能派发，2.06s 也会强制揭晓。
+  // 第三条通道是用户自己再点一次（>= HARD_LOCK_MS 立即出结果），100% 可靠。
+  armWatchdog() {
+    var self = this
+    try {
+      setTimeout(function () {
+        if (pageAlive && self.phase === "spinning" && Date.now() - spinStart >= HARD_LOCK_MS) {
+          if (self.view === "combo") {
+            self.finishComboNow()
+          } else {
+            self.reveal()
+          }
+        }
+      }, HARD_LOCK_MS + 60)
+    } catch (e) {}
+  },
+
+  beat() {
+    if (this.phase !== "spinning") {
+      return
+    }
+    var el = Date.now() - spinStart
+    if (el >= REVEAL_MS) {
+      if (this.view === "combo") {
+        this.finishComboNow()
+      } else {
+        this.reveal()
+      }
+      return
+    }
+    if (this.view === "combo") {
+      // 组合抽取共享按钮锁与 loading；槽级逐帧动画仍属 P2
+      var step = Math.floor(el / 200)
+      this.btnText = BTN_SPIN[step % 4]
+      this.statusText = SPIN_TIPS[step % 4]
+      return
+    }
+    this.renderSpinFrame(el)
   },
 
   readShape() {
@@ -267,22 +422,37 @@ export default {
   onShow() {
     this.applyTheme()
     this.checkInputResult()
-  },
-
-  onHide() {
-    // 中断动画不改变结果，结果在 draw 时已先定
-    if (this.phase === "spinning") {
-      this.stopSpin()
+    // 页面切回来时若已过硬兜底时长，直接揭晓，不把用户留在「抽取中」
+    if (this.phase === "spinning" && Date.now() - spinStart >= HARD_LOCK_MS) {
       if (this.view === "combo") {
         this.finishComboNow()
       } else {
-        this.finishDraw()
+        this.reveal()
+      }
+    }
+    this.kickBeat()
+  },
+
+  onHide() {
+    // 中断动画不改变结果：结果在点击时已先定，直接揭晓
+    if (this.phase === "spinning") {
+      if (this.view === "combo") {
+        this.finishComboNow()
+      } else {
+        this.reveal()
       }
     }
   },
 
   onDestroy() {
     this.stopSpin()
+    pageAlive = false
+    if (beatTimer) {
+      try {
+        clearTimeout(beatTimer)
+      } catch (e) {}
+      beatTimer = null
+    }
   },
 
   applyTheme() {
@@ -318,10 +488,19 @@ export default {
     this.resultText = ""
     this.resultLines = []
     this.multiOn = false
+    this.busy = false
+    this.line1 = ""
+    this.line2 = ""
+    this.line3 = ""
+    this.lineHot1 = false
+    this.lineHot2 = false
+    this.lineHot3 = false
     this.resultIndices = []
     this.resultIndex = 0
     this.spinIndex = 0
     this.btnText = "抽一个"
+    pending = null
+    spinStart = 0
     this.resolveAnim()
     this.buildWindow()
   },
@@ -421,53 +600,141 @@ export default {
     this.resultText = ""
     this.resultLines = []
     this.multiOn = false
+    this.busy = false
+    this.line1 = ""
+    this.line2 = ""
+    this.line3 = ""
+    this.lineHot1 = false
+    this.lineHot2 = false
+    this.lineHot3 = false
     this.btnText = PICK_LABEL[this.pickCount - 1] || "抽一个"
+    pending = null
+    spinStart = 0
     this.resolveAnim()
+    this.buildWindow()
   },
 
   draw() {
     if (this.phase === "spinning") {
-      // 兜底：JSC 定时器链若在动画中途停摆，再次点击直接同步揭晓已定结果
-      this.stopSpin()
-      this.finishDraw()
+      // 防误触：2 秒内的重复点击一律忽略（按钮同时变暗并显示「抽取中」，用户能看出有反应）。
+      // 硬兜底：超过 2 秒，无论心跳链是否还活着，这次点击立即出结果并解锁按钮。
+      if (Date.now() - spinStart >= HARD_LOCK_MS) {
+        this.reveal()
+      }
       return
     }
     if (!this.items || this.items.length < 2) {
       this.statusText = "至少两项"
       return
     }
-    // 同步揭晓模式不进 spinning 中间态。快应用框架对同一事件回调内
-    // 同一字段的连续赋值只应用首次：先写 spinning 再写 done 会让 phase
-    // 卡在 spinning，结果区条件不成立（真机点一次无结果、需连点触发兜底）。
-    if (!ANIM_ASYNC) {
-      this.drawNow()
-      return
+    this.startSpin()
+  },
+
+  // 起帧：结果先定后演。整方法是**一个连续赋值块**，不调用任何会写 this 的方法
+  // （真机 JSC 一次触摸回调内跨方法写 data 只提交最后一批，见 §7.8）。
+  startSpin() {
+    var idxs = this.pickIndices()
+    var count = idxs.length
+    var lines = []
+    for (var i = 0; i < count; i++) {
+      lines.push(this.items[idxs[i]])
     }
-    this.stopSpin()
-    // 结果先定后演，中断动画不改变结果
-    this.resultIndices = this.pickIndices()
-    this.resultIndex = this.resultIndices[0]
+    pending = { idxs: idxs, lines: lines, text: count === 1 ? lines[0] : "", count: count }
+    spinStart = Date.now()
+    var f = frameAt(0, count, lines, this.items)
+    // 两条异步保险放在赋值块之前（只碰模块级变量，不写 this）
+    this.kickBeat()
+    this.armWatchdog()
+    // ↓ 起帧帧：单方法连续赋值，每个字段只写一次；作为最后一批必进渲染
+    this.resultIndices = idxs
+    this.resultIndex = idxs[0]
+    this.spinIndex = idxs[0]
+    this.resultText = ""
     this.resultLines = []
     this.multiOn = false
-    this.resultText = ""
     this.hasResult = false
-    this.spinStep = 0
-    this.spinIndex = 0
+    this.line1 = f.l1
+    this.line2 = f.l2
+    this.line3 = f.l3
+    this.lineHot1 = f.h1
+    this.lineHot2 = f.h2
+    this.lineHot3 = f.h3
+    this.busy = true
     this.phase = "spinning"
-    this.btnText = "抽取中"
-    this.statusText = "正在抽取"
+    this.btnText = BTN_SPIN[0]
+    this.statusText = SPIN_TIPS[0]
+    this.prevText = ""
+    this.midText = ""
+    this.nextText = ""
+  },
+
+  // 心跳帧：同样单方法连续赋值。抽两个时两行先后定格，定格行切 accent 高亮。
+  renderSpinFrame(el) {
+    if (!pending) {
+      return
+    }
+    var f = frameAt(el, pending.count, pending.lines, this.items)
+    this.line1 = f.l1
+    this.line2 = f.l2
+    this.line3 = f.l3
+    this.lineHot1 = f.h1
+    this.lineHot2 = f.h2
+    this.lineHot3 = f.h3
+    this.btnText = BTN_SPIN[f.step % 4]
+    this.statusText = SPIN_TIPS[f.step % 4]
     if (this.compassOn) {
-      this.targetFrame = this.dialAngles[this.resultIndex]
-      this.totalSteps = FRAMES + this.targetFrame
-      this.updateNeedle(0, -1)
-      this.tickCompass()
-    } else {
-      this.totalSteps = 18 + Math.floor(Math.random() * 6)
-      this.buildWindow()
-      this.tick()
+      this.needleSrc = needlePath(f.step)
     }
   },
 
+  // 揭晓：幂等 + 单方法连续赋值。心跳到点、2 秒硬兜底点击、页面切走都走这里。
+  // 单结果走 44px 大字（resultText），多结果走常驻三行（line1~3）。
+  reveal() {
+    if (this.phase !== "spinning") {
+      return
+    }
+    var p = pending
+    if (!p) {
+      this.busy = false
+      this.phase = "done"
+      this.btnText = "再抽一次"
+      this.statusText = "已出结果"
+      return
+    }
+    // 多结果落位与过程帧一致（1 个走 44px 大字，2 个上+下，3 个铺满）
+    var rl = ["", "", ""]
+    if (p.count === 2) {
+      rl[0] = p.lines[0] || ""
+      rl[2] = p.lines[1] || ""
+    } else if (p.count >= 3) {
+      rl[0] = p.lines[0] || ""
+      rl[1] = p.lines[1] || ""
+      rl[2] = p.lines[2] || ""
+    }
+    // ↓ 揭晓帧：单方法连续赋值，不调 updateNeedle / buildWindow 等写 this 的方法
+    this.needleSrc = this.compassOn ? needlePath(this.dialAngles[p.idxs[0]] || 0) : this.needleSrc
+    this.line1 = rl[0]
+    this.line2 = rl[1]
+    this.line3 = rl[2]
+    this.lineHot1 = true
+    this.lineHot2 = true
+    this.lineHot3 = true
+    this.resultText = p.text
+    this.resultLines = p.count > 1 ? p.lines.slice(0) : []
+    this.resultIndices = p.idxs
+    this.resultIndex = p.idxs[0]
+    this.spinIndex = p.idxs[0]
+    this.multiOn = p.count > 1
+    this.hasResult = true
+    this.busy = false
+    this.phase = "done"
+    this.btnText = "再抽一次"
+    this.statusText = "已出结果"
+    pending = null
+    spinStart = 0
+  },
+
+  // 【1.0.72 起不再是 draw() 的主路径，保留作「同步揭晓」对照实现】
   // 一次点击即出结果。真机 JSC 实测（2026-11-14，1.0.67 复核失败）：
   // 一次触摸回调内跨方法写 data，只有最后一个方法（commitReveal）的赋值批次进渲染，
   // 结果内容整批丢失 → 容器显示、里面「一个大空」。
@@ -781,28 +1048,30 @@ export default {
 
   drawCombo() {
     if (this.phase === "spinning") {
-      this.stopSpin()
-      this.finishComboNow()
+      // 同 draw：2 秒内防误触，超过 2 秒这次点击强制揭晓，绝不永久锁死
+      if (Date.now() - spinStart >= HARD_LOCK_MS) {
+        this.finishComboNow()
+      }
       return
     }
-    this.stopSpin()
     var picks = []
     for (var i = 0; i < this.comboSlots.length; i++) {
       var its = this.comboSlots[i].items
       picks.push(its.length ? its[Math.floor(Math.random() * its.length)] : "暂无")
     }
+    spinStart = Date.now()
+    pending = null
+    this.kickBeat()
+    this.armWatchdog()
+    // ↓ 起帧帧：单方法连续赋值。组合结果在点击时已定，过程共享按钮锁与 loading
     this.comboPicks = picks
     this.slotIndex = 0
-    if (ANIM_ASYNC) {
-      this.comboResults = []
-      this.hasResult = false
-      this.phase = "spinning"
-      this.btnText = "抽取中"
-      this.runSlot()
-    } else {
-      // 同 draw：不写 spinning 中间态，一次点击即出组合卡
-      this.finishComboNow()
-    }
+    this.comboResults = []
+    this.hasResult = false
+    this.busy = true
+    this.phase = "spinning"
+    this.btnText = BTN_SPIN[0]
+    this.statusText = SPIN_TIPS[0]
   },
 
   runSlot() {
@@ -867,12 +1136,15 @@ export default {
     for (var i = 0; i < this.comboSlots.length; i++) {
       out.push({ label: this.comboSlots[i].label, value: this.comboPicks[i] || "暂无" })
     }
-    // 同 drawNow：组合结果必须与揭晓态在同一方法的连续赋值块里提交
+    // 同 reveal：组合结果必须与揭晓态在同一方法的连续赋值块里提交
     this.comboResults = out
     this.hasResult = true
+    this.busy = false
     this.phase = "done"
     this.btnText = "整套重抽"
     this.statusText = "已出结果"
+    pending = null
+    spinStart = 0
   },
 
   addItem() {
@@ -1032,7 +1304,13 @@ export default {
       this.stopSpin()
       this.phase = "idle"
       this.hasResult = false
+      this.busy = false
+      this.line1 = ""
+      this.line2 = ""
+      this.line3 = ""
       this.btnText = "抽一个"
+      pending = null
+      spinStart = 0
       this.view = "decks"
       this.pageTitle = "卡组"
       this.pickCat(5)
@@ -1071,43 +1349,40 @@ export default {
   padding: 32px 12px 16px 12px;
 }
 
-.back-header {
+/* 一体返回胶囊：与易微课程表设置页 common/header.css 的 .hdr 段同源。
+   居中在 .hdr 上做，整颗胶囊都是点击区（30×30 → 约 106×40），
+   flex-shrink:0 防止页头被压成 0 高导致返回键消失（课程表历史坑）。 */
+.hdr {
   flex-direction: row;
-  align-items: center;
-  width: 100%;
-  height: 36px;
-  margin-bottom: 12px;
-  flex-shrink: 0;
-}
-
-.back-btn-wrapper {
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
   justify-content: center;
   align-items: center;
+  width: 100%;
+  margin-bottom: 4px;
   flex-shrink: 0;
 }
 
-.back-btn-icon {
-  width: 22px;
-  height: 22px;
+.hdr-pill {
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 20px;
+  flex-shrink: 0;
 }
 
-.header-title {
-  flex: 1;
+.hdr-pill-ic {
+  width: 20px;
+  height: 20px;
+  margin-right: 4px;
+  object-fit: contain;
+}
+
+.hdr-pill-t {
   font-size: 28px;
-  font-weight: bold;
-  line-height: 38px;
+  line-height: 34px;
   text-align: center;
   lines: 1;
-  min-width: 0;
-}
-
-.header-placeholder {
-  width: 30px;
-  height: 30px;
-  flex-shrink: 0;
 }
 
 .view {
@@ -1191,20 +1466,8 @@ export default {
   lines: 2;
 }
 
-.multi-result {
-  flex-direction: column;
-  width: 100%;
-  justify-content: center;
-  align-items: center;
-}
-
-.multi-line {
-  width: 100%;
-  font-size: 24px;
-  line-height: 34px;
-  text-align: center;
-  lines: 1;
-}
+/* 旧 .multi-result / .multi-line（for 数组渲染）已删：
+   真机 JSC 下 for 数组更新不重绘，多结果改由常驻 .line 三行承载。 */
 
 /* 组合卡：字段标签 24 字段值 28 纵向排版，不用分隔符 */
 .combo-stage {
@@ -1333,6 +1596,29 @@ export default {
   align-items: center;
 }
 
+/* 过程行层：与 result-box 同级绝对覆盖，两者互不占布局高度。
+   单行结果用 44px 大字（result-box），多行结果与抽取过程用 28px 三行（本层）。
+   28px × 6P × 0.958 ≈ 161px < 168px 内容宽，菜名不截断；
+   3 行 × 34px = 102px，胶囊屏舞台 126px 仍放得下。 */
+.line-box {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.line {
+  width: 100%;
+  font-size: 28px;
+  line-height: 34px;
+  text-align: center;
+  lines: 1;
+}
+
 .result-text {
   font-size: 44px;
   font-weight: bold;
@@ -1437,6 +1723,24 @@ export default {
   font-size: 28px;
   line-height: 38px;
   lines: 1;
+}
+
+/* 大屏放大一体返回胶囊，与易微课程表设置页保持一致 */
+@media (shape: rect), (shape: circle) {
+  .hdr-pill {
+    height: 48px;
+    padding: 0 18px;
+    border-radius: 24px;
+  }
+  .hdr-pill-ic {
+    width: 24px;
+    height: 24px;
+    margin-right: 6px;
+  }
+  .hdr-pill-t {
+    font-size: 34px;
+    line-height: 42px;
+  }
 }
 
 @media (shape: circle) {
