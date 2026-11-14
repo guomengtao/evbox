@@ -61,6 +61,7 @@
           <text class="line" style="color: {{ lineHot1 ? theme.accent : theme.textSecondary }}; background-color: {{ lineHot1 ? theme.cardLight : 'transparent' }}">{{ line1 }}</text>
           <text class="line" style="color: {{ lineHot2 ? theme.accent : theme.textSecondary }}; background-color: {{ lineHot2 ? theme.cardLight : 'transparent' }}">{{ line2 }}</text>
           <text class="line" style="color: {{ lineHot3 ? theme.accent : theme.textSecondary }}; background-color: {{ lineHot3 ? theme.cardLight : 'transparent' }}">{{ line3 }}</text>
+          <text class="line" style="color: {{ lineHot4 ? theme.accent : theme.textSecondary }}; background-color: {{ lineHot4 ? theme.cardLight : 'transparent' }}">{{ line4 }}</text>
         </div>
       </div>
 
@@ -166,17 +167,17 @@ var ADD_RESULT_KEY = "decide_add_item"
 var MAX_ITEMS = 30
 var MAX_P = 6
 // 三行 24px 结果 102px 不超胶囊屏舞台 126px，四个及以上留 P2 拆页
-var MAX_PICK = 3
+var MAX_PICK = 4
 var FRAMES = 24
 var FRAME_STEP = 15
-var PICK_LABEL = ["抽一个", "抽两个", "抽三个"]
+var PICK_LABEL = ["抽一个", "抽两个", "抽三个", "抽四个"]
 // 动画定时器句柄放在模块作用域：private 里的值会被框架做响应式包装，
 // 对 setTimeout 返回的句柄赋值/读取可能抛异常，导致动画永远停在首帧。
 // JSC 实测（2026-11-14）：抽取按钮停在「抽取中」不进 done 即由此引起。
 var spinTimer = null
 // Vela 模拟器 JSC 实测：动画定时器回调链内调用 @system.vibrator 会让 vapp 退出，
 // 真机复核通过后再置 true（方案 §4.2 的咔哒手感属 P3 增强，不阻塞抽取）
-var VIBRATE_ENABLED = false
+var VIBRATE_ENABLED = true
 // 旧「逐帧 setTimeout 链」开关，1.0.72 起由 onReady 常驻心跳接管，恒 false。
 // 保留 tick / scheduleTick / finishDraw 等实现仅供真机对照，不要重新打开：
 // 它们在触摸回调里起链、且揭晓依赖末次回调，真机上会停在「正在抽取」。
@@ -205,6 +206,11 @@ var HARD_LOCK_MS = 2000
 // 三连抽（2026-11-14 第二组动画）：卷轴接力，三条落定的绝对时刻。
 // 末条 1300ms 落定、1600ms 正式揭晓，留 300ms 让「三条都已定」被看清，不再干等 460ms。
 var LOCK3 = [420, 860, 1300]
+// 四连抽（2026-11-14 第三组动画）：0-800ms 只在中行集中快滚，800ms 四行同时落内容，
+// 再按 LOCK4 逐行「点亮」（灰字 -> accent + 底条），像四张牌同时翻出、再逐张盖章。
+// 与双签（两行同时滚）、接力（一次一行逐条出内容）都不同：内容一次给全，只逐行点亮。
+var GATHER4 = 800
+var LOCK4 = [900, 1000, 1100, 1200]
 // 落定前多少毫秒开始减速：候选切换变慢，视觉上「沉」一下再停，不是硬切
 var ROLL_SLOW = 180
 var beatTimer = null
@@ -240,9 +246,24 @@ function rollIdx(step, k, n) {
 function frameAt(el, count, lines, items) {
   var step = Math.floor(el / ROLL_MS)
   var n = items.length
-  var l = ["", "", ""]
-  var h = [false, false, false]
+  var l = ["", "", "", ""]
+  var h = [false, false, false, false]
 
+  // 四连抽：集中滚动 -> 四行同时落内容 -> 逐行点亮
+  if (count >= 4) {
+    if (el < GATHER4) {
+      var sp = Math.floor(el / 50)
+      l[1] = items[rollIdx(sp, 0, n)]
+      return { l1: "", l2: l[1], l3: "", l4: "", h1: false, h2: false, h3: false, h4: false, step: sp }
+    }
+    for (var k4 = 0; k4 < 4; k4++) {
+      l[k4] = lines[k4] || ""
+      h[k4] = el >= LOCK4[k4]
+    }
+    return { l1: l[0], l2: l[1], l3: l[2], l4: l[3], h1: h[0], h2: h[1], h3: h[2], h4: h[3], step: step }
+  }
+
+  // 三连抽：卷轴接力（一次只有一行在滚，逐条落定）
   if (count >= 3) {
     for (var k = 0; k < 3; k++) {
       var lockAt = LOCK3[k]
@@ -251,16 +272,15 @@ function frameAt(el, count, lines, items) {
         h[k] = true
         l[k] = lines[k] || ""
       } else if (el >= startAt) {
-        // 减速停：进入落定前 180ms，候选索引推进变慢（心跳帧率不变，切换频率变慢）
-        var s = (lockAt - el < ROLL_SLOW) ? Math.floor(step / 3) : step
+        var sd = (lockAt - el < ROLL_SLOW) ? Math.floor(step / 3) : step
         h[k] = false
-        l[k] = items[rollIdx(s, k, n)]
+        l[k] = items[rollIdx(sd, k, n)]
       }
-      // 还没轮到该行：留空，不显示任何候选（这就是「接力」的可见证据）
     }
-    return { l1: l[0], l2: l[1], l3: l[2], h1: h[0], h2: h[1], h3: h[2], step: step }
+    return { l1: l[0], l2: l[1], l3: l[2], l4: "", h1: h[0], h2: h[1], h3: h[2], h4: false, step: step }
   }
 
+  // 抽两个：并行双签；抽一个：单签
   var slots = rowSlots(count)
   for (var j = 0; j < slots.length; j++) {
     var r = slots[j]
@@ -268,7 +288,7 @@ function frameAt(el, count, lines, items) {
     h[r] = el >= at
     l[r] = h[r] ? lines[j] : items[rollIdx(step, j, n)]
   }
-  return { l1: l[0], l2: l[1], l3: l[2], h1: h[0], h2: h[1], h3: h[2], step: step }
+  return { l1: l[0], l2: l[1], l3: l[2], l4: "", h1: h[0], h2: h[1], h3: h[2], h4: false, step: step }
 }
 
 function needlePath(frame) {
@@ -334,9 +354,11 @@ export default {
     line1: "",
     line2: "",
     line3: "",
+    line4: "",
     lineHot1: false,
     lineHot2: false,
     lineHot3: false,
+    lineHot4: false,
     foodMode: false,
     comboTitle: "午饭搭配",
     comboSlots: [],
@@ -530,9 +552,11 @@ export default {
     this.line1 = ""
     this.line2 = ""
     this.line3 = ""
+    this.line4 = ""
     this.lineHot1 = false
     this.lineHot2 = false
     this.lineHot3 = false
+    this.lineHot4 = false
     this.resultIndices = []
     this.resultIndex = 0
     this.spinIndex = 0
@@ -642,9 +666,11 @@ export default {
     this.line1 = ""
     this.line2 = ""
     this.line3 = ""
+    this.line4 = ""
     this.lineHot1 = false
     this.lineHot2 = false
     this.lineHot3 = false
+    this.lineHot4 = false
     this.btnText = PICK_LABEL[this.pickCount - 1] || "抽一个"
     pending = null
     spinStart = 0
@@ -694,9 +720,11 @@ export default {
     this.line1 = f.l1
     this.line2 = f.l2
     this.line3 = f.l3
+    this.line4 = f.l4
     this.lineHot1 = f.h1
     this.lineHot2 = f.h2
     this.lineHot3 = f.h3
+    this.lineHot4 = f.h4
     this.busy = true
     this.phase = "spinning"
     this.btnText = BTN_SPIN[0]
@@ -704,6 +732,7 @@ export default {
     this.prevText = ""
     this.midText = ""
     this.nextText = ""
+    this.vibrate("short")
   },
 
   // 心跳帧：同样单方法连续赋值。抽两个时两行先后定格，定格行切 accent 高亮。
@@ -715,9 +744,11 @@ export default {
     this.line1 = f.l1
     this.line2 = f.l2
     this.line3 = f.l3
+    this.line4 = f.l4
     this.lineHot1 = f.h1
     this.lineHot2 = f.h2
     this.lineHot3 = f.h3
+    this.lineHot4 = f.h4
     this.btnText = BTN_SPIN[f.step % 4]
     this.statusText = SPIN_TIPS[f.step % 4]
     if (this.compassOn) {
@@ -740,7 +771,7 @@ export default {
       return
     }
     // 多结果落位与过程帧一致（1 个走 44px 大字，2 个上+下，3 个铺满）
-    var rl = ["", "", ""]
+    var rl = ["", "", "", ""]
     if (p.count === 2) {
       rl[0] = p.lines[0] || ""
       rl[2] = p.lines[1] || ""
@@ -748,15 +779,18 @@ export default {
       rl[0] = p.lines[0] || ""
       rl[1] = p.lines[1] || ""
       rl[2] = p.lines[2] || ""
+      rl[3] = p.lines[3] || ""
     }
     // ↓ 揭晓帧：单方法连续赋值，不调 updateNeedle / buildWindow 等写 this 的方法
     this.needleSrc = this.compassOn ? needlePath(this.dialAngles[p.idxs[0]] || 0) : this.needleSrc
     this.line1 = rl[0]
     this.line2 = rl[1]
     this.line3 = rl[2]
+    this.line4 = rl[3]
     this.lineHot1 = true
     this.lineHot2 = true
     this.lineHot3 = true
+    this.lineHot4 = true
     this.resultText = p.text
     this.resultLines = p.count > 1 ? p.lines.slice(0) : []
     this.resultIndices = p.idxs
@@ -770,6 +804,7 @@ export default {
     this.statusText = "已出结果"
     pending = null
     spinStart = 0
+    this.vibrate("long")
   },
 
   // 【1.0.72 起不再是 draw() 的主路径，保留作「同步揭晓」对照实现】
@@ -923,14 +958,17 @@ export default {
     }
   },
 
-  vibrate() {
+  // 震动只做两个时刻的短促提醒：按下按钮（short）、揭晓结果（long）。
+  // 全程 try/catch + typeof 守卫：native 模块缺席或抛错绝不能让页面白屏。
+  // 只能在赋值块之后调用——先让这一帧数据进渲染，再去做可能抛错的原生调用。
+  vibrate(mode) {
     if (!VIBRATE_ENABLED) {
       return
     }
     try {
       var vib = require("@system.vibrator")
       if (vib && typeof vib.vibrate === "function") {
-        vib.vibrate({ mode: "short" })
+        vib.vibrate({ mode: mode || "short" })
       }
     } catch (e) {}
   },
@@ -1110,6 +1148,7 @@ export default {
     this.phase = "spinning"
     this.btnText = BTN_SPIN[0]
     this.statusText = SPIN_TIPS[0]
+    this.vibrate("short")
   },
 
   runSlot() {
@@ -1183,6 +1222,7 @@ export default {
     this.statusText = "已出结果"
     pending = null
     spinStart = 0
+    this.vibrate("long")
   },
 
   addItem() {
@@ -1346,6 +1386,7 @@ export default {
       this.line1 = ""
       this.line2 = ""
       this.line3 = ""
+      this.line4 = ""
       this.btnText = "抽一个"
       pending = null
       spinStart = 0
@@ -1655,7 +1696,7 @@ export default {
 .line {
   width: 100%;
   height: 30px;
-  margin: 2px 0;
+  margin: 0;
   flex-shrink: 0;
   border-radius: 8px;
   font-size: 28px;
