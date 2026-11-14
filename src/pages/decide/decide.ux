@@ -30,9 +30,14 @@
 
       <div class="stage" style="display: {{ compassOn ? 'none' : 'flex' }}; background-color: {{ theme.card }}">
         <div class="spin-box" style="display: {{ phase === 'done' ? 'none' : 'flex' }}">
-          <div class="spin-row" for="{{ windowItems }}"
-               style="background-color: {{ $item.mid ? theme.cardLight : 'transparent' }}">
-            <text class="spin-text" style="color: {{ $item.mid ? theme.text : theme.textSecondary }}">{{ $item.text }}</text>
+          <div class="spin-row" style="display: {{ flipOn ? 'none' : 'flex' }}">
+            <text class="spin-text" style="color: {{ theme.textSecondary }}">{{ prevText }}</text>
+          </div>
+          <div class="spin-row" style="background-color: {{ theme.cardLight }}">
+            <text class="spin-text" style="color: {{ theme.text }}">{{ midText }}</text>
+          </div>
+          <div class="spin-row" style="display: {{ flipOn ? 'none' : 'flex' }}">
+            <text class="spin-text" style="color: {{ theme.textSecondary }}">{{ nextText }}</text>
           </div>
         </div>
         <div class="result-box" style="display: {{ phase === 'done' ? 'flex' : 'none' }}">
@@ -103,9 +108,14 @@
     <div class="view" style="display: {{ view === 'combo' ? 'flex' : 'none' }}">
       <div class="combo-stage" style="display: {{ phase === 'done' ? 'none' : 'flex' }}; background-color: {{ theme.card }}">
         <text class="combo-slot-label" style="color: {{ theme.textSecondary }}">{{ slotLabel }}</text>
-        <div class="spin-row" for="{{ slotWindow }}"
-             style="background-color: {{ $item.mid ? theme.cardLight : 'transparent' }}">
-          <text class="spin-text" style="color: {{ $item.mid ? theme.text : theme.textSecondary }}">{{ $item.text }}</text>
+        <div class="spin-row">
+          <text class="spin-text" style="color: {{ theme.textSecondary }}">{{ slotPrevText }}</text>
+        </div>
+        <div class="spin-row" style="background-color: {{ theme.cardLight }}">
+          <text class="spin-text" style="color: {{ theme.text }}">{{ slotMidText }}</text>
+        </div>
+        <div class="spin-row">
+          <text class="spin-text" style="color: {{ theme.textSecondary }}">{{ slotNextText }}</text>
         </div>
       </div>
 
@@ -140,6 +150,22 @@ var MAX_PICK = 3
 var FRAMES = 24
 var FRAME_STEP = 15
 var PICK_LABEL = ["抽一个", "抽两个", "抽三个"]
+// 动画定时器句柄放在模块作用域：private 里的值会被框架做响应式包装，
+// 对 setTimeout 返回的句柄赋值/读取可能抛异常，导致动画永远停在首帧。
+// JSC 实测（2026-11-14）：抽取按钮停在「抽取中」不进 done 即由此引起。
+var spinTimer = null
+// Vela 模拟器 JSC 实测：动画定时器回调链内调用 @system.vibrator 会让 vapp 退出，
+// 真机复核通过后再置 true（方案 §4.2 的咔哒手感属 P3 增强，不阻塞抽取）
+var VIBRATE_ENABLED = false
+// Vela 模拟器 JSC：触摸事件回调里安排的 setTimeout 回调不派发（onReady 里安排则可以）。
+// 默认同步揭晓保证功能可用；完整逐帧动画代码保留，真机复核后把此开关置 true。
+var ANIM_ASYNC = false
+// Vela JSC 下动画帧必须持续改一个已渲染的顶层文本才会重绘并推进定时器链；
+// 用状态行的 loading 省略号承载，最长 5.5P 满足 ev-six 一行 ≤6P
+var SPIN_TIPS = ["正在抽取", "正在抽取。", "正在抽取。。", "正在抽取。。。"]
+function spinTip(step) {
+  return SPIN_TIPS[step % 4]
+}
 // 罗盘上限由 ev-six 24px 下限与标签留白共同决定，圆屏 8 胶囊屏 4
 var COMPASS_LIMIT_CIRCLE = 8
 var COMPASS_LIMIT_PILL = 4
@@ -160,12 +186,17 @@ export default {
     deckTitle: "要不要",
     items: ["要", "不要"],
     windowItems: [],
+    // 滚动项用顶层字段绑定：JSC 下 for 数组更新不触发重绘，
+    // 页面静止会让 setTimeout 链停摆（2026-11-14 胶囊屏实测）
+    prevText: "",
+    midText: "要",
+    nextText: "不要",
+    flipOn: false,
     resultText: "",
     resultIndex: 0,
     spinIndex: 0,
     spinStep: 0,
     totalSteps: 20,
-    timer: null,
     btnText: "抽一个",
     statusText: "点下面抽取",
     catIndex: -1,
@@ -196,6 +227,9 @@ export default {
     slotLabel: "",
     slotItems: [],
     slotWindow: [],
+    slotPrevText: "",
+    slotMidText: "",
+    slotNextText: "",
     slotSpinIndex: 0,
     slotStep: 0,
     slotTotal: 12
@@ -384,6 +418,9 @@ export default {
 
   draw() {
     if (this.phase === "spinning") {
+      // 兜底：JSC 定时器链若在动画中途停摆，再次点击直接同步揭晓已定结果
+      this.stopSpin()
+      this.finishDraw()
       return
     }
     if (!this.items || this.items.length < 2) {
@@ -406,11 +443,19 @@ export default {
       this.targetFrame = this.dialAngles[this.resultIndex]
       this.totalSteps = FRAMES + this.targetFrame
       this.updateNeedle(0, -1)
-      this.tickCompass()
+      if (ANIM_ASYNC) {
+        this.tickCompass()
+      } else {
+        this.finishDraw()
+      }
     } else {
       this.totalSteps = 18 + Math.floor(Math.random() * 6)
       this.buildWindow()
-      this.tick()
+      if (ANIM_ASYNC) {
+        this.tick()
+      } else {
+        this.finishDraw()
+      }
     }
   },
 
@@ -418,7 +463,9 @@ export default {
     var self = this
     var n = this.items.length
     this.spinStep = this.spinStep + 1
-    if (this.spinStep >= this.totalSteps) {
+    this.statusText = spinTip(this.spinStep)
+    // 末次回调不派发：揭晓提前到最后一个可靠帧内同步完成
+    if (this.spinStep >= this.totalSteps - 1) {
       this.finishDraw()
       return
     }
@@ -426,7 +473,7 @@ export default {
     this.buildWindow()
     var t = this.spinStep / this.totalSteps
     var delay = 40 + Math.floor(190 * t * t * t)
-    this.timer = setTimeout(function () {
+    this.scheduleTick(function () {
       self.tick()
     }, delay)
   },
@@ -434,24 +481,44 @@ export default {
   tickCompass() {
     var self = this
     this.spinStep = this.spinStep + 1
-    if (this.spinStep >= this.totalSteps) {
+    this.statusText = spinTip(this.spinStep)
+    // 末次回调不派发：揭晓提前到最后一个可靠帧内同步完成
+    if (this.spinStep >= this.totalSteps - 1) {
       this.finishDraw()
       return
     }
     this.updateNeedle((this.needleFrame + 1) % FRAMES, -1)
     var t = this.spinStep / this.totalSteps
     var delay = 35 + Math.floor(190 * t * t * t)
-    this.timer = setTimeout(function () {
+    this.scheduleTick(function () {
       self.tickCompass()
     }, delay)
+  },
+
+  // 定时器不可用时直接揭晓：结果在 draw 阶段已确定，跳过动画不改变结果
+  scheduleTick(fn, delay) {
+    try {
+      spinTimer = setTimeout(fn, delay)
+      if (!spinTimer) {
+        throw new Error("timer unavailable")
+      }
+    } catch (e) {
+      spinTimer = null
+      this.abortAnim()
+    }
+  },
+
+  abortAnim() {
+    if (this.view === "combo") {
+      this.finishComboNow()
+    } else {
+      this.finishDraw()
+    }
   },
 
   finishDraw() {
     this.stopSpin()
     this.spinIndex = this.resultIndex
-    this.phase = "done"
-    this.btnText = "再抽一次"
-    this.statusText = "已出结果"
     if (this.compassOn) {
       this.updateNeedle(this.targetFrame, this.resultIndex)
       this.resultText = this.items[this.resultIndex]
@@ -470,6 +537,18 @@ export default {
     }
     this.buildWindow()
     this.vibrate()
+    this.commitReveal()
+  },
+
+  // 揭晓态必须在最后一个可靠动画帧内同步提交。
+  // Vela JSC 实测（2026-11-14，xiaomi_band 胶囊屏）：单条 setTimeout 链
+  // 的末次回调不派发（探针稳定停在 totalSteps-1），额外再安排一个揭晓定时器
+  // 会把 phase / btnText / statusText 整帧丢掉，画面停在「正在抽取」。
+  commitReveal(btn, status) {
+    spinTimer = null
+    this.phase = "done"
+    this.btnText = btn || "再抽一次"
+    this.statusText = status || "已出结果"
   },
 
   buildWindow() {
@@ -477,28 +556,31 @@ export default {
       return
     }
     var n = this.items.length
-    var out = []
-    if (this.animKind === "flip") {
-      out.push({ text: this.items[this.spinIndex % n], mid: true })
-    } else {
-      for (var k = -1; k <= 1; k++) {
-        var idx = ((this.spinIndex + k) % n + n) % n
-        out.push({ text: this.items[idx], mid: k === 0 })
-      }
-    }
-    this.windowItems = out
+    var mid = ((this.spinIndex % n) + n) % n
+    this.flipOn = this.animKind === "flip"
+    this.prevText = this.flipOn ? "" : this.items[((mid - 1) % n + n) % n]
+    this.midText = this.items[mid]
+    this.nextText = this.flipOn ? "" : this.items[((mid + 1) % n + n) % n]
   },
 
   stopSpin() {
-    if (this.timer) {
-      clearTimeout(this.timer)
-      this.timer = null
+    if (spinTimer) {
+      try {
+        clearTimeout(spinTimer)
+      } catch (e) {}
+      spinTimer = null
     }
   },
 
   vibrate() {
+    if (!VIBRATE_ENABLED) {
+      return
+    }
     try {
-      require("@system.vibrator").vibrate({ mode: "short" })
+      var vib = require("@system.vibrator")
+      if (vib && typeof vib.vibrate === "function") {
+        vib.vibrate({ mode: "short" })
+      }
     } catch (e) {}
   },
 
@@ -666,7 +748,11 @@ export default {
     this.slotIndex = 0
     this.phase = "spinning"
     this.btnText = "抽取中"
-    this.runSlot()
+    if (ANIM_ASYNC) {
+      this.runSlot()
+    } else {
+      this.finishComboNow()
+    }
   },
 
   runSlot() {
@@ -686,18 +772,18 @@ export default {
 
   buildSlotWindow() {
     var n = this.slotItems.length
-    var out = []
-    for (var k = -1; k <= 1; k++) {
-      var idx = ((this.slotSpinIndex + k) % n + n) % n
-      out.push({ text: this.slotItems[idx], mid: k === 0 })
-    }
-    this.slotWindow = out
+    var mid = ((this.slotSpinIndex % n) + n) % n
+    this.slotPrevText = this.slotItems[((mid - 1) % n + n) % n]
+    this.slotMidText = this.slotItems[mid]
+    this.slotNextText = this.slotItems[((mid + 1) % n + n) % n]
   },
 
   tickSlot() {
     var self = this
     this.slotStep = this.slotStep + 1
-    if (this.slotStep >= this.slotTotal) {
+    this.statusText = spinTip(this.slotStep)
+    // 同主抽取：末次回调不派发，槽位揭晓提前一帧同步完成
+    if (this.slotStep >= this.slotTotal - 1) {
       this.finishSlot()
       return
     }
@@ -705,7 +791,7 @@ export default {
     this.buildSlotWindow()
     var t = this.slotStep / this.slotTotal
     var delay = 45 + Math.floor(150 * t * t * t)
-    this.timer = setTimeout(function () {
+    this.scheduleTick(function () {
       self.tickSlot()
     }, delay)
   },
@@ -721,9 +807,8 @@ export default {
       this.runSlot()
       return
     }
-    this.phase = "done"
-    this.btnText = "整套重抽"
     this.vibrate()
+    this.commitReveal("整套重抽", "已出结果")
   },
 
   finishComboNow() {
@@ -733,8 +818,7 @@ export default {
       out.push({ label: this.comboSlots[i].label, value: this.comboPicks[i] || "暂无" })
     }
     this.comboResults = out
-    this.phase = "done"
-    this.btnText = "整套重抽"
+    this.commitReveal("整套重抽", "已出结果")
   },
 
   addItem() {
