@@ -51,15 +51,16 @@
         </div>
 
         <!-- 过程 / 多结果共用行层（2026-11-14 动画）：
-             抽两个时上下两行各自滚候选，先定格第一行、再定格第二行（错峰开奖），
-             抽一个/抽三个同理。三个 text **全常驻**：不切 display、不用 if 建节点、
+             抽两个：上下两行各自滚候选，先定格第一行、再定格第二行（错峰开奖）。
+             抽三个：卷轴接力，一次只有一行在滚，落定一条钉住并上底色，下一行接棒。
+             三个 text **全常驻**：不切 display、不用 if 建节点、
              不用 for 数组（真机 JSC for 数组更新不重绘），内容空/非空表达状态。
              节点从首屏一直活到揭晓，绑定依赖永不重建，绕开隐藏子树懒渲染坑。
              行位按结果数分配：1 个用中行，2 个用上+下行，3 个用满三行，整体居中。 -->
         <div class="line-box">
-          <text class="line" style="color: {{ lineHot1 ? theme.accent : theme.textSecondary }}">{{ line1 }}</text>
-          <text class="line" style="color: {{ lineHot2 ? theme.accent : theme.textSecondary }}">{{ line2 }}</text>
-          <text class="line" style="color: {{ lineHot3 ? theme.accent : theme.textSecondary }}">{{ line3 }}</text>
+          <text class="line" style="color: {{ lineHot1 ? theme.accent : theme.textSecondary }}; background-color: {{ lineHot1 ? theme.cardLight : 'transparent' }}">{{ line1 }}</text>
+          <text class="line" style="color: {{ lineHot2 ? theme.accent : theme.textSecondary }}; background-color: {{ lineHot2 ? theme.cardLight : 'transparent' }}">{{ line2 }}</text>
+          <text class="line" style="color: {{ lineHot3 ? theme.accent : theme.textSecondary }}; background-color: {{ lineHot3 ? theme.cardLight : 'transparent' }}">{{ line3 }}</text>
         </div>
       </div>
 
@@ -197,9 +198,15 @@ function spinTip(step) {
 // 揭晓幂等；点击本身是第二条兜底通道（>= HARD_LOCK_MS 强制揭晓），
 // 所以即便整条心跳链死掉，用户也绝不会永久卡在「抽取中」。
 var BEAT_MS = 70
-var ROLL_MS = 90
+// 轮播间隔 = 心跳间隔：每推一帧必然换一个候选（若大于心跳，会出现「整帧没变」的顿感）
+var ROLL_MS = 70
 var REVEAL_MS = 1600
 var HARD_LOCK_MS = 2000
+// 三连抽（2026-11-14 第二组动画）：卷轴接力，三条落定的绝对时刻。
+// 末条 1300ms 落定、1600ms 正式揭晓，留 300ms 让「三条都已定」被看清，不再干等 460ms。
+var LOCK3 = [420, 860, 1300]
+// 落定前多少毫秒开始减速：候选切换变慢，视觉上「沉」一下再停，不是硬切
+var ROLL_SLOW = 180
 var beatTimer = null
 var lastBeatAt = 0
 var spinStart = 0
@@ -215,20 +222,51 @@ function rowSlots(count) {
   return [0, 1, 2]
 }
 
+// 候选轮播取下标：乘子取质数 7919，与任何少于它的项数互质，
+// 保证相邻帧必然换一个候选（乘子若有公因子，n=5 时 step*5%5 恒为 0，行会「假滚」不动）。
+function rollIdx(step, k, n) {
+  var v = (step * 7919 + k * 13 + 3) % n
+  return v < 0 ? v + n : v
+}
+
 // 纯函数：算出某一时刻的过程帧，不写 this，可在触摸回调里安全调用。
-// 抽两个：两行各自滚候选，约 533ms 第一行定格、1066ms 第二行定格（错峰开奖），
-// 抽一个/三个按 (k+1)/(count+1) 同理缩放节奏。
+//
+// 抽两个（第一组）：并行双签 —— 上下两行**同时**滚候选，约 533ms 上行定格、
+//   1066ms 下行定格，两处同时在动，错峰开奖。
+// 抽三个（本组）：卷轴接力 —— **一次只有一行在滚**，落定一条就钉住切高亮，
+//   下一行接棒起滚；三条依次 380 / 760 / 1140ms 落定，落定前 180ms 减速。
+//   与双签的差别正是「过程里视线只被拉一处」，三行逐条填满，读起来像名单揭晓。
+// 抽一个：单签，中行一直滚到 800ms 定格。
 function frameAt(el, count, lines, items) {
   var step = Math.floor(el / ROLL_MS)
   var n = items.length
   var l = ["", "", ""]
   var h = [false, false, false]
+
+  if (count >= 3) {
+    for (var k = 0; k < 3; k++) {
+      var lockAt = LOCK3[k]
+      var startAt = k === 0 ? 0 : LOCK3[k - 1]
+      if (el >= lockAt) {
+        h[k] = true
+        l[k] = lines[k] || ""
+      } else if (el >= startAt) {
+        // 减速停：进入落定前 180ms，候选索引推进变慢（心跳帧率不变，切换频率变慢）
+        var s = (lockAt - el < ROLL_SLOW) ? Math.floor(step / 3) : step
+        h[k] = false
+        l[k] = items[rollIdx(s, k, n)]
+      }
+      // 还没轮到该行：留空，不显示任何候选（这就是「接力」的可见证据）
+    }
+    return { l1: l[0], l2: l[1], l3: l[2], h1: h[0], h2: h[1], h3: h[2], step: step }
+  }
+
   var slots = rowSlots(count)
-  for (var k = 0; k < slots.length; k++) {
-    var r = slots[k]
-    var lockAt = Math.floor(REVEAL_MS * (k + 1) / (count + 1))
-    h[r] = el >= lockAt
-    l[r] = h[r] ? lines[k] : items[((step * 7 + k * 13 + 3) % n + n) % n]
+  for (var j = 0; j < slots.length; j++) {
+    var r = slots[j]
+    var at = Math.floor(REVEAL_MS * (j + 1) / (count + 1))
+    h[r] = el >= at
+    l[r] = h[r] ? lines[j] : items[rollIdx(step, j, n)]
   }
   return { l1: l[0], l2: l[1], l3: l[2], h1: h[0], h2: h[1], h3: h[2], step: step }
 }
@@ -1611,10 +1649,17 @@ export default {
   align-items: center;
 }
 
+/* 行高 30 + 上下各 2 间距 = 34，三行总高仍 102px，块重心不随内容变化而跳动。
+   落定行由模板挂 theme.cardLight 底色（未定行 transparent），
+   于是「逐条落定」在视觉上就是逐条出现的结果条，滚动中永远只是灰字。 */
 .line {
   width: 100%;
+  height: 30px;
+  margin: 2px 0;
+  flex-shrink: 0;
+  border-radius: 8px;
   font-size: 28px;
-  line-height: 34px;
+  line-height: 30px;
   text-align: center;
   lines: 1;
 }
