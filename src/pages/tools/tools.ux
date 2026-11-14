@@ -8,77 +8,25 @@
       <div class="header-placeholder"></div>
     </div>
 
-    <!-- 视图切换：图标 / 列表 / 图文（选中态为圆角矩形按钮，非椭圆；偏好与首页共用） -->
-    <div class="mode-row">
-      <div class="mode-seg" onclick="setToolMode('icon')"
-           style="background-color: {{ toolViewMode === 'icon' ? theme.accent : 'transparent' }}; border-color: {{ toolViewMode === 'icon' ? theme.accent : theme.borderLight }}">
-        <text class="mode-text" style="color: {{ toolViewMode === 'icon' ? theme.bg : theme.textSecondary }}; font-weight: {{ toolViewMode === 'icon' ? 'bold' : 'normal' }}">图标</text>
-      </div>
-      <div class="mode-seg" onclick="setToolMode('list')"
-           style="background-color: {{ toolViewMode === 'list' ? theme.accent : 'transparent' }}; border-color: {{ toolViewMode === 'list' ? theme.accent : theme.borderLight }}">
-        <text class="mode-text" style="color: {{ toolViewMode === 'list' ? theme.bg : theme.textSecondary }}; font-weight: {{ toolViewMode === 'list' ? 'bold' : 'normal' }}">列表</text>
-      </div>
-      <div class="mode-seg" onclick="setToolMode('rich')"
-           style="background-color: {{ toolViewMode === 'rich' ? theme.accent : 'transparent' }}; border-color: {{ toolViewMode === 'rich' ? theme.accent : theme.borderLight }}">
-        <text class="mode-text" style="color: {{ toolViewMode === 'rich' ? theme.bg : theme.textSecondary }}; font-weight: {{ toolViewMode === 'rich' ? 'bold' : 'normal' }}">图文</text>
-      </div>
-    </div>
-
     <scroll class="tool-scroll" scroll-y="true">
-      <!-- 模式一：图标 -->
-      <div class="tool-grid" if="{{ toolViewMode === 'icon' }}">
-        <div for="{{ tools }}" class="tool-card" onclick="openTool($item.uri)" style="background-color: {{ theme.card }}">
-          <image class="tool-icon-img" src="/common/icons/tools/{{ iconTheme }}/{{ $item.iconFile }}"></image>
+      <!-- 单一列表：一行一工具，28px 名称 + 24px 实时摘要（取不到就整行不显示，不留空行） -->
+      <div class="tool-list">
+        <div class="tool-row" for="{{ tools }}" onclick="openTool($item.uri)" style="background-color: {{ theme.card }}">
           <text class="tool-name" style="color: {{ theme.text }}">{{ $item.name }}</text>
+          <text class="tool-sum" style="display: {{ $item.summary ? 'flex' : 'none' }}; color: {{ theme.textSecondary }}">{{ $item.summary }}</text>
         </div>
       </div>
 
-      <!-- 模式二：列表 -->
-      <div class="tool-list" if="{{ toolViewMode === 'list' }}">
-        <div for="{{ tools }}" class="tool-row" onclick="openTool($item.uri)" style="background-color: {{ theme.card }}">
-          <div class="tool-row-icon-box" style="background-color: {{ theme.cardLight }}">
-            <image class="tool-row-icon" src="/common/icons/tools/{{ iconTheme }}/{{ $item.iconFile }}"></image>
-          </div>
-          <text class="tool-row-name" style="color: {{ theme.text }}">{{ $item.name }}</text>
-          <image class="tool-row-arrow" src="/common/icons/{{ iconTheme }}/icon_chevron_right.png"></image>
+      <!-- 诊断单独一段：靠底色与间距分组，不写「调试」「API测试」这类文字徽标，不画分隔线 -->
+      <div class="tool-list debug-list">
+        <div class="tool-row debug-row" onclick="openDeviceInfo" style="background-color: {{ theme.cardLight }}">
+          <text class="tool-name" style="color: {{ theme.text }}">设备信息</text>
         </div>
-      </div>
-
-      <!-- 模式三：图文（图标 + 名称 + 实时摘要） -->
-      <div class="tool-rich" if="{{ toolViewMode === 'rich' }}">
-        <div for="{{ richTools }}" class="rich-card" onclick="openTool($item.uri)" style="background-color: {{ theme.card }}">
-          <div class="rich-icon-box" style="background-color: {{ theme.cardLight }}">
-            <image class="rich-icon" src="/common/icons/tools/{{ iconTheme }}/{{ $item.iconFile }}"></image>
-          </div>
-          <div class="rich-info">
-            <text class="rich-name" style="color: {{ theme.text }}">{{ $item.name }}</text>
-            <text class="rich-sum" if="{{ $item.summary }}" style="color: {{ theme.textSecondary }}">{{ $item.summary }}</text>
-          </div>
+        <div class="tool-row debug-row" onclick="openDeviceIdDiagnosis" style="background-color: {{ theme.cardLight }}">
+          <text class="tool-name" style="color: {{ theme.text }}">设备ID诊断</text>
         </div>
-      </div>
-
-      <!-- 设置与诊断（不参与三视图切换） -->
-      <div class="section" style="background-color: {{ theme.card }}">
-        <div class="item-row" onclick="openDeviceInfo">
-          <text class="item-label" style="color: {{ theme.text }}">设备信息</text>
-          <text class="item-hint" style="color: {{ theme.textMuted }}">调试</text>
-        </div>
-        <div class="row-divider" style="background-color: {{ theme.border }}"></div>
-        <div class="item-row" onclick="openDeviceIdDiagnosis">
-          <text class="item-label" style="color: {{ theme.accent }}">设备ID诊断</text>
-          <text class="item-hint" style="color: {{ theme.textMuted }}">API测试</text>
-        </div>
-        <div class="row-divider" style="background-color: {{ theme.border }}"></div>
-        <div class="item-row">
-          <text class="item-label" style="color: {{ theme.text }}">已钉页面</text>
-          <div class="switch-track" style="background-color: {{ isHomePinned ? theme.accent : theme.border }}" onclick="toggleHomePin">
-            <div class="switch-thumb" style="left: {{ isHomePinned ? '22px' : '2px' }}; background-color: {{ theme.bg }}"></div>
-          </div>
-        </div>
-        <div class="row-divider" style="background-color: {{ theme.border }}"></div>
-        <div class="item-row" onclick="openBlackScreenCheck">
-          <text class="item-label" style="color: {{ theme.text }}">黑屏检测</text>
-          <text class="item-hint" style="color: {{ theme.textMuted }}">诊断</text>
+        <div class="tool-row debug-row" onclick="openBlackScreenCheck" style="background-color: {{ theme.cardLight }}">
+          <text class="tool-name" style="color: {{ theme.text }}">黑屏检测</text>
         </div>
       </div>
     </scroll>
@@ -88,20 +36,33 @@
 <script>
 import router from "@system.router"
 const store = require("../../data/store.js")
-var pinHelper = require("../../data/pin-helper.js")
 var toolSummaries = require("../index/modules/tool-summaries.js")
+var textFit = require("../../common/text-fit.js")
 
-// 参与三视图切换的工具（图标走 PNG 双图；名称 ≤3 字以适配图标模式卡片）
+// 工具全集：名称 ≤2 字（返回键 + 标题共存时 30px 只容得下 2 字，超出会被裁）
 var TOOLS = [
-  { id: "countdown", name: "倒数日", iconFile: "tool_countdown.png", uri: "/pages/countdown-manage" },
-  { id: "lunar", name: "农历", iconFile: "tool_lunar.png", uri: "/pages/lunar-calendar" },
-  { id: "calculator", name: "计算器", iconFile: "tool_calculator.png", uri: "/pages/calculator" },
-  { id: "quote", name: "一言", iconFile: "tool_quote.png", uri: "/pages/daily-quote" },
-  { id: "answer", name: "答案", iconFile: "tool_answer.png", uri: "/pages/answer-book" },
-  { id: "qrcode", name: "二维码", iconFile: "tool_qrcode.png", uri: "/pages/qrcode-generator" },
-  { id: "vibrate", name: "震动", iconFile: "tool_vibrate.png", uri: "/pages/vibration-lab" },
-  { id: "decide", name: "抉择", iconFile: "tool_decide.png", uri: "/pages/decide" }
+  { id: "countdown", name: "倒数日", uri: "/pages/countdown-manage" },
+  { id: "lunar", name: "农历", uri: "/pages/lunar-calendar" },
+  { id: "calculator", name: "计算器", uri: "/pages/calculator" },
+  { id: "quote", name: "一言", uri: "/pages/daily-quote" },
+  { id: "answer", name: "答案", uri: "/pages/answer-book" },
+  { id: "qrcode", name: "二维码", uri: "/pages/qrcode-generator" },
+  { id: "vibrate", name: "震动", uri: "/pages/vibration-lab" },
+  { id: "decide", name: "抉择", uri: "/pages/decide" }
 ]
+
+// 静态定位兜底：实时摘要取不到（系统接口未就绪、无数据）时用它，
+// 保证每行都有完整副标题，不出现空行也不出现残句。≤6P。
+var FALLBACK = {
+  countdown: "纪念日倒数",
+  lunar: "宜忌与节气",
+  calculator: "四则与换算",
+  quote: "每日一句",
+  answer: "想问就问",
+  qrcode: "生成与分享",
+  vibrate: "震动试试",
+  decide: "随机抽签"
+}
 
 export default {
   private: {
@@ -116,20 +77,11 @@ export default {
       textMuted: '#555566',
       border: '#0f3460',
       borderLight: '#2a2a5a',
-      keyBg: '#1a1a3e',
-      keyBorder: '#2a2a5a',
-      btnSecondary: '#333355',
-      btnSecondaryText: '#a0a0b0',
-      deleteBg: '#2a1a3e',
-      deleteText: '#e08080',
       icon: '●',
       progressOngoing: 'rgba(126,200,227,0.2)',
       progressDone: 'rgba(74,138,154,0.25)'
     },
-    isHomePinned: false,
-    tools: TOOLS,
-    richTools: TOOLS,
-    toolViewMode: "icon"
+    tools: TOOLS
   },
 
   onInit() {
@@ -138,8 +90,7 @@ export default {
       self.theme = t
       self.updateIconSrc(themeName)
     })
-    this.loadHomePin()
-    this.loadToolViewMode()
+    this.loadSummaries()
   },
 
   onShow() {
@@ -147,81 +98,48 @@ export default {
     store.getTheme(function(t, themeName) {
       self.updateIconSrc(themeName)
     })
-    this.loadHomePin()
-    this.loadToolViewMode()
+    this.loadSummaries()
   },
 
   updateIconSrc: function(themeName) {
     this.iconTheme = (themeName === 'light' || themeName === 'warm') ? 'light' : 'dark'
   },
 
-  loadHomePin() {
-    var self = this
-    pinHelper.isPinned("/pages/index", function(yes) {
-      self.isHomePinned = yes
-    })
-  },
-
-  // 视图模式：与首页共用 homepage_settings.toolViewMode（缺省落图标模式）
-  loadToolViewMode() {
-    var self = this
-    store.getHomepageSettings(function(settings) {
-      self.toolViewMode = settings.toolViewMode === "list" || settings.toolViewMode === "rich"
-        ? settings.toolViewMode
-        : "icon"
-      if (self.toolViewMode === "rich") self.loadToolSummaries()
-    })
-  },
-
-  setToolMode(mode) {
-    if (mode !== "icon" && mode !== "list" && mode !== "rich") return
-    if (this.toolViewMode === mode) return
-    this.toolViewMode = mode
-    try {
-      require("@system.vibrator").vibrate({ mode: "short" })
-    } catch (e) {}
-    store.getHomepageSettings(function(settings) {
-      settings.toolViewMode = mode
-      store.setHomepageSettings(settings)
-    }, true)
-    if (mode === "rich") this.loadToolSummaries()
-  },
-
-  // 图文模式的实时摘要（取不到则为空，UI 不渲染该行）
-  loadToolSummaries() {
-    var self = this
-    toolSummaries.getAll(function(map) {
-      var out = []
-      for (var i = 0; i < TOOLS.length; i++) {
-        var t = TOOLS[i]
-        out.push({
-          id: t.id,
-          name: t.name,
-          iconFile: t.iconFile,
-          uri: t.uri,
-          summary: map[t.id] || ""
-        })
+  /**
+   * 组装列表行：实时摘要优先，取不到或超预算就用静态定位兜底。
+   * 同一套口径来自 text-fit.js（≤6P 完整语义），装不下就整段不要，绝不出现残句。
+   */
+  buildRows(map) {
+    var out = []
+    for (var i = 0; i < TOOLS.length; i++) {
+      var t = TOOLS[i]
+      var live = ""
+      if (map && map[t.id]) live = map[t.id]
+      var summary = ""
+      try {
+        summary = textFit.fitSummary(live) || textFit.fitSummary(FALLBACK[t.id] || "")
+      } catch (e) {
+        summary = ""
       }
-      self.richTools = out
-    })
+      out.push({ id: t.id, name: t.name, uri: t.uri, summary: summary })
+    }
+    return out
+  },
+
+  // 首帧先用静态兜底，避免等异步接口导致整列没有副标题
+  loadSummaries() {
+    var self = this
+    self.tools = self.buildRows(null)
+    try {
+      toolSummaries.getAll(function(map) {
+        self.tools = self.buildRows(map)
+      })
+    } catch (e) {}
   },
 
   openTool(uri) {
     if (!uri) return
     router.push({ uri: uri })
-  },
-
-  toggleHomePin() {
-    var self = this
-    if (self.isHomePinned) {
-      pinHelper.unpinPage("/pages/index", function() {
-        self.isHomePinned = false
-      })
-    } else {
-      pinHelper.pinPage("Ev工具箱", "/pages/index", function() {
-        self.isHomePinned = true
-      })
-    }
   },
 
   openDeviceInfo() {
@@ -230,29 +148,6 @@ export default {
 
   openDeviceIdDiagnosis() {
     router.push({ uri: "/pages/device-id-diagnosis" })
-  },
-
-
-
-
-  openVibrationLab() {
-    router.push({ uri: "/pages/vibration-lab" })
-  },
-
-  openCountdownManage() {
-    router.push({ uri: "/pages/countdown-manage" })
-  },
-
-  openLunarCalendar() {
-    router.push({ uri: "/pages/lunar-calendar" })
-  },
-
-  openCalculator() {
-    router.push({ uri: "/pages/calculator" })
-  },
-
-  openQRCodeGenerator() {
-    router.push({ uri: "/pages/qrcode-generator" })
   },
 
   openBlackScreenCheck() {
@@ -270,21 +165,21 @@ export default {
   flex-direction: column;
   width: 100%;
   height: 100%;
-  padding: 44px 10px 12px 10px;
+  padding: 44px 12px 16px 12px;
 }
 
 .back-header {
   flex-direction: row;
   width: 100%;
   align-items: center;
-  margin-bottom: 14px;
-  padding: 0 4px;
+  margin-bottom: 12px;
+  flex-shrink: 0;
 }
 
 .back-btn-wrapper {
   width: 48px;
   height: 40px;
-  border-radius: 8px;
+  border-radius: 10px;
   justify-content: center;
   align-items: center;
   flex-shrink: 0;
@@ -302,87 +197,12 @@ export default {
   text-align: center;
   line-height: 40px;
   lines: 1;
-  min-width: 0;
-  text-overflow: ellipsis;
 }
 
 .header-placeholder {
   width: 48px;
-  height: 48px;
+  height: 40px;
   flex-shrink: 0;
-}
-
-.section {
-  flex-direction: column;
-  border-radius: 12px;
-  padding: 18px 14px;
-  margin-bottom: 14px;
-}
-
-.item-row {
-  flex-direction: row;
-  width: 100%;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 0;
-}
-
-.item-label {
-  font-size: 30px;
-  line-height: 40px;
-}
-
-.item-hint {
-  font-size: 28px;
-  margin-left: 8px;
-  line-height: 38px;
-}
-
-.row-divider {
-  height: 1px;
-  margin: 6px 0;
-}
-
-.switch-track {
-  width: 44px;
-  height: 24px;
-  border-radius: 12px;
-  flex-shrink: 0;
-  position: relative;
-}
-
-.switch-thumb {
-  width: 20px;
-  height: 20px;
-  border-radius: 10px;
-  position: absolute;
-  top: 2px;
-}
-
-/* ---------------- 视图切换：圆角矩形按钮（非椭圆） ---------------- */
-
-.mode-row {
-  flex-direction: row;
-  width: 100%;
-  height: 46px;
-  margin-bottom: 10px;
-  flex-shrink: 0;
-}
-
-.mode-seg {
-  flex: 1;
-  height: 46px;
-  border-radius: 10px;
-  border-width: 1px;
-  border-style: solid;
-  justify-content: center;
-  align-items: center;
-}
-
-.mode-text {
-  font-size: 24px;
-  line-height: 46px;
-  text-align: center;
 }
 
 .tool-scroll {
@@ -390,260 +210,43 @@ export default {
   flex-direction: column;
 }
 
-/* ---------------- 模式一：图标 ---------------- */
-
-.tool-grid {
-  flex-direction: row;
+.tool-list {
+  flex-direction: column;
   width: 100%;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  margin-bottom: 12px;
 }
 
-.tool-card {
-  width: 31%;
-  margin-bottom: 8px;
+/* 行内容纵向排列：名称在上、摘要在下，192px 宽屏才不会把摘要挤成两三个字 */
+.tool-row {
   flex-direction: column;
-  align-items: center;
+  width: 100%;
+  align-items: flex-start;
   justify-content: center;
   border-radius: 12px;
-  padding: 12px 2px 10px 2px;
-}
-
-.tool-icon-img {
-  width: 40px;
-  height: 40px;
-  margin-bottom: 6px;
+  padding: 8px 8px;
+  margin-bottom: 8px;
 }
 
 .tool-name {
-  font-size: 24px;
-  line-height: 32px;
-  text-align: center;
-  lines: 1;
-  min-width: 0;
-  text-overflow: ellipsis;
-}
-
-/* ---------------- 模式二：列表 ---------------- */
-
-.tool-list {
-  flex-direction: column;
-  margin-bottom: 12px;
-}
-
-.tool-row {
-  flex-direction: row;
-  width: 100%;
-  align-items: center;
-  height: 56px;
-  border-radius: 12px;
-  padding: 0 10px;
-  margin-bottom: 8px;
-}
-
-.tool-row-icon-box {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  justify-content: center;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-.tool-row-icon {
-  width: 28px;
-  height: 28px;
-}
-
-.tool-row-name {
-  flex: 1;
   font-size: 28px;
   line-height: 36px;
-  margin-left: 8px;
   lines: 1;
-  min-width: 0;
-  text-overflow: ellipsis;
-}
-
-.tool-row-arrow {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-}
-
-/* ---------------- 模式三：图文 ---------------- */
-
-.tool-rich {
-  flex-direction: column;
-  margin-bottom: 12px;
-}
-
-.rich-card {
-  flex-direction: row;
   width: 100%;
-  align-items: center;
-  height: 72px;
-  border-radius: 12px;
-  padding: 0 10px;
-  margin-bottom: 8px;
 }
 
-.rich-icon-box {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  justify-content: center;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-.rich-icon {
-  width: 36px;
-  height: 36px;
-}
-
-.rich-info {
-  flex: 1;
-  flex-direction: column;
-  margin-left: 8px;
-  min-width: 0;
-}
-
-.rich-name {
-  font-size: 26px;
-  line-height: 34px;
+.tool-sum {
+  font-size: 24px;
+  line-height: 32px;
   lines: 1;
-  min-width: 0;
-  text-overflow: ellipsis;
-}
-
-.rich-sum {
-  font-size: 22px;
-  line-height: 30px;
-  lines: 1;
-  min-width: 0;
-  text-overflow: ellipsis;
+  width: 100%;
   margin-top: 2px;
 }
 
-@media (shape: circle) {
-  .page {
-    padding: 44px 36px 44px 36px;
-  }
-  .back-header {
-    margin-bottom: 8px;
-    padding: 0 20px;
-    justify-content: center;
-  }
-  .back-btn-wrapper {
-    width: 52px;
-    height: 40px;
-  }
-  .header-title {
-    font-size: 30px;
-    line-height: 40px;
-  }
-  .item-row {
-    flex-direction: column;
-    align-items: flex-start;
-  }
+/* 诊断段：只靠留白与底色区分，不加标题文字、不画分隔线 */
+.debug-list {
+  margin-top: 16px;
 }
 
-@media (shape: capsule), (shape: pill-shaped) {
-  .page {
-    padding: 30px 16px 30px 16px;
-  }
-
-  .back-header {
-    height: 48px;
-    margin-bottom: 8px;
-    flex-direction: row;
-    width: 100%;
-    align-items: center;
-  }
-  .back-btn-wrapper {
-    width: 48px;
-    height: 48px;
-    border-radius: 24px;
-    flex-shrink: 0;
-  }
-  .header-title {
-    font-size: 20px;
-    line-height: 44px;
-    text-align: center;
-    flex: 1;
-    lines: 1;
-    min-width: 0;
-    text-overflow: ellipsis;
-    margin: 0 4px;
-  }
-  .header-placeholder {
-    width: 48px;
-    height: 48px;
-  }
-  .section {
-    padding: 12px 10px;
-  }
-  .item-row {
-    padding: 14px 0;
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  .item-label {
-    font-size: 32px;
-    line-height: 44px;
-  }
-  .item-hint {
-    display: none;
-  }
-  .switch-track {
-    width: 48px;
-    height: 26px;
-    border-radius: 13px;
-    margin-top: 6px;
-  }
-  .switch-thumb {
-    width: 22px;
-    height: 22px;
-    border-radius: 11px;
-    top: 2px;
-  }
-  /* 图标模式：胶囊屏一行 2 列 */
-  .mode-row {
-    height: 46px;
-    margin-bottom: 8px;
-  }
-  .tool-card {
-    width: 48%;
-  }
-  .tool-icon-img {
-    width: 44px;
-    height: 44px;
-  }
-  .tool-name {
-    font-size: 24px;
-    line-height: 32px;
-  }
-  .tool-row {
-    height: 56px;
-    padding: 0 8px;
-  }
-  .tool-row-name {
-    font-size: 28px;
-    line-height: 36px;
-  }
-  .rich-card {
-    height: 72px;
-    padding: 0 8px;
-  }
-  .rich-name {
-    font-size: 26px;
-    line-height: 32px;
-  }
-  .rich-sum {
-    font-size: 22px;
-    line-height: 28px;
-  }
+.debug-row {
+  min-height: 52px;
 }
 </style>
