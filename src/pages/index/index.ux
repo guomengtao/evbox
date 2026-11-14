@@ -1,124 +1,70 @@
 <template>
-  <div id="evbox-page" class="schedule-page" style="background-color: {{ theme.bg }}">
-    <div class="clock-row" if="{{ showTime }}">
-      <text class="clock-text" style="color: {{ theme.textSecondary }}">{{ currentTime }}</text>
-    </div>
-
-    <!-- 2026-10-02 按用户反馈：头部去掉日期行，只保留时钟 -->
-    <!-- 倒数日大数字（数据源 pages/countdown-manage，模块 countdownHero） -->
-    <div class="cd-hero" if="{{ showCountdown && hasCountdown }}" onclick="openCountdown" style="background-color: {{ theme.cardLight }}">
-      <div class="cd-hero-left">
-        <text class="cd-hero-num" style="color: {{ theme.accent }}">{{ cdBadge }}</text>
-        <text class="cd-hero-unit" if="{{ cdUnit }}" style="color: {{ theme.textSecondary }}">{{ cdUnit }}</text>
-      </div>
-      <div class="cd-hero-right">
-        <text class="cd-hero-title" style="color: {{ theme.text }}">{{ cdTitle }}</text>
-        <text class="cd-hero-sub" style="color: {{ theme.textSecondary }}">{{ cdSubText }}</text>
-      </div>
-      <text class="cd-hero-pin" if="{{ cdPinned }}" style="color: {{ theme.bg }}; background-color: {{ theme.accent }}">钉</text>
-    </div>
-
-    <div class="pinned-bar" if="{{ showPinnedBar && hasPinned }}" style="background-color: {{ theme.cardLight }}">
-      <div class="left-accent left-accent-4" style="background-color: {{ theme.accent }}"></div>
-      <div class="pinned-content">
-        <div class="pinned-row">
-          <div for="{{ pinnedPages }}" class="pinned-tag" onclick="openPinnedPage($item.uri)" style="background-color: {{ theme.card }}; border-color: {{ theme.borderLight }}">
-            <text class="pinned-tag-text" style="color: {{ theme.accent }}">{{ $item.name }}</text>
-          </div>
+  <div class="page" style="background-color: {{ theme.bg }}">
+    <scroll class="content" scroll-y="true">
+      <!-- ① 状态区：裸文锚点，始终占位、不可点。
+           钟开 → 44px 时刻 + 24px 短日期；钟关 → 28px 品牌行，首页不至于空半屏 -->
+      <div class="status">
+        <div class="status-clock" style="display: {{ showTime ? 'flex' : 'none' }}">
+          <text class="clock-main" style="color: {{ theme.accent }}">{{ currentTime }}</text>
+          <text class="date-sub" style="color: {{ subColor }}">{{ dateText }}</text>
         </div>
-      </div>
-    </div>
-
-    <!-- 工具显示模式：图标 / 列表 / 图文（偏好存 homepage_settings.toolViewMode） -->
-    <div class="mode-row" style="background-color: {{ theme.card }}">
-      <div class="mode-seg" onclick="setToolMode('icon')" style="background-color: {{ toolViewMode === 'icon' ? theme.accent : 'transparent' }}">
-        <text class="mode-text" style="color: {{ toolViewMode === 'icon' ? theme.bg : theme.textSecondary }}">图标</text>
-      </div>
-      <div class="mode-seg" onclick="setToolMode('list')" style="background-color: {{ toolViewMode === 'list' ? theme.accent : 'transparent' }}">
-        <text class="mode-text" style="color: {{ toolViewMode === 'list' ? theme.bg : theme.textSecondary }}">列表</text>
-      </div>
-      <div class="mode-seg" onclick="setToolMode('rich')" style="background-color: {{ toolViewMode === 'rich' ? theme.accent : 'transparent' }}">
-        <text class="mode-text" style="color: {{ toolViewMode === 'rich' ? theme.bg : theme.textSecondary }}">图文</text>
-      </div>
-    </div>
-
-    <scroll class="class-list" scroll-y="true">
-      <!-- 模式一：图标（胶囊屏一行 2 列） -->
-      <div class="tool-grid" if="{{ toolViewMode === 'icon' }}">
-        <div for="{{ tools }}" class="tool-card" onclick="openTool($item)" style="background-color: {{ theme.card }}">
-          <image class="tool-icon-img" src="/common/icons/tools/{{ iconTheme }}/{{ $item.iconFile }}"></image>
-          <text class="tool-name" style="color: {{ theme.text }}">{{ $item.name }}</text>
+        <div class="status-brand" style="display: {{ showTime ? 'none' : 'flex' }}">
+          <text class="brand-main" style="color: {{ theme.accent }}">Ev工具箱</text>
         </div>
       </div>
 
-      <!-- 模式二：列表（扫视最快） -->
-      <div class="tool-list" if="{{ toolViewMode === 'list' }}">
-        <div for="{{ tools }}" class="tool-row" onclick="openTool($item)" style="background-color: {{ theme.card }}">
-          <div class="tool-row-icon-box" style="background-color: {{ theme.cardLight }}">
-            <image class="tool-row-icon" src="/common/icons/tools/{{ iconTheme }}/{{ $item.iconFile }}"></image>
-          </div>
-          <text class="tool-row-name" style="color: {{ theme.text }}">{{ $item.name }}</text>
-          <image class="tool-row-arrow" src="/common/icons/{{ iconTheme }}/icon_chevron_right.png"></image>
+      <!-- ② 焦点卡：倒数日。card 底色表达可点性，不用箭头、不用「钉」徽标 -->
+      <div class="focus" onclick="openCountdown" style="display: {{ showCountdown && hasCountdown ? 'flex' : 'none' }}; background-color: {{ theme.card }}">
+        <div class="focus-num-row">
+          <text class="num-main" style="color: {{ theme.accent }}">{{ cdBadge }}</text>
+          <text class="num-unit" style="color: {{ subColor }}">{{ cdUnit }}</text>
         </div>
+        <text class="focus-title" style="color: {{ theme.text }}">{{ cdTitle }}</text>
       </div>
 
-      <!-- 模式三：图文（图标 + 名称 + 实时摘要） -->
-      <div class="tool-rich" if="{{ toolViewMode === 'rich' }}">
-        <div for="{{ richTools }}" class="rich-card" onclick="openTool($item)" style="background-color: {{ theme.card }}">
-          <div class="rich-icon-box" style="background-color: {{ theme.cardLight }}">
-            <image class="rich-icon" src="/common/icons/tools/{{ iconTheme }}/{{ $item.iconFile }}"></image>
-          </div>
-          <div class="rich-info">
-            <text class="rich-name" style="color: {{ theme.text }}">{{ $item.name }}</text>
-            <text class="rich-sum" if="{{ $item.summary }}" style="color: {{ theme.textSecondary }}">{{ $item.summary }}</text>
-          </div>
-        </div>
+      <!-- ③ 入口行：亮底 = P0 主操作，card = 次操作。无图标、无箭头、无徽标 -->
+      <div class="action action-primary" onclick="openTools" style="background-color: {{ theme.cardLight }}">
+        <text class="action-text" style="color: {{ theme.text }}">全部工具</text>
+      </div>
+      <div class="action" onclick="openPinned" style="background-color: {{ theme.card }}">
+        <text class="action-text" style="color: {{ theme.text }}">已钉页面</text>
+      </div>
+      <div class="action" onclick="openSettings" style="background-color: {{ theme.card }}">
+        <text class="action-text" style="color: {{ theme.text }}">设置</text>
+      </div>
+      <div class="action" onclick="exitBox" style="background-color: {{ theme.card }}">
+        <text class="action-text" style="color: {{ theme.text }}">退出</text>
+      </div>
+
+      <!-- 内联状态条：固定 34px 高，只换文字不换高度；禁用 toast -->
+      <div class="hint-wrap" style="display: {{ exitHint ? 'flex' : 'none' }}">
+        <text class="inline-hint" style="color: {{ subColor }}">{{ exitHint }}</text>
       </div>
     </scroll>
 
-    <!-- 2026-10-26 底部按钮补底色：列表可滚动，滚到末行时卡片会从按钮背后透出来 -->
-    <div class="bottom-buttons" style="background-color: {{ theme.bg }}">
-      <input class="style-btn" type="button" value="工具" onclick="openTools" style="margin-right: 4px; background-color: {{ theme.cardLight }}; color: {{ theme.text }}" />
-      <input class="style-btn" type="button" value="设置" onclick="openSettings" style="background-color: {{ theme.cardLight }}; color: {{ theme.text }}" />
+    <div class="scroll-hint-wrap" style="display: {{ needScroll ? 'flex' : 'none' }}">
+      <text class="scroll-hint" style="color: {{ subColor }}">下滑查看</text>
     </div>
   </div>
 </template>
 
 <script>
 import router from "@system.router"
-import prompt from "@system.prompt"
+
 const store = require("../../data/store.js")
-const device = require("@system.device")
-const toolSummaries = require("./modules/tool-summaries.js")
+const utils = require("../../data/utils.js")
 
-var isCapsuleScreen = false
-
-function pad(n) {
-  return n < 10 ? "0" + n : "" + n
-}
-
-function formatDateShort(d) {
-  return pad(d.getMonth() + 1) + "-" + pad(d.getDate())
-}
-
-var indexInstance = null
-
-// 屏型异步返回，拿到后回填并刷新
-device.getInfo({
-  success: function(data) {
-    var shape = data.screenShape || ""
-    var capsule = (shape === "capsule" || shape === "pill-shaped")
-    isCapsuleScreen = capsule
-    if (indexInstance && indexInstance.isCapsule !== capsule) {
-      indexInstance.isCapsule = capsule
-      try { indexInstance.$forceUpdate() } catch (e) {}
-    }
-  },
-  fail: function() {}
-})
+/**
+ * EvBox 首页 · ev-six 合规实现
+ * 正本：docs/pages/core/index.md ／ 总纲 §3.21 ／ 手环页面开工手册 v7
+ *
+ * 三条硬约束：
+ *  1) 字号只出现 44 / 30 / 28 / 24（见 style），24px 是绝对下限；
+ *  2) 页面左右 padding 12px、卡片/行 8px，留白只从高度买；
+ *  3) 无行内箭头 / 分隔符 / 徽标 / text-overflow / showToast / if 指令。
+ */
 
 var modules = {}
-// 时钟 / 钉首页 / 倒数日大数字
 var moduleNames = [
   { key: "clock" },
   { key: "pinnedPages", defer: true },
@@ -126,53 +72,55 @@ var moduleNames = [
 ]
 
 function loadModule(key, mod) {
-  if (mod && mod.init) {
-    modules[key] = mod
-  } else {
-    modules[key] = null
-  }
+  modules[key] = (mod && mod.init) ? mod : null
 }
 
 loadModule("clock", require("./modules/clock.js"))
 loadModule("pinnedPages", require("./modules/pinned-pages.js"))
 loadModule("countdownHero", require("./modules/countdown-hero.js"))
 
-// 工具箱入口：图标一律走 PNG 双图（/common/icons/tools/{dark,light}/）
-// 名称控制在 ≤3 字，保证胶囊屏「图标模式」2 列卡片（76px 宽）能单行放下
-var TOOLS = [
-  { id: "countdown", name: "倒数日", iconFile: "tool_countdown.png", uri: "/pages/countdown-manage" },
-  { id: "lunar", name: "农历", iconFile: "tool_lunar.png", uri: "/pages/lunar-calendar" },
-  { id: "calculator", name: "计算器", iconFile: "tool_calculator.png", uri: "/pages/calculator" },
-  { id: "quote", name: "一言", iconFile: "tool_quote.png", uri: "/pages/daily-quote" },
-  { id: "answer", name: "答案", iconFile: "tool_answer.png", uri: "/pages/answer-book" },
-  { id: "qrcode", name: "二维码", iconFile: "tool_qrcode.png", uri: "/pages/qrcode-generator" },
-  { id: "vibrate", name: "震动", iconFile: "tool_vibrate.png", uri: "/pages/vibration-lab" },
-  { id: "backup", name: "备份", iconFile: "tool_backup.png", uri: "/pages/backup-restore" },
-  { id: "device", name: "设备", iconFile: "tool_device.png", uri: "/pages/device-info" },
-  // 退出固定为最后一项：不是跳转，点击直接退出快应用
-  { id: "exit", name: "退出", iconFile: "tool_exit.png", exit: true }
-]
+function dateShort(d) {
+  return (d.getMonth() + 1) + "月" + d.getDate() + "日"
+}
+
+/**
+ * 派生次要文字色。theme.textSecondary (#888899) 对深底约 4.0:1，
+ * 低于 WCAG AA 的 4.5:1；深底提亮、浅底压深，自动适配全部 THEMES。
+ */
+function resolveSubColor(bg) {
+  var hex = (bg || "#1a1a2e").replace("#", "")
+  if (hex.length !== 6) return "#a8a8bd"
+  var parts = [hex.slice(0, 2), hex.slice(2, 4), hex.slice(4, 6)]
+  var lin = []
+  for (var i = 0; i < 3; i++) {
+    var v = parseInt(parts[i], 16) / 255
+    lin.push(v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4))
+  }
+  var L = 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]
+  return L > 0.45 ? "#3a3a4e" : "#a8a8bd"
+}
 
 export default {
   private: {
-    isCapsule: false,
-    iconTheme: "dark",
-    currentTime: "",
     showTime: true,
-    showPinnedBar: true,
     showCountdown: true,
+    showPinnedBar: true,
     hasCountdown: false,
+    hasPinned: false,
+    currentTime: "",
+    dateText: "",
     cdBadge: "",
     cdUnit: "",
     cdTitle: "",
     cdSubText: "",
     cdPinned: false,
-    timeFormat: { hour: true, minute: true, second: false },
     pinnedPages: [],
-    hasPinned: false,
-    tools: TOOLS,
-    richTools: TOOLS,
-    toolViewMode: "icon",
+    exitHint: "",
+    needScroll: false,
+    subColor: "#a8a8bd",
+    // ev-six：44px 只放得下 HH:MM(2.7P → 158px)。带秒 4.3P → 252px、
+    // 完整日期 12.3P，均超 168px 内容宽，故首页不消费 timeFormat 的年月日/秒设置。
+    timeFormat: { hour: true, minute: true, second: false },
     theme: {
       bg: '#1a1a2e',
       card: '#16213e',
@@ -188,118 +136,92 @@ export default {
 
   onInit() {
     var self = this
-    indexInstance = self
-    self.isCapsule = isCapsuleScreen
     self.initialized = false
-    store.getTheme(function(t, themeName) {
-      self.theme = t
-      self.updateIconSrc(themeName)
-    })
+    self.applyTheme(false)
     self.loadHomepageSettings()
     self.initAllModules()
   },
 
   onShow() {
     var self = this
-    self.isCapsule = isCapsuleScreen
-    store.getTheme(function(t, themeName) {
-      self.theme = t
-      self.updateIconSrc(themeName)
-    }, true)
+    self.applyTheme(true)
     self.loadHomepageSettings()
-    if (self.loadPinnedPages && typeof self.loadPinnedPages === 'function') {
-      self.loadPinnedPages()
-    }
+    self.dateText = dateShort(new Date())
+    self.exitHint = ""
     if (self.loadCountdownHero && typeof self.loadCountdownHero === 'function') {
       self.loadCountdownHero()
     }
-    if (self.loadToolSummaries && typeof self.loadToolSummaries === 'function' && self.toolViewMode === "rich") {
-      self.loadToolSummaries()
-    }
-    try { this.$forceUpdate() } catch (e) {}
+    // 焦点数据由 storage 异步回填，延迟重算一次滚动提示（只影响一行提示文案）
+    if (self.hintTimer) clearTimeout(self.hintTimer)
+    self.hintTimer = setTimeout(function() {
+      self.hintTimer = null
+      self.updateScrollHint()
+      try { self.$forceUpdate() } catch (e) {}
+    }, 200)
   },
 
   onDestroy() {
     if (this.deferTimer) clearTimeout(this.deferTimer)
+    if (this.hintTimer) clearTimeout(this.hintTimer)
     if (this.stopClockTimer && typeof this.stopClockTimer === 'function') this.stopClockTimer()
+  },
+
+  applyTheme(forceRefresh) {
+    var self = this
+    // 防黑屏十诫：异步回调里的异常不能让整页不渲染，保底沿用 private 里的默认主题
+    store.getTheme(function(t) {
+      try {
+        self.theme = t
+        self.subColor = resolveSubColor(t.bg)
+      } catch (e) {
+        console.error("[index] applyTheme fallback: " + (e.message || e))
+      }
+    }, forceRefresh === true)
   },
 
   loadHomepageSettings() {
     var self = this
     store.getHomepageSettings(function(settings) {
       self.showTime = settings.showTime !== false
-      self.showPinnedBar = settings.showPinnedBar !== false
       self.showCountdown = settings.showCountdown !== false
-      // 工具显示模式：缺省即图标模式（旧数据无此字段时自动落到 icon）
-      self.toolViewMode = settings.toolViewMode === "list" || settings.toolViewMode === "rich"
-        ? settings.toolViewMode
-        : "icon"
-      if (self.toolViewMode === "rich") self.loadToolSummaries()
-      self.timeFormat = settings.timeFormat || { hour: true, minute: true, second: false }
-      if (isCapsuleScreen) {
-        self.timeFormat.second = false
-      }
-      if (typeof self.updateClock === 'function') {
-        self.updateClock()
-      }
+      self.showPinnedBar = settings.showPinnedBar !== false
+      // 首页强制短时刻格式，理由见 private.timeFormat 注释。
+      // homepage_settings.toolViewMode 首页不再消费，仍由 pages/tools 使用。
+      self.timeFormat = { hour: true, minute: true, second: false }
+      if (typeof self.updateClock === 'function') self.updateClock()
+      self.updateScrollHint()
       self.initialized = true
       try { self.$forceUpdate() } catch (e) {}
     }, true)
   },
 
-  // 工具显示模式：图标 / 列表 / 图文（偏好持久化到 homepage_settings.toolViewMode）
-  setToolMode(mode) {
-    if (mode !== "icon" && mode !== "list" && mode !== "rich") return
-    if (this.toolViewMode === mode) return
-    this.toolViewMode = mode
-    try {
-      require("@system.vibrator").vibrate({ mode: "short" })
-    } catch (e) {}
-    store.getHomepageSettings(function(settings) {
-      settings.toolViewMode = mode
-      store.setHomepageSettings(settings)
-    }, true)
-    if (mode === "rich") this.loadToolSummaries()
-    try { this.$forceUpdate() } catch (e) {}
+  /** 单屏可用 442px；按实际区块高度估算是否需要下滑提示，绝不靠压字号容纳 */
+  updateScrollHint() {
+    // 56 页 padding + 314 四个操作行(58×4 + 20×3 + 22) + 状态区(钟开 106 / 钟关 50)
+    var h = 56 + 314 + (this.showTime ? 106 : 50)
+    if (this.showCountdown && this.hasCountdown) h += 128
+    this.needScroll = h > 442
   },
 
-  // 图文模式的实时摘要（取不到的项摘要为空，UI 不渲染该行）
-  loadToolSummaries() {
-    var self = this
-    toolSummaries.getAll(function(map) {
-      var out = []
-      for (var i = 0; i < TOOLS.length; i++) {
-        var t = TOOLS[i]
-        out.push({
-          id: t.id,
-          name: t.name,
-          iconFile: t.iconFile,
-          uri: t.uri,
-          summary: map[t.id] || ""
-        })
-      }
-      self.richTools = out
-    })
-  },
-
+  // 防黑屏十诫第 1 条：onInit 链路上的 for 必须包 try-catch，
+  // 渲染引擎可能在盒模型算完前执行，崩了会整页黑。
   initAllModules() {
     var self = this
-    var deferred = []
-    for (var i = 0; i < moduleNames.length; i++) {
-      var m = moduleNames[i]
-      if (m.defer) {
-        deferred.push(m.key)
-        continue
+    try {
+      var deferred = []
+      for (var i = 0; i < moduleNames.length; i++) {
+        var m = moduleNames[i]
+        if (m.defer) { deferred.push(m.key); continue }
+        self.initOneModule(m.key)
       }
-      self.initOneModule(m.key)
-    }
-    if (deferred.length > 0) {
-      self.deferTimer = setTimeout(function() {
-        self.deferTimer = null
-        for (var j = 0; j < deferred.length; j++) {
-          self.initOneModule(deferred[j])
-        }
-      }, 50)
+      if (deferred.length > 0) {
+        self.deferTimer = setTimeout(function() {
+          self.deferTimer = null
+          for (var j = 0; j < deferred.length; j++) self.initOneModule(deferred[j])
+        }, 50)
+      }
+    } catch (e) {
+      console.error("[index] initAllModules fallback: " + (e.message || e))
     }
   },
 
@@ -315,1420 +237,199 @@ export default {
     }
   },
 
-  // 传入整条工具数据：普通项跳转，退出项直接退出快应用
-  openTool(item) {
-    if (!item) return
-    if (item.exit) {
-      try {
-        require("@system.vibrator").vibrate({ mode: "short" })
-      } catch (e) {}
-      var utils = require("../../data/utils.js")
-      if (!utils.exitApp()) {
-        prompt.showToast({ message: "此设备不支持直接退出，请用手势返回表盘" })
-      }
-      return
-    }
-    router.push({ uri: item.uri })
+  openCountdown() {
+    router.push({ uri: "/pages/countdown-manage" })
   },
 
   openTools() {
     router.push({ uri: "/pages/tools" })
   },
 
+  openPinned() {
+    router.push({ uri: "/pages/pinned-pages" })
+  },
+
   openSettings() {
     router.push({ uri: "/pages/settings" })
   },
 
-  updateIconSrc(themeName) {
-    this.iconTheme = (themeName === 'light' || themeName === 'warm') ? 'light' : 'dark'
+  /** 退出失败走内联状态条，不用 prompt.showToast（系统浮层会压住页面） */
+  exitBox() {
+    if (utils.exitApp() === true) return
+    this.exitHint = "手势返回"
+    try { this.$forceUpdate() } catch (e) {}
   },
 
   onBackPress() {
-    var utils = require("../../data/utils.js")
     return utils.exitApp() === true
   }
 }
 </script>
 
 <style>
-.schedule-page {
+/**
+ * EvBox 首页 · ev-six 设计令牌落地
+ * 正本：docs/pages/core/index.md ／ 总纲 §3.21 ／ 手环页面开工手册 v7
+ *
+ * 字号只有四档：44/60、30/40、28/38、24/34（本页实际只用 44/28/24）。
+ * 宽度是硬预算：屏 192 − 页面 padding 12×2 = 168px；卡片再扣 8×2 = 152px。
+ * 留白只从高度买：抬 line-height → 纵向 padding → 纵向 margin，横向一律不动。
+ * 三级底色：裸文（信息）→ card（次操作）→ cardLight（P0 主操作），不靠符号表达可点性。
+ */
+
+.page {
   flex-direction: column;
   width: 100%;
   height: 100%;
-  padding: 44px 8px 8px 8px;
+  /* 顶部 40px 留胶囊屏圆角安全区。刻意不用 @media：快应用引擎不支持
+     逗号分隔的媒体查询列表（防黑屏十诫第 5 条，会令布局规则全失配）；
+     本页只面向 192×490 手环 9 胶囊屏，固定值即唯一正确值。 */
+  padding: 40px 12px 16px 12px;
 }
 
-.header {
-  flex-direction: row;
-  width: 100%;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 4px;
-  margin-bottom: 4px;
-  flex-shrink: 0;
-}
-
-.clock-row {
-  padding: 2px 0;
-  margin-bottom: 2px;
-  flex-shrink: 0;
-}
-
-.clock-text {
-  font-size: 20px;
-  text-align: center;
-  width: 100%;
-}
-
-/* 2026-10-02 按用户反馈：头部日期行已从模板移除（.date-row / .date-text 样式一并清理） */
-
-.header { line-height: 28px;
-}
-
-.day-title {
-  font-weight: bold;
-  text-align: center;
-  lines: 1;
-  min-width: 0;
-  flex: 1;
-  }
-
-.nav-btn-circle {
-  width: 48px;
-  height: 48px;
-  border-radius: 24px;
-  justify-content: center;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-.nav-btn-img {
-  width: 24px;
-  height: 24px;
-}
-
-.day-nav-btns {
-  flex-direction: row;
-  width: 100%;
-}
-
-.nav-toolbar {
-  flex-direction: row;
-  width: 100%;
-  justify-content: space-around;
-  align-items: center;
-  height: 48px;
-  margin-bottom: 4px;
-  flex-shrink: 0;
-  padding: 0 4px;
-}
-
-.day-nav-circle {
-  width: 44px;
-  height: 44px;
-  border-radius: 22px;
-  justify-content: center;
-  align-items: center;
-  margin-left: 4px;
-}
-
-.day-nav-text {
-  font-size: 20px;
-  line-height: 28px;
-  font-weight: bold;
-  text-align: center;
-}
-
-.custom-content-bar {
-  flex-direction: row;
-  width: 100%;
-  align-items: center;
-  padding: 8px;
-  border-radius: 8px;
-  margin-bottom: 4px;
-  flex-shrink: 0;
-}
-
-.custom-content-text {
-  font-size: 20px;
-  flex: 1;
-  lines: 1;
-  min-width: 0;
-  text-overflow: ellipsis;
-  line-height: 28px;
-}
-
-.status-bar {
-  flex-direction: row;
-  width: 100%;
-  align-items: center;
-  padding: 8px;
-  border-radius: 8px;
-  margin-bottom: 4px;
-  flex-shrink: 0;
-}
-
-.status-tag {
-  font-size: 20px;
-  padding: 2px 8px;
-  border-radius: 4px;
-  margin-right: 8px;
-  line-height: 28px;
-}
-
-.status-middle {
-  font-size: 20px;
-  flex: 1;
-  lines: 1;
-  min-width: 0;
-  line-height: 28px;
-}
-
-.status-right {
-  font-size: 20px;
-  line-height: 28px;
-}
-
-.pinned-bar {
-  flex-direction: row;
-  width: 100%;
-  align-items: center;
-  padding: 4px 8px;
-  border-radius: 8px;
-  margin-bottom: 4px;
-  flex-shrink: 0;
-}
-
-.pinned-content {
-  flex: 1;
-}
-
-.pinned-row {
-  flex-direction: row;
-  width: 100%;
-  flex-wrap: wrap;
-}
-
-.pinned-tag {
-  padding: 6px 16px;
-  border-radius: 18px;
-  margin-right: 8px;
-  margin-bottom: 4px;
-  flex-shrink: 0;
-  border-width: 1px;
-}
-
-.pinned-tag-text {
-  font-size: 20px;
-  line-height: 28px;
-  lines: 1;
-  min-width: 0;
-}
-
-/* ---------------- 倒数日大数字 ---------------- */
-
-.cd-hero {
-  flex-direction: row;
-  width: 100%;
-  align-items: center;
-  padding: 8px 10px;
-  border-radius: 10px;
-  margin-bottom: 6px;
-  flex-shrink: 0;
-}
-
-.cd-hero-left {
-  flex-direction: row;
-  width: 100%;
-  align-items: flex-end;
-  margin-right: 12px;
-  flex-shrink: 0;
-}
-
-.cd-hero-num {
-  font-size: 40px;
-  font-weight: bold;
-  line-height: 46px;
-}
-
-.cd-hero-unit {
-  font-size: 20px;
-  line-height: 28px;
-  margin-left: 3px;
-}
-
-.cd-hero-right {
-  flex: 1;
+.content {
   flex-direction: column;
-  min-width: 0;
+  width: 100%;
+  flex: 1;
 }
 
-.cd-hero-title {
-  font-size: 26px;
+/* ---- ① 状态区：裸文，无底色，不参与可点性层级 ---- */
+.status {
+  flex-direction: column;
+  width: 100%;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
+
+.status-clock {
+  flex-direction: column;
+  width: 100%;
+}
+
+.status-brand {
+  flex-direction: row;
+  width: 100%;
+}
+
+/* 钟关时的锚点：与操作行同字号，靠 accent 色 + 无底色区分层级 */
+.brand-main {
+  font-size: 28px;
+  line-height: 38px;
+  font-weight: bold;
+  lines: 1;
+  width: 100%;
+}
+
+.clock-main {
+  font-size: 44px;
+  line-height: 60px;
+  font-weight: bold;
+  lines: 1;
+  width: 100%;
+}
+
+.date-sub {
+  font-size: 24px;
   line-height: 34px;
   lines: 1;
-  min-width: 0;
-  text-overflow: ellipsis;
+  width: 100%;
 }
 
-.cd-hero-sub {
-  font-size: 20px;
-  line-height: 28px;
-  lines: 1;
-  min-width: 0;
-  text-overflow: ellipsis;
-}
-
-.cd-hero-pin {
-  font-size: 18px;
-  line-height: 26px;
-  padding: 0 8px;
-  border-radius: 13px;
-  margin-left: 8px;
-  flex-shrink: 0;
-}
-
-.class-list {
-  flex: 1;
+/* ---- ② 焦点卡：上下 12px 免费，左右 8px 占位置 ---- */
+.focus {
   flex-direction: column;
-  margin-bottom: 4px;
-}
-
-.class-grid {
-  flex-direction: column;
-}
-
-.class-grid-item {
-  position: relative;
   width: 100%;
-  min-height: 60px;
-  border-radius: 12px;
-  padding: 0;
-  margin-bottom: 10px;
-  flex-direction: row;
-  overflow: hidden;
-}
-
-.class-card-accent {
-  width: 5px;
-  flex-shrink: 0;
-  border-radius: 3px 0 0 3px;
-}
-
-.class-card-body {
-  flex: 1;
-  flex-direction: column;
-  padding: 14px 16px 14px 14px;
-}
-
-.progress-bg {
-  position: absolute;
-  left: 0;
-  top: 0;
-  height: 100%;
-  opacity: 0.12;
-}
-
-.grid-item-name {
-  font-weight: bold;
-  text-overflow: ellipsis;
-  lines: 1;
-  min-width: 0;
-  flex-shrink: 1;
-}
-
-.card-name-row {
-  flex-direction: row;
-  align-items: baseline;
-  justify-content: space-between;
-  width: 100%;
-  margin-bottom: 6px;
-}
-
-.grid-item-location-inline {
-  margin-left: 6px;
-  lines: 1;
-  min-width: 0;
-  flex-shrink: 0;
-}
-
-.grid-item-location {
-  lines: 1;
-  min-width: 0;
-  text-overflow: ellipsis;
-  margin-bottom: 4px;
-}
-
-.grid-item-time {
-  lines: 1;
-  min-width: 0;
-  text-overflow: ellipsis;
-  flex-shrink: 0;
-}
-
-.empty-card {
-  padding: 20px;
-  align-items: center;
-}
-
-.empty-text {
-  font-size: 20px;
-  line-height: 28px;
-}
-
-/* ── skeleton ── */
-.skeleton-list {
-  flex-direction: column;
-  padding: 6px 0;
-}
-
-.skeleton-card {
-  flex-direction: row;
-  width: 100%;
-  border-radius: 12px;
-  margin-bottom: 6px;
-  overflow: hidden;
-  height: 72px;
-  opacity: 0.7;
-}
-
-.skeleton-accent {
-  width: 4px;
-  height: 100%;
-  flex-shrink: 0;
-}
-
-.skeleton-body {
-  flex: 1;
-  padding: 12px 14px;
-  flex-direction: column;
-  justify-content: center;
-}
-
-.skeleton-bar {
-  flex-shrink: 0;
-}
-
-.quick-add {
-  border-radius: 10px;
-  margin-bottom: 4px;
-  flex-direction: column;
-  flex-shrink: 0;
-}
-
-.quick-add-header {
-  flex-direction: row;
-  width: 100%;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 12px;
-  border-radius: 10px;
-}
-
-.quick-add-title {
-  font-size: 20px;
-  font-weight: bold;
-  line-height: 28px;
-}
-
-.quick-add-info {
-  flex-direction: row;
-  width: 100%;
-  align-items: center;
-}
-
-.quick-add-time {
-  font-size: 20px;
-  margin-right: 6px;
-  line-height: 28px;
-}
-
-.quick-add-arrow-img {
-  width: 20px;
-  height: 20px;
-  margin-left: 4px;
-}
-
-.quick-add-row-scroll {
-  flex-direction: column;
-  padding: 0 0 8px 0;
-}
-
-.quick-add-scroll {
-  height: 44px;
-}
-
-.quick-add-tags {
-  flex-direction: row;
-  width: 100%;
-  padding: 0 8px;
-}
-
-.quick-add-tag {
-  border-radius: 20px;
-  padding: 8px 16px;
-  margin-right: 8px;
-  flex-shrink: 0;
-}
-
-.quick-add-tag-text {
-  font-size: 20px;
-  line-height: 28px;
-}
-
-.quick-add-plus-text {
-  font-size: 24px;
-  font-weight: bold;
-}
-
-.quick-add-empty {
-  font-size: 20px;
-  line-height: 28px;
-  padding: 6px 12px;
-  text-align: center;
-}
-
-.bottom-buttons {
-  flex-direction: row;
-  width: 100%;
-  justify-content: space-between;
-  margin-bottom: 4px;
-  flex-shrink: 0;
-}
-
-.add-btn-wrapper {
-  flex: 1;
-  height: 44px;
-  border-radius: 22px;
-  margin-right: 4px;
-  flex-direction: row;
-  width: 100%;
-  justify-content: center;
-  align-items: center;
-}
-
-.add-btn-icon {
-  width: 24px;
-  height: 24px;
-}
-
-.add-btn-label {
-  font-size: 20px;
-  font-weight: bold;
-  margin-left: 4px;
-}
-
-.style-btn {
-  flex: 1;
-  height: 44px;
-  border-radius: 22px;
-  font-size: 20px;
-  font-weight: bold;
-  text-align: center;
-  border-width: 0;
-  line-height: 44px;
-}
-
-.week-indicator {
   padding: 12px 8px;
-  align-items: center;
-  justify-content: center;
-  flex-direction: row;
-  width: 100%;
-}
-
-.week-swap-icon {
-  width: 16px;
-  height: 16px;
-  margin-right: 4px;
-}
-
-.week-text {
-  flex-shrink: 0;
-  font-size: 20px;
-  line-height: 28px;
-  text-align: center;
-}
-
-.left-accent {
-  width: 4px;
-  border-radius: 2px;
-  margin-right: 8px;
-}
-
-.left-accent-4 {
-  height: 24px;
-}
-
-.left-accent-6 {
-  height: 28px;
-}
-
-.workday-tip-bar {
-  flex-direction: row;
-  width: 100%;
-  align-items: center;
-  padding: 10px 14px;
-  border-radius: 8px;
-  margin-bottom: 4px;
-  flex-shrink: 0;
-}
-
-.workday-tip-text {
-  font-size: 18px;
-  line-height: 26px;
-  flex: 1;
-}
-
-.workday-info-btn {
-  width: 28px;
-  height: 28px;
   border-radius: 14px;
-  font-size: 16px;
-  font-weight: bold;
-  line-height: 28px;
-  text-align: center;
-  flex-shrink: 0;
-  margin-left: 6px;
-}
-
-.holiday-greeting-card {
-  flex-direction: column;
-  padding: 14px;
-  border-radius: 8px;
   margin-bottom: 10px;
   flex-shrink: 0;
 }
 
-.holiday-greeting-name {
-  font-size: 20px;
+.focus-num-row {
+  flex-direction: row;
+  align-items: flex-end;
+  width: 100%;
+}
+
+.num-main {
+  font-size: 44px;
+  line-height: 60px;
   font-weight: bold;
-  line-height: 28px;
-  margin-bottom: 2px;
+  lines: 1;
 }
 
-.holiday-greeting-text {
-  font-size: 22px;
-  line-height: 30px;
-}
-
-@media (shape: circle) {
-  .schedule-page {
-    padding: 44px 36px 44px 36px;
-  }
-  /* 圆屏横向空间同样紧张，取 44px 而非规范 48px */
-  /* 胶囊屏 header 实际只有 ◀ + 标题 + ▶（总/今/明已移到 nav-toolbar），
-     48×2 = 96px，标题仍有 64px（单字 26px 绰绰有余），可提到 48px */
-  .nav-btn-circle {
-    width: 48px;
-    height: 48px;
-    border-radius: 24px;
-  }
-  .nav-btn-img {
-    width: 22px;
-    height: 22px;
-  }
-  .day-nav-circle {
-    width: 36px;
-    height: 36px;
-    border-radius: 18px;
-    margin-left: 2px;
-  }
-  .add-btn-wrapper,
-  .style-btn {
-    height: 40px;
-    border-radius: 20px;
-  }
-  .add-btn-icon {
-    width: 22px;
-    height: 22px;
-  }
-  .add-btn-label {
-    font-size: 18px;
-  }
-  .bottom-buttons {
-    margin-bottom: 8px;
-  }
-  .cd-hero {
-    padding: 6px 8px;
-    margin-bottom: 4px;
-  }
-  .cd-hero-left {
-    margin-right: 8px;
-  }
-  .cd-hero-num {
-    font-size: 34px;
-    line-height: 40px;
-  }
-  .cd-hero-unit {
-    font-size: 18px;
-    line-height: 24px;
-  }
-  .cd-hero-title {
-    font-size: 22px;
-    line-height: 30px;
-  }
-  .cd-hero-sub {
-    font-size: 18px;
-    line-height: 24px;
-  }
-}
-
-@media (shape: capsule), (shape: pill-shaped) {
-  .schedule-page {
-    padding: 30px 16px 30px 16px;
-  }
-  .clock-row {
-    padding: 4px 0;
-    margin-bottom: 4px;
-  }
-  .clock-text {
-    font-size: 20px;
-    line-height: 28px;
-  }
-  .header {
-    padding: 2px 0;
-    margin-bottom: 4px;
-  }
-  /* 胶囊屏 header 横向要放 ◀ 标题 [总] ▶，192px 物理宽下
-     3×48px 会把标题挤没，故取 44px 作为物理上限 */
-  /* 胶囊屏 header 实际只有 ◀ + 标题 + ▶（总/今/明已移到 nav-toolbar），
-     48×2 = 96px，标题仍有 64px（单字 26px 绰绰有余），可提到 48px */
-  .nav-btn-circle {
-    width: 48px;
-    height: 48px;
-    border-radius: 24px;
-  }
-  .nav-btn-img {
-    width: 22px;
-    height: 22px;
-  }
-  .day-title {
-    font-size: 26px;
-    font-weight: bold;
-    text-align: center;
-    flex: 1;
-    lines: 1;
-    min-width: 0;
-  }
-  /* 胶囊屏下「总 / 今 / 明」已移到 header 下方的 nav-toolbar，不再与标题抢宽度，
-     48×3 + 间距 = 150px < 160px 内容区，可提到规范的 48px */
-  .day-nav-circle {
-    width: 48px;
-    height: 48px;
-    border-radius: 24px;
-    margin-left: 2px;
-  }
-  .day-nav-text {
-    font-size: 20px;
-    line-height: 28px;
-  }
-  .custom-content-text {
-    font-size: 20px;
-    line-height: 28px;
-  }
-  .status-bar {
-    padding: 8px 8px;
-    margin-bottom: 4px;
-  }
-  /* Capsule status bar: two-line layout for narrow 160px content area */
-  .status-capsule-row {
-    flex-direction: row;
-    width: 100%;
-    align-items: center;
-    flex: 1;
-  }
-  .status-capsule-accent {
-    width: 3px;
-    height: 42px;
-    border-radius: 2px;
-    margin-right: 8px;
-    flex-shrink: 0;
-    align-self: center;
-  }
-  .status-capsule-body {
-    flex: 1;
-    flex-direction: column;
-  }
-  .status-capsule-line1 {
-    flex-direction: row;
-    width: 100%;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 2px;
-  }
-  .status-capsule-tag {
-    font-size: 18px;
-    padding: 1px 8px;
-    border-radius: 4px;
-    line-height: 24px;
-    flex-shrink: 0;
-  }
-  .status-capsule-time {
-    font-size: 18px;
-    line-height: 24px;
-    margin-left: 6px;
-    flex-shrink: 0;
-  }
-  .status-capsule-name {
-    font-size: 22px;
-    font-weight: bold;
-    line-height: 28px;
-    lines: 1;
-    min-width: 0;
-    text-overflow: ellipsis;
-  }
-  .section-label {
-    font-size: 20px;
-    line-height: 28px;
-    padding: 6px 4px;
-  }
-  .quick-add-header {
-    padding: 8px 12px;
-  }
-  .quick-add-title {
-    font-size: 20px;
-  }
-  .quick-add-scroll {
-    height: 48px;
-  }
-  .quick-add-tag {
-    border-radius: 20px;
-    padding: 4px 10px;
-  }
-  .quick-add-tag-text {
-    font-size: 20px;
-  }
-  .add-btn-wrapper {
-    flex: 0 0 48px;
-    width: 48px;
-    height: 48px;
-    border-radius: 24px;
-    margin-right: 4px;
-    justify-content: center;
-    align-items: center;
-  }
-  .add-btn-icon {
-    width: 24px;
-    height: 24px;
-  }
-  .add-btn-label {
-    display: none;
-  }
-  .style-btn {
-    flex: 1;
-    height: 48px;
-    border-radius: 24px;
-    font-size: 24px;
-    line-height: 48px;
-  }
-  /* 胶囊屏：换行规则 */
-  .class-card-body {
-    padding: 6px 10px 6px 10px;
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  .card-name-row {
-    flex-direction: row;
-    align-items: baseline;
-    justify-content: space-between;
-    width: 100%;
-    margin-bottom: 2px;
-  }
-  .grid-item-name {
-    margin-bottom: 0;
-    flex-shrink: 1;
-    lines: 1;
-    min-width: 0;
-    text-overflow: ellipsis;
-  }
-  .grid-item-location-inline {
-    margin-left: 4px;
-    lines: 1;
-    min-width: 0;
-    flex-shrink: 0;
-  }
-  .grid-item-time {
-    font-size: 20px;
-    margin-bottom: 0;
-    lines: 1;
-    min-width: 0;
-  }
-  .grid-item-location {
-    font-size: 20px;
-    lines: 1;
-    min-width: 0;
-    text-overflow: ellipsis;
-    margin-bottom: 2px;
-  }
-  .week-text {
-    font-size: 20px;
-  }
-  .left-accent-4 {
-    height: 24px;
-  }
-  .left-accent-6 {
-    height: 28px;
-  }
-  /* 倒数日大数字：胶囊屏纵向最紧张，压到 56px 一行 */
-  .cd-hero {
-    padding: 6px 8px;
-    margin-bottom: 4px;
-    border-radius: 8px;
-  }
-  .cd-hero-left {
-    margin-right: 8px;
-  }
-  .cd-hero-num {
-    font-size: 32px;
-    line-height: 38px;
-  }
-  .cd-hero-unit {
-    font-size: 18px;
-    line-height: 24px;
-  }
-  .cd-hero-title {
-    font-size: 22px;
-    line-height: 28px;
-  }
-  .cd-hero-sub {
-    font-size: 18px;
-    line-height: 24px;
-  }
-  .cd-hero-pin {
-    font-size: 16px;
-    line-height: 24px;
-    margin-left: 6px;
-  }
-  /* 胶囊屏隐藏顶部三切换按钮（模式改从「首页设置」切换），净释放约 58px 垂直空间 */
-  .mode-row {
-    display: none;
-  }
-  .mode-seg {
-    height: 52px;
-  }
-  .mode-text {
-    font-size: 24px;
-    line-height: 52px;
-  }
-  /* 2026-10-26 图标模式的卡片样式见文件末尾「首页工具卡片」段：
-     本文件 base 的 .tool-card/.tool-name 定义在 media 块之后，同权重后者胜，
-     覆盖必须写在 <style> 最末尾才生效（原始 display:none 之所以有效是因为 base 没这条） */
-  .tool-row {
-    height: 56px;
-    padding: 0 8px;
-    margin-bottom: 4px;
-  }
-  .tool-row-name {
-    font-size: 28px;
-    line-height: 36px;
-  }
-  .rich-card {
-    height: 72px;
-    padding: 0 8px;
-    margin-bottom: 6px;
-  }
-  .rich-name {
-    font-size: 26px;
-    line-height: 32px;
-  }
-  .rich-sum {
-    font-size: 22px;
-    line-height: 28px;
-  }
-}
-
-@media (shape: rect) {
-  .schedule-page {
-    padding: 6px 6px 6px 6px;
-  }
-  .clock-row {
-    padding: 3px 0;
-    margin-bottom: 3px;
-  }
-  .clock-text {
-    font-size: 20px;
-    line-height: 28px;
-  }
-  .header {
-    padding: 3px 0;
-    margin-bottom: 3px;
-  }
-  /* 方屏: 圆圈容器保持48px, 箭头三角缩小到24px与胶囊屏一致 */
-  .nav-btn-img {
-    width: 24px;
-    height: 24px;
-  }
-  .day-title {
-    font-size: 26px;
-    font-weight: bold;
-    text-align: center;
-    flex: 1;
-    lines: 1;
-    min-width: 0;
-  }
-  .day-nav-circle {
-    width: 36px;
-    height: 36px;
-    border-radius: 18px;
-    margin-left: 2px;
-  }
-  .day-nav-text {
-    font-size: 20px;
-    line-height: 28px;
-  }
-  .custom-content-bar {
-    padding: 6px 8px;
-    border-radius: 6px;
-    margin-bottom: 3px;
-  }
-  .custom-content-text {
-    font-size: 20px;
-    line-height: 28px;
-  }
-  .status-bar {
-    padding: 6px 8px;
-    border-radius: 6px;
-    margin-bottom: 3px;
-  }
-  .status-tag {
-    font-size: 20px;
-    padding: 2px 6px;
-    margin-right: 6px;
-    line-height: 28px;
-  }
-  .status-middle {
-    font-size: 20px;
-    line-height: 28px;
-  }
-  .status-right {
-    font-size: 20px;
-    line-height: 28px;
-  }
-  
-  .pinned-bar {
-    padding: 4px 6px;
-    border-radius: 6px;
-    margin-bottom: 3px;
-  }
-  .pinned-tag-text {
-    font-size: 20px;
-    line-height: 28px;
-    lines: 1;
-    min-width: 0;
-  }
-  .pinned-tag {
-    padding: 5px 12px;
-    border-radius: 16px;
-    margin-right: 6px;
-    margin-bottom: 3px;
-  }
-  .section-label {
-    font-size: 20px;
-    line-height: 28px;
-    padding: 5px 4px;
-  }
-  .quick-add {
-    border-radius: 8px;
-    margin-bottom: 3px;
-  }
-  .quick-add-header {
-    padding: 7px 10px;
-    border-radius: 8px;
-  }
-  .quick-add-title {
-    font-size: 20px;
-    line-height: 28px;
-  }
-  .quick-add-time {
-    font-size: 20px;
-    margin-right: 5px;
-    line-height: 28px;
-  }
-  .quick-add-arrow-img {
-    width: 20px;
-    height: 20px;
-    margin-left: 4px;
-  }
-  /* 快捷添加标签按钮提到规范的 48px（容器跟随） */
-  .quick-add-scroll {
-    height: 48px;
-  }
-  .quick-add-tag {
-    border-radius: 20px;
-    padding: 4px 10px;
-    margin-right: 6px;
-  }
-  .quick-add-tag-text {
-    font-size: 20px;
-    line-height: 28px;
-  }
-  .quick-add-empty {
-    font-size: 20px;
-    line-height: 28px;
-    padding: 5px 10px;
-  }
-  .add-btn-wrapper {
-    flex: 1;
-    height: 42px;
-    border-radius: 21px;
-    margin-right: 3px;
-  }
-  .add-btn-icon {
-    width: 24px;
-    height: 24px;
-  }
-  .add-btn-label {
-    font-size: 20px;
-  }
-  .style-btn {
-    flex: 1;
-    height: 42px;
-    border-radius: 21px;
-    font-size: 20px;
-    line-height: 42px;
-  }
-  .bottom-buttons {
-    margin-bottom: 3px;
-  }
-  .class-grid-item {
-    min-height: 54px;
-    border-radius: 10px;
-    margin-bottom: 8px;
-  }
-  .class-card-body {
-    padding: 10px 12px 10px 12px;
-  }
-  /* 字号与行高由脚本按屏型计算后内联下发，这里只保留布局相关属性 */
-  .grid-item-name {
-    margin-bottom: 4px;
-    lines: 1;
-    min-width: 0;
-    text-overflow: ellipsis;
-  }
-  .class-card-meta {
-    flex-direction: row;
-    width: 100%;
-    align-items: center;
-    flex-wrap: wrap;
-  }
-  .grid-item-time {
-    margin-right: 10px;
-    lines: 1;
-    min-width: 0;
-    flex-shrink: 0;
-  }
-  .grid-item-location {
-    lines: 1;
-    min-width: 0;
-    flex-shrink: 0;
-  }
-  .empty-card {
-    padding: 16px;
-  }
-  .empty-text {
-    font-size: 20px;
-    line-height: 28px;
-  }
-  .week-indicator {
-    padding: 8px 6px;
-  }
-  .week-text {
-    font-size: 20px;
-    line-height: 28px;
-  }
-  .left-accent-4 {
-    height: 20px;
-  }
-  .left-accent-6 {
-    height: 24px;
-  }
-  .holiday-greeting-text {
-    font-size: 22px;
-    line-height: 30px;
-  }
-}
-
-/* ---------------- 工具显示模式切换行 ---------------- */
-
-.mode-row {
-  flex-direction: row;
-  width: 100%;
-  height: 52px;
-  border-radius: 26px;
-  margin-bottom: 6px;
-  flex-shrink: 0;
-}
-
-.mode-seg {
-  flex: 1;
-  height: 52px;
-  border-radius: 26px;
-  justify-content: center;
-  align-items: center;
-}
-
-.mode-text {
+.num-unit {
   font-size: 24px;
-  line-height: 52px;
-  text-align: center;
-}
-
-/* ---------------- 模式一：图标 ---------------- */
-
-.tool-grid {
-  flex-direction: row;
-  width: 100%;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  padding: 2px 0;
-}
-
-.tool-card {
-  width: 48%;
-  margin-bottom: 8px;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  border-radius: 12px;
-  /* 12 + 56 + 8 + 36 + 10 = 122px（一行 2 个，卡片放大） */
-  padding: 12px 4px 10px 4px;
-}
-
-.tool-icon-img {
-  width: 56px;
-  height: 56px;
-  margin-bottom: 8px;
-}
-
-.tool-name {
-  font-size: 28px;
-  line-height: 36px;
-  text-align: center;
-  lines: 1;
-  min-width: 0;
-  text-overflow: ellipsis;
-}
-
-/* ---------------- 模式二：列表 ---------------- */
-
-.tool-list {
-  flex-direction: column;
-}
-
-.tool-row {
-  flex-direction: row;
-  width: 100%;
-  align-items: center;
-  height: 56px;
-  border-radius: 10px;
-  padding: 0 10px;
-  margin-bottom: 6px;
-}
-
-.tool-row-icon-box {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  justify-content: center;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-.tool-row-icon {
-  width: 28px;
-  height: 28px;
-}
-
-.tool-row-name {
-  flex: 1;
-  font-size: 28px;
-  line-height: 36px;
-  margin-left: 8px;
-  lines: 1;
-  min-width: 0;
-  text-overflow: ellipsis;
-}
-
-.tool-row-arrow {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-}
-
-/* ---------------- 模式三：图文 ---------------- */
-
-.tool-rich {
-  flex-direction: column;
-}
-
-.rich-card {
-  flex-direction: row;
-  width: 100%;
-  align-items: center;
-  height: 72px;
-  border-radius: 12px;
-  padding: 0 10px;
-  margin-bottom: 8px;
-}
-
-.rich-icon-box {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  justify-content: center;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-.rich-icon {
-  width: 36px;
-  height: 36px;
-}
-
-.rich-info {
-  flex: 1;
-  flex-direction: column;
-  margin-left: 8px;
-  min-width: 0;
-}
-
-.rich-name {
-  font-size: 28px;
   line-height: 34px;
   lines: 1;
-  min-width: 0;
-  text-overflow: ellipsis;
+  margin-left: 6px;
+  margin-bottom: 8px;
 }
 
-.rich-sum {
+.focus-title {
   font-size: 24px;
-  line-height: 30px;
+  line-height: 34px;
   lines: 1;
-  min-width: 0;
-  text-overflow: ellipsis;
-  margin-top: 2px;
+  width: 100%;
 }
 
-@media (shape: circle) {
-  .tool-card {
-    width: 48%;
-    padding: 14px 6px 12px 6px;
-  }
-
-  .tool-icon-img {
-    width: 64px;
-    height: 64px;
-    margin-bottom: 8px;
-  }
-
-  .tool-name {
-    font-size: 30px;
-    line-height: 40px;
-  }
+/* ---- ③ 操作行：min-height 58 = 38 行高 + 上下 10 padding ---- */
+.action {
+  flex-direction: row;
+  align-items: center;
+  width: 100%;
+  min-height: 58px;
+  padding: 10px 8px;
+  border-radius: 14px;
+  /* 留白只从高度买：拉开纵向间距填满一屏，横向 padding 保持 8px 不动 */
+  margin-bottom: 20px;
+  flex-shrink: 0;
 }
 
-/* ==================================================================
-   2026-10-26 首页工具卡片：工具名常显 + 按屏型换版式（ev-twins 双屏）
-   ⚠️ 必须放在 <style> 最后：本文件 base 的 .tool-card/.tool-name/.rich-*
-      定义在 media 块**之后**，同权重下后者胜 —— 早期把覆盖写进前面的
-      @media(shape: rect) 完全不生效（改完截图仍是两列，排查半天）。
-   ================================================================== */
-
-/* —— 胶囊屏 192x490：原设计 display:none 把名字全砍，只剩 10 个无标注图标，
-      用户反馈「认不出是哪个工具」。内容区 160px(30/16 padding) → 卡片 48%≈77px，
-      3 字名 3×24=72px 放得下，名字取 v5 下限 24px，图标 56→40 把高度让出来。 */
-@media (shape: capsule), (shape: pill-shaped) {
-  /* 高度预算：490 − 上下 30 padding − 底部按钮 56 = 374；10 个工具 2 列 5 行，
-     每行 74（3+34+2+26+3 = 68 卡高 + 6 间距）→ 370，刚好不溢出（上一版 86/行
-     = 430，溢 56px：首行顶到屏外、末行被底部按钮压住） */
-  .tool-card {
-    width: 48%;
-    padding: 3px 2px 3px 2px;
-    margin-bottom: 6px;
-    border-radius: 10px;
-  }
-  .tool-icon-img {
-    width: 34px;
-    height: 34px;
-    margin-bottom: 2px;
-  }
-  .tool-name {
-    font-size: 24px;
-    line-height: 28px;
-    text-align: center;
-    lines: 1;
-    min-width: 0;
-    text-overflow: ellipsis;
-  }
-  .rich-name {
-    font-size: 26px;
-    line-height: 32px;
-  }
-  .rich-sum {
-    font-size: 24px;
-    line-height: 28px;
-  }
+/* 主操作只从高度买一点区隔，横向一丝不动 */
+.action-primary {
+  margin-bottom: 22px;
 }
 
-/* —— 矩形屏 336x480（手环 10 Pro）：336px 宽两列 48% 时卡片 155px、图标仅 56px，
-      右边整片空白。改三列 32%（≈103px），名字 3 字 3×28=84px 仍放得下，
-      一屏可见 9 个工具（旧版 6 个）。列表/图文两视图同步放大到 30px。 */
-@media (shape: rect) {
-  .tool-grid {
-    padding: 0;
-  }
-  .tool-card {
-    width: 32%;
-    padding: 10px 2px 8px 2px;
-    margin-bottom: 8px;
-  }
-  .tool-icon-img {
-    width: 52px;
-    height: 52px;
-    margin-bottom: 6px;
-  }
-  .tool-name {
-    font-size: 28px;
-    line-height: 34px;
-  }
-  .tool-row {
-    height: 64px;
-    padding: 0 12px;
-  }
-  .tool-row-icon-box {
-    width: 48px;
-    height: 48px;
-  }
-  .tool-row-icon {
-    width: 32px;
-    height: 32px;
-  }
-  .tool-row-name {
-    font-size: 30px;
-    line-height: 38px;
-    margin-left: 10px;
-  }
-  .rich-card {
-    height: 84px;
-    padding: 0 12px;
-  }
-  .rich-icon-box {
-    width: 52px;
-    height: 52px;
-  }
-  .rich-icon {
-    width: 40px;
-    height: 40px;
-  }
-  .rich-name {
-    font-size: 30px;
-    line-height: 36px;
-  }
-  .rich-sum {
-    font-size: 24px;
-    line-height: 30px;
-  }
+.action-text {
+  font-size: 28px;
+  line-height: 38px;
+  font-weight: bold;
+  lines: 1;
+  width: 100%;
+}
+
+/* ---- 内联状态条：固定 34px，只换文字不换高度 ---- */
+.hint-wrap {
+  flex-direction: row;
+  align-items: center;
+  width: 100%;
+  height: 34px;
+  flex-shrink: 0;
+}
+
+.inline-hint {
+  font-size: 24px;
+  line-height: 34px;
+  lines: 1;
+  width: 100%;
+}
+
+/* ---- 溢出时的滚动提示（1.5 屏 ≤735px 才需要） ---- */
+.scroll-hint-wrap {
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 34px;
+  flex-shrink: 0;
+}
+
+.scroll-hint {
+  font-size: 24px;
+  line-height: 34px;
+  lines: 1;
+  text-align: center;
 }
 
 </style>
