@@ -23,7 +23,7 @@
           </div>
           <image class="needle" src="{{ needleSrc }}"></image>
         </div>
-        <div class="compass-result" style="display: {{ hasResult ? 'flex' : 'none' }}">
+        <div class="compass-result">
           <text class="compass-result-text" style="color: {{ theme.accent }}">{{ resultText }}</text>
         </div>
       </div>
@@ -40,9 +40,13 @@
             <text class="spin-text" style="color: {{ theme.textSecondary }}">{{ nextText }}</text>
           </div>
         </div>
-        <div class="result-box" style="display: {{ hasResult ? 'flex' : 'none' }}">
-          <text class="result-text" style="display: {{ multiOn ? 'none' : 'flex' }}; color: {{ theme.accent }}">{{ resultText }}</text>
-          <div class="multi-result" style="display: {{ multiOn ? 'flex' : 'none' }}">
+        <!-- 结果节点常驻：不再用 display 三元切显隐。
+             真机 JSC 对 display:none 子树不建立绑定，切回 flex 时取到的仍是初始快照，
+             表现为「容器出来了、里面一个大空」（2026-11-14 1.0.67 真机复核失败）。
+             改为绝对定位覆盖在滚动窗上，未出结果时内容为空、透明无感。 -->
+        <div class="result-box">
+          <text class="result-text" style="color: {{ theme.accent }}">{{ resultText }}</text>
+          <div class="multi-result">
             <text class="multi-line" for="{{ resultLines }}" style="color: {{ theme.text }}">{{ $item }}</text>
           </div>
         </div>
@@ -51,6 +55,10 @@
       <div class="pick-row" onclick="changePick" style="display: {{ pickRowOn ? 'flex' : 'none' }}; background-color: {{ theme.card }}">
         <text class="pick-text" style="color: {{ theme.text }}">{{ pickText }}</text>
       </div>
+
+      <!-- 状态行从 view 末尾上移到按钮上方：原来落在 y≈438–472 的胶囊屏底缘，
+           又用 #888899 低对比灰，真机上几乎看不见（2026-11-14 真机反馈）。 -->
+      <text class="status-line" style="display: {{ compassOn ? 'none' : 'flex' }}; color: {{ theme.text }}">{{ statusText }}</text>
 
       <div class="main-btn" onclick="draw" style="display: {{ compassOn ? 'none' : 'flex' }}; background-color: {{ theme.accent }}">
         <text class="main-btn-text" style="color: {{ theme.bg }}">{{ btnText }}</text>
@@ -62,8 +70,6 @@
       <div class="sub-row" onclick="openCustom" style="display: {{ compassOn ? 'none' : 'flex' }}; background-color: {{ theme.card }}">
         <text class="sub-text" style="color: {{ theme.text }}">我的卡组</text>
       </div>
-
-      <text class="status-line" style="display: {{ compassOn ? 'none' : 'flex' }}; color: {{ theme.textSecondary }}">{{ statusText }}</text>
     </div>
 
     <!-- 卡组列表：先选类，再选组 -->
@@ -119,7 +125,7 @@
         </div>
       </div>
 
-      <div class="combo-card" style="display: {{ hasResult ? 'flex' : 'none' }}; background-color: {{ theme.card }}">
+      <div class="combo-card" style="background-color: {{ theme.card }}">
         <text class="combo-card-title" style="color: {{ theme.text }}">{{ comboTitle }}</text>
         <div class="combo-field" for="{{ comboResults }}" style="background-color: {{ theme.cardLight }}">
           <text class="combo-field-label" style="color: {{ theme.textSecondary }}">{{ $item.label }}</text>
@@ -462,34 +468,40 @@ export default {
     }
   },
 
-  // 一次点击即出结果：每个字段只赋值一次，不依赖定时器
+  // 一次点击即出结果。真机 JSC 实测（2026-11-14，1.0.67 复核失败）：
+  // 一次触摸回调内跨方法写 data，只有最后一个方法（commitReveal）的赋值批次进渲染，
+  // 结果内容整批丢失 → 容器显示、里面「一个大空」。
+  // 因此本方法不调用任何会写 this 的方法，揭晓帧全部在**同一个方法的连续赋值块**里提交。
   drawNow() {
     this.stopSpin()
     var idxs = this.pickIndices()
-    this.resultIndices = idxs
-    this.resultIndex = idxs[0]
-    this.spinIndex = idxs[0]
+    var text = ""
+    var lines = []
+    var multi = false
     if (this.compassOn) {
-      this.targetFrame = this.dialAngles[this.resultIndex]
-      this.updateNeedle(this.targetFrame, this.resultIndex)
-      this.resultLines = []
-      this.multiOn = false
-      this.resultText = this.items[this.resultIndex]
+      this.targetFrame = this.dialAngles[idxs[0]]
+      // 指针帧只是装饰，放在揭晓块之前；即使这一批被合并丢弃也不影响结果文字
+      this.updateNeedle(this.targetFrame, idxs[0])
+      text = this.items[idxs[0]]
     } else if (idxs.length > 1) {
-      var lines = []
       for (var i = 0; i < idxs.length; i++) {
         lines.push(this.items[idxs[i]])
       }
-      this.resultLines = lines
-      this.multiOn = true
-      this.resultText = ""
+      multi = true
     } else {
-      this.resultLines = []
-      this.multiOn = false
-      this.resultText = this.items[this.resultIndex]
+      text = this.items[idxs[0]]
     }
-    this.buildWindow()
-    this.commitReveal()
+    // ↓ 揭晓帧：不再跨方法、不再调用 commitReveal() / buildWindow()
+    this.resultIndices = idxs
+    this.resultIndex = idxs[0]
+    this.spinIndex = idxs[0]
+    this.resultText = text
+    this.resultLines = lines
+    this.multiOn = multi
+    this.hasResult = true
+    this.phase = "done"
+    this.btnText = "再抽一次"
+    this.statusText = "已出结果"
   },
 
   tick() {
@@ -855,8 +867,12 @@ export default {
     for (var i = 0; i < this.comboSlots.length; i++) {
       out.push({ label: this.comboSlots[i].label, value: this.comboPicks[i] || "暂无" })
     }
+    // 同 drawNow：组合结果必须与揭晓态在同一方法的连续赋值块里提交
     this.comboResults = out
-    this.commitReveal("整套重抽", "已出结果")
+    this.hasResult = true
+    this.phase = "done"
+    this.btnText = "整套重抽"
+    this.statusText = "已出结果"
   },
 
   addItem() {
@@ -1272,6 +1288,7 @@ export default {
 }
 
 .stage {
+  position: relative;
   flex-direction: column;
   width: 100%;
   height: 138px;
@@ -1304,9 +1321,14 @@ export default {
   lines: 1;
 }
 
+/* 常驻覆盖层：不参与 display 切换，永远参与首次渲染，保证 {{ resultText }} 的绑定依赖存在 */
 .result-box {
-  flex-direction: column;
+  position: absolute;
+  left: 0;
+  top: 0;
   width: 100%;
+  height: 138px;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
 }

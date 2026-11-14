@@ -235,3 +235,33 @@ P0 实际使用的子集：`id` / `title` / `cat` / `items` / `anim` / `hint`。
 **交付与验收**：`aiot release --enable-jsc` 出包 761K（含 `app.jsc`、`decide.jsc`），`ev-install -w 25` 投喂，AX 树回执 `Ev工具箱-1.0.67-vc68.rpk -> 安装成功`，设备已连接、电量 76%，截图见工作区 `EvBox-AstroBox-1.0.67安装成功-20261114.png`。**「点一次即出结果」仍需 Tom 真机肉眼复核** —— 本仓只能证明包被设备接受，不能替真机 UI 背书（同 §7.3 边界）。
 
 **ev-six**：本次未新增文案，字号仍 44/30/28/24 四档，禁符号 0，静态口径违 0 项。
+
+> ⚠️ **勘误（2026-11-14 22:27 +0800）**：§7.7 的「同 tick 双赋值」结论**不成立**。1.0.67 经 Tom 真机复核仍不出结果：结果区「一个大空」、按钮变「再抽一次」但再点无变化、状态行「已出结果」贴底看不见。§7.7 记为「已修复」属于验收失守，详见 §7.8 与工作区 `EvBox-抽一次无结果-错误分析-20261114.md`。
+
+### 7.8 结果区常驻化 + 揭晓帧单方法合并（2026-11-14 22:42 +0800）
+
+**领单** `evtask-D-evevbox-261114-dahr7f` / 认领 `20261114-223428-24467`。
+
+**根因重判**：S2/S3（按钮、状态行都变了）证明 `commitReveal()` 那批赋值在真机上生效；S1（结果区空）证明 `drawNow()` 里更早写入的 `resultText` / `resultLines` / `multiOn` 没进渲染。一次触摸回调跨 `drawNow() → buildWindow() → commitReveal()` 三个方法约 15 次 `this.xxx =`，真机 JSC 只提交**最后一批**。1.0.66 的 `finishDraw()` 与 1.0.67 的 `drawNow()` 结构相同，故两版症状一致 —— 换字段名、去掉 `spinning` 中间态都没碰到根因。叠加风险：`.result-box` 初始 `display:none`，隐藏子树可能不建立绑定依赖，切回 `flex` 时取初始快照。
+
+**本轮改动**（`src/pages/decide/decide.ux`）：
+
+| # | 改动 | 针对 |
+|---|---|---|
+| 1 | 揭晓帧收进 `drawNow()` **同一个方法的连续赋值块**：算出 `text/lines/multi` 后一次性写 `resultIndices/resultIndex/spinIndex/resultText/resultLines/multiOn/hasResult/phase/btnText/statusText`；不再调用 `commitReveal()` 或 `buildWindow()` | 跨批次丢失（主因） |
+| 2 | `finishComboNow()` 同样把 `comboResults` 与揭晓态合并进单方法连续赋值 | 组合抽取同类问题 |
+| 3 | `.result-box` 去掉 `display` 三元，改 `position:absolute` 常驻覆盖层（`.stage` 加 `position:relative`）；`.result-text` / `.multi-result` 也不再靠 `multiOn` 切显隐，改用「内容空/非空」区分单项与多项 | 隐藏子树懒渲染（备因 B） |
+| 4 | `.compass-result` / `.combo-card` 同步常驻化，去掉 `display` 三元；`.spin-box` / `.combo-stage` 的显隐保留（它们不含结果） | 罗盘/组合路径同类风险 |
+| 5 | 状态行从 `view` 末尾上移到主按钮上方，颜色 `#888899` → `theme.text`；总高度不变（392/394） | 真机「已出结果很靠下看不见」 |
+
+**构建**：`aiot release --enable-jsc` 在**临时换版本**的隔离构建中产出 `1.0.70 / vc71`，`src/manifest.json` 与 `src/data/version.js` 构建后按 md5 严格还原（未提交版本 bump，避免与并发的首页 v3 会话 WIP 冲突）。交付包在工作区 `evbox-1.0.70-结果区常驻修复.rpk`。仓库内 `decide.ux` 已提交；`1.0.70` 仅用于本次真机包，正式版本号仍以仓库 HEAD 为准。
+
+**新坑（待 `ev pit add` 入库；`registry/pits.jsonl` 混有他人 WIP，本轮未强行追加）**：
+
+- 真机 JSC：一次触摸回调内**跨方法**写 data，只有最后一个方法的赋值批次进渲染；同一方法内连续多字段赋值可靠（`setDeck()` 在 `onInit` 里连写十余字段，首屏正常）。改响应式 bug 时优先「合并到单方法连续赋值」或「整帧单对象一次赋值」，不要只换字段名。
+- 真机 JSC：`display:none` 子树首次显示时可能取初始快照，结果类节点应常驻、用内容而非显隐表达状态。`decide.ux` 24 处 `display: {{ }}` 与项目其它页的 `show="{{ }}"` 是否等价，尚未验证。
+- 流程：**「AstroBox 安装成功」不是功能证据，模拟器出结果也不是真机证据**；§7.6 自述「连点 3 次才出结果」是失败信号，当时被当成通过。Mac 无法抓真机画面、无页面状态回传，必要时先出「常驻字段自证」探针包，不要让用户反复当回归测试。
+
+**验收边界（未闭环，不得记为已修复）**：本轮只做到静态复核 + 构建产物字节码校验 + 真机投喂回执；**「点一次出现 44px 结果大字」仍需 Tom 真机肉眼确认**。模拟器 `emulator-11000` 当时被并发会话占用，本轮未做模拟器回归；按新门槛模拟器仅作「不白屏」冒烟。若仍失败，按工作区错误分析文档 §7.1 出 vc72 探针包（`statusText｜resultText｜probeFlag` 常驻字段）一次点击区分「数据没写入 / 子树不刷新 / 设备没换包」。
+
+**ev-six**：未新增屏显文案，字号仍 44/30/28/24 四档，禁符号 0；状态行上移不增加总高度，静态口径违 0 项。
