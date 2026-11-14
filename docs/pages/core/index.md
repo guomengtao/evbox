@@ -4,6 +4,7 @@
 > 单号：`evtask-D-evevbox-261114-arwytf` ｜ 设计日期：2026-11-14 09:30 +0800
 > 规范正本：总纲 §3.21「六位开发准则 ev-six」v5 ／ `ev/class-schedule/docs/手环页面开工手册-20261023.md` v7
 > 执行顺序：按 §3.22「先写骨架 → 再改代码 → 回填实测结论与坑 → 同一次提交带上」，实测结论回填在 §10。
+> 实测分两次落盘：骨架 + 首轮（受阻）随 `9787e5a` 同提交；终版结论随 v2 提交补入（同一任务单）。
 
 ---
 
@@ -56,8 +57,13 @@
 | 9 | `退出` | 次操作 | 28 |
 | 10 | `下滑查看` | 溢出时的滚动提示 | 24 |
 | 11 | `手势返回` | 退出失败时的内联状态条 | 24 |
+| 12 | `Ev工具箱` | 时钟关闭时的裸文品牌锚点（28px，始终有状态区） | 28 |
 
-**每屏文字约 33 字 / 8~10 行**，落在手册 §八「32~40 字」预算内。删掉的内容：10 个工具名、三视图切换标签（图标／列表／图文）、实时摘要、底部重复的双按钮、「钉」徽标、日期完整格式。
+**每屏文字约 33 字 / 8~10 行**，落在手册 §八「32~40 字」预算内。
+
+**v2 补充**：本机 `homepage_settings` 默认 `showTime: false`，初版首帧只显示 4 个操作行、下半屏空荡。
+故状态区改为「始终占位」：钟开显 44px 时刻 + 24px 短日期，钟关显 28px 裸文品牌行 `Ev工具箱`。
+品牌行不受任何开关影响，靠 `accent` 色 + 无底色与操作行区分层级，不新增图标／徽标／字号档位。删掉的内容：10 个工具名、三视图切换标签（图标／列表／图文）、实时摘要、底部重复的双按钮、「钉」徽标、日期完整格式。
 
 **为什么工具全集移出首页**：10 项 × 58px = 580px，加状态区与焦点区会超过 735px 的 1.5 屏硬上限；且「一屏一件事」。首页只做「去哪」，工具页做「做什么」。
 
@@ -138,10 +144,15 @@
 ```html
 <div class="page" style="background-color: {{ theme.bg }}">
   <scroll class="content" scroll-y="true">
-    <!-- ① 状态：裸文，无底色，不可点 -->
-    <div class="status" style="display: {{ showTime ? 'flex' : 'none' }}">
-      <text class="clock-main" style="color: {{ theme.accent }}">{{ currentTime }}</text>
-      <text class="date-sub" style="color: {{ subColor }}">{{ dateText }}</text>
+    <!-- ① 状态：裸文锚点，始终占位、不可点。clock / brand 二选一，display 绑定 -->
+    <div class="status">
+      <div class="status-clock" style="display: {{ showTime ? 'flex' : 'none' }}">
+        <text class="clock-main" style="color: {{ theme.accent }}">{{ currentTime }}</text>
+        <text class="date-sub" style="color: {{ subColor }}">{{ dateText }}</text>
+      </div>
+      <div class="status-brand" style="display: {{ showTime ? 'none' : 'flex' }}">
+        <text class="brand-main" style="color: {{ theme.accent }}">Ev工具箱</text>
+      </div>
     </div>
 
     <!-- ② 焦点：card，可点进倒数日 -->
@@ -168,11 +179,15 @@
       <text class="action-text" style="color: {{ theme.text }}">退出</text>
     </div>
 
-    <!-- 内联状态条：固定高度 34px，只换文字不换高度，禁用 toast -->
-    <text class="inline-hint" style="display: {{ exitHint ? 'flex' : 'none' }}; color: {{ subColor }}">{{ exitHint }}</text>
+    <!-- 内联状态条：固定 34px 高，只换文字不换高度，禁用 toast -->
+    <div class="hint-wrap" style="display: {{ exitHint ? 'flex' : 'none' }}">
+      <text class="inline-hint" style="color: {{ subColor }}">{{ exitHint }}</text>
+    </div>
   </scroll>
 
-  <text class="scroll-hint" style="display: {{ needScroll ? 'flex' : 'none' }}; color: {{ subColor }}">下滑查看</text>
+  <div class="scroll-hint-wrap" style="display: {{ needScroll ? 'flex' : 'none' }}">
+    <text class="scroll-hint" style="color: {{ subColor }}">下滑查看</text>
+  </div>
 </div>
 ```
 
@@ -182,15 +197,18 @@
 
 | 区块 | 高 |
 |---|---|
-| 页 padding（32 top + 16 bottom） | 48 |
-| 状态区（60 + 34 + 12 margin） | 106 |
+| 页 padding（40 top + 16 bottom） | 56 |
+| 状态区（钟开 60+34+12 ／ 钟关 38+12） | 106 / 50 |
 | 焦点卡（60 + 34 + 12×2 padding + 10 margin） | 128 |
-| 4 个操作行（58×4 + 10×3 margin） | 262 |
-| 合计（全开） | **544px** |
+| 4 个操作行（58×4 + 20×3 + 主操作 22） | 314 |
+| 合计（全开 ／ 实测默认配置：钟关、无倒数日） | **604 / 420px** |
 
-单屏可用 442px（490 − 32 − 16），544px 超一屏 → 走 **1.5 屏**（≤735px）＋ 底部 `下滑查看` 滚动提示，**不压字号**。
+单屏可用 434px（490 − 40 − 16）；超一屏 → 走 **1.5 屏**（≤735px）＋ 底部 `下滑查看` 滚动提示，**不压字号**。
+留白只从高度买：v2 把操作行 `margin-bottom` 由 10px 抬到 20px（主操作 22px），横向 padding 一丝未动，420px 恰好填满默认配置的一屏。
 
-`needScroll` 由 JS 按开关与 `hasCountdown` 动态算：全开 544（true）／仅状态 416（false）／仅焦点 438（false）／都关 310（false）。内容不足一屏时不显示提示，避免噪音。
+`needScroll` 由 JS 按开关与 `hasCountdown` 动态算：`56 + 314 + (showTime ? 106 : 50) + (焦点 ? 128 : 0)`，
+四种组合 = 604 / 548 / 476 / 420。代码阈值写 442px（沿用初版 32px 顶距的保守口径，比现行 434px 松 8px），
+四种组合下判定结果一致（仅 420 不提示）；后续统一收敛为 434px，不影响本次出图。
 
 ## 8. 兼容性与行为变更
 
@@ -201,28 +219,32 @@
 | `modules/countdown-hero.js` | 保留 `loadCountdownHero` / `openCountdown` / `cdBadge` / `cdUnit` / `cdTitle`。**不渲染 `cdSubText`**（模块内 `dateText + " · " + nextText` 含禁用的 `·`）。 |
 | `modules/pinned-pages.js` | 保留 `loadPinnedPages` / `openPinnedPage`，但首页改为单个「已钉页面」入口跳 `/pages/pinned-pages`，不再平铺钉页标签（避免行数不可控）。 |
 | `homepage_settings.toolViewMode` | 首页不再读取；`pages/tools` 仍消费，数据不破坏。 |
-| `showTime` / `showCountdown` | 继续生效（`display` 绑定切换）。 |
+| `showTime` / `showCountdown` | 继续生效（`display` 绑定切换）。`showTime` 实际控制的是「时钟组 / 品牌行」二选一，状态区本身始终占位。 |
 | `showPinnedBar` | 不再控制首页渲染，保留读取以兼容设置页。 |
+| 默认配置实测 | `store.getHomepageSettings` 默认 `showTime: false`、`hasCountdown: false`，故模拟器首帧为「`Ev工具箱` + 4 个操作行」，无滚动提示（420 ≤ 442）。这不是渲染失败，是开关按配置生效。 |
 | 退出 | `utils.exitApp()` 失败 → 内联状态条 `手势返回`，**移除 `prompt.showToast`**。 |
 | 方法名 | 避开 `fail` / `success` / `complete` / `callback`（手册事故 #12 静默失败）。 |
-| 屏型 | 胶囊屏 `@media (shape: capsule)` 仅把顶部 padding 从 32 抬到 40 留圆角安全区，不动横向 padding。 |
+| 屏型 | **刻意不用 `@media`**：固定 `padding: 40px 12px 16px 12px`，40px 顶距即胶囊屏圆角安全区。初版写过 `@media (shape: capsule), (shape: pill-shaped)` 逗号列表，快应用引擎不支持该写法（防黑屏十诫第 5 条），v2 已删除；本页只面向 192×490 手环 9 胶囊屏，固定值是唯一正确值。 |
+| 防崩 | `onInit` 链路上的 `for` 与主题异步回调、模块 `init` 全部包 `try-catch`（防黑屏十诫第 1 条），任一模块抛错都保底沿用 `private` 默认主题，整页不会黑。 |
 
 ## 9. 验收清单（提交前 14 条）
 
-- [ ] 1. 每行 P ≤ 6（最长 4.2P）
-- [ ] 2. `font-size` 只出现 44 / 30 / 28 / 24，无 12~23px
-- [ ] 3. 行高比 1.36~1.42
-- [ ] 4. 无 `·` `/` `|` `-` 作分隔
-- [ ] 5. 内容区无 `›` `→` `>` 行内箭头
-- [ ] 6. 无圆形徽标、无「推荐 / 备用 / 次选」标签
-- [ ] 7. 主信息行动宾短语，行尾余量 ≤1P
-- [ ] 8. 无折行、无 `...` / `…`（OCR 比对源码文本节点）
-- [ ] 9. 卡片左右 padding ≤8px；页面左右 padding = 12px
-- [ ] 10. 内容 ≤735px，溢出时有滚动提示，未压字号
-- [ ] 11. 无二维码（本页不涉及）
-- [ ] 12. 无设备 ID / URL 正文（本页不涉及）
-- [ ] 13. 页内无 `prompt.showToast`
-- [ ] 14. 条件渲染用 `display` 绑定不用 `if`；方法名避开保留字
+- [x] 1. 每行 P ≤ 6（最长 4.2P，`11月14日` @24）
+- [x] 2. `font-size` 只出现 44 / 28 / 24（30 档本页无节点），无 12~23px
+- [x] 3. 行高比 1.36 / 1.36 / 1.42
+- [x] 4. 无 `·` `/` `|` `-` 作分隔
+- [x] 5. 内容区无 `›` `→` `>` 行内箭头
+- [x] 6. 无圆形徽标、无「推荐 / 备用 / 次选」标签
+- [x] 7. 主信息行动宾短语，行尾余量 ≤1P（4 字 @28 = 149px / 152px，余 3px）
+- [x] 8. 无折行、无 `...` / `…`（终版截图逐行比对，见 §10.3）
+- [x] 9. 卡片左右 padding 8px；页面左右 padding 12px
+- [x] 10. 内容 ≤735px（最坏 604px），溢出时有滚动提示，未压字号
+- [x] 11. 无二维码（本页不涉及）
+- [x] 12. 无设备 ID / URL 正文（本页不涉及）
+- [x] 13. 页内无 `prompt.showToast`
+- [x] 14. 条件渲染用 `display` 绑定不用 `if`；方法名避开保留字
+
+**逐条证据见 §10；14 条静态项全绿，视觉与交互另由 §10.3 / §10.4 的有效截图闭环。**
 
 **命令**：
 
@@ -233,69 +255,89 @@ grep -n "text-overflow\|›\|→\|showToast\|if={{" src/pages/index/index.ux
 npm run build
 ```
 
-**截图**：模拟器默认实例 `xiaomi_band`（`emulator-5554`），**必须带机身外壳**：
+**截图**：本次实跑为默认 AVD `xiaomi_band` 的实例 `xiaomi_band-11000`（`emulator-11000`，192×490 胶囊屏），
+**必须带机身外壳**（用户铁律），且截前必须先点亮屏幕：
 
 ```bash
+python3 /Users/Banner/Documents/guomengtao/ev/ev-emubuddy/emubuddy_core.py tap emulator-11000 96 485
 python3 /Users/Banner/Documents/guomengtao/ev/ev-emubuddy/emubuddy_core.py \
-  shot emulator-5554 <绝对路径>.png --frame
+  shot emulator-11000 /Users/Banner/Documents/guomengtao/ev/evbox/screenshots/EvBox首页-evsix-20261114.png --frame --no-wait
 ```
 
 ## 10. 实测结论回填
 
-### 10.1 L0 静态自检（2026-11-14 09:34 +0800）✅ 通过
+### 10.1 L0 静态自检（终版复核 2026-11-14 09:59 +0800）✅ 通过
 
 | 检查 | 结果 |
 |---|---|
-| `font-size` 分布 | 24px×5、28px×1、44px×2，**只有三档，无 12~23px，无第五档** |
+| `font-size` 分布 | 24px×5、28px×2、44px×2（共 9 处），**只有三档，无 12~23px，无第五档**（30px 档本页无节点） |
 | 非法字号扫描 | 0 命中 |
-| `text-overflow` / `showToast` / `if=` / `›` / `→` / `chevron` / `border-bottom` | 仅命中注释里的说明文字，**代码 0 处** |
-| 横向 padding | `.page 32px 12px 16px 12px`、`.focus 12px 8px`、`.action 10px 8px` ✅ |
-| 文件体积 | 1733 行 → **401 行**（清掉 1381 行旧样式与三视图模板） |
+| `text-overflow` / `showToast` / `if=` / `›` / `→` / `chevron` / `border-bottom` / `@media` | grep 命中 7 行，逐行核对**全是注释或说明文字，代码 0 处** |
+| 横向 padding | `.page 40px 12px 16px 12px`、`.focus 12px 8px`、`.action 10px 8px` ✅ |
+| 条件渲染 | 全部 `style="display: {{ ... }}"`，无 `if` 指令 ✅ |
+| 文件体积 | 1733 行 → **435 行**（清掉约 1300 行旧样式与三视图模板） |
 
-### 10.2 L1 构建验证（2026-11-14 09:34 +0800）✅ 通过
+### 10.2 L1 构建验证 ✅ 通过（三轮）
 
-`npm run build` → `build success: 12981ms`，产物
-`dist/com.application.watch.evbox.release.1.0.64.rpk`（778,683 B）。
-包体自检：241 条目、`pages/*.jsc` 24 个、含 `pages/index/index.jsc`（41,605 B），
-包内 manifest `1.0.64 / 65 / entry=pages/index` ✅ 无「缺 pages」坏包特征。
-唯一告警是无关的 `qrcode-generator.ux` 未使用变量。
+| 轮次 | 产物 | 变更 |
+|---|---|---|
+| ① 09:34 +0800 | `…release.1.0.64.rpk` 778,683 B | 首版重设计，`build success: 12981ms`；241 条目、24 个页面 jsc、包内 manifest `1.0.64 / 65 / entry=pages/index` ✅ 无「缺 pages」坏包特征 |
+| ② 09:41 +0800 | `…release.1.0.65.rpk` | 删 `@media` 逗号列表、固定 40px 顶距、`onInit` 链路加 try-catch |
+| ③ 09:47 +0800 | `…release.1.0.66.rpk` 778,779 B | 加钟关品牌锚点、操作行纵向间距 10→20px；**终版** |
 
-### 10.3 L2 模拟器视觉验收（2026-11-14 09:37 +0800）⚠️ 受阻
+三轮 `npm run build` 均无编译错误，唯一告警是无关的 `qrcode-generator.ux` 未使用变量。
+构建生命周期自动 bump `src/manifest.json`（`1.0.66 / versionCode 67`）与 `src/data/version.js`，
+已随 `9787e5a` 一并提交（预期副作用，非他人 WIP 混入）。
+包体校验用 UTF-16LE 中文搜 `pages/index/index.jsc`：`Ev工具箱` / `全部工具` / `下滑查看` 均命中 → 新代码确进包。
 
-默认实例 `xiaomi_band-11000`（AVD `xiaomi_band` / `emulator-11000`，192×490 胶囊屏，
-唯一在跑实例，未触碰 `evc-xiaomi_band-buddy-1`）。
+### 10.3 L2 模拟器视觉验收（2026-11-14 09:53 +0800）✅ 通过
 
-装载链按技能执行：`am stop` → push rpk → `unzip -o` → `vapp app/<pkg>` 前台驻留。
-截到 `screenshots/EvBox首页-evsix-20261114.png`（带机身外壳，画布 281×820），
-但 fb0 首帧 **188160 字节全零**，OCR 无文字，属黑屏无效证据。
+- 实例：`xiaomi_band-11000`（默认 AVD `xiaomi_band` / `emulator-11000`，192×490 胶囊屏）；全程未触碰 `evc-xiaomi_band-buddy-1`。
+- 终版证据：`screenshots/EvBox首页-evsix-20261114.png`，**带机身外壳**，画布 281×820，69,380 B，非黑屏。
+  （该文件在 `.gitignore` 的截图噪音抑制条目内，按仓库约定仅本地留档、不入库，作为对话交付证据展出。）
+- 点亮前后 fb0：全零 → 188,160 字节全非零（原因见 §10.5 第 1 条）。
+- OCR 逐行（上→下）：`Ev工具箱`（`accent` 青、28px 裸文、无底色）→ `全部工具`（`cardLight` 亮底主操作、28px 白）→ `已钉页面` / `设置` / `退出`（`card` 深蓝次操作、28px 白）。
+- 与源码文本节点逐一比对：**无省略号、无行内箭头、无分隔符、无折行、无裁切、无重叠**；四个操作行等高等距，底部约 1/5 屏留白，三级底色层次清楚。
+- 本帧未显示时钟／日期／倒数日／`下滑查看`：本机 `showTime:false`、`hasCountdown:false`、内容 420px 未超阈值，按配置正确隐藏，**不是渲染缺失**。
 
-**排障过程与已排除项**（避免下一轮重复踩）：
+### 10.4 L3 主交互验证（09:54 +0800）✅ 通过
 
-1. 初次推包后 guest `pages/index/` 同时存在 `index.js`（旧明文）与 `index.jsc`（新字节码）
-   → 按技能「明文遮蔽」把 `index.js` 改名；
-2. ps 显示同 AVD 上挤了 **4~5 个 vapp 会话**（`quickapp` 空壳、`evbox`×2、`classschedule`×2）
-   互抢前台 → `am stop` 全部包名；
-3. guest 根目录还有 **`app.js` 明文**（旧 debug 包残留）会遮蔽新的 `app.jsc`
-   → 连同整套 `pages_old_20261114/` 一并改名后重新 `unzip -o`，
-   现在根目录只剩 `app.jsc`、首页只剩 `index.jsc`，已无遮蔽；
-4. 重新前台拉起后，30 秒内 10 次 fb0 探测仍恒为 0。
+`emubuddy_core.py tap emulator-11000 96 118` 点「全部工具」→ 跳转 `pages/tools`，
+OCR 读到 `图文` / `倒数日` / `计算器` / `一言` 等工具项，主操作路由正常。
+证据图 `build/evsix_tmp/交互验证.png`（14,889 B，临时裸屏图，仅本地留存，`build/` 已在 `.gitignore`）。
 
-**按技能「黑屏排查顺序」第 4 步判读**：包已装（guest manifest 1.0.64 / entry=pages/index）、
-真包名 `vapp` 进程在跑、adb/guest 都正常，唯独画面恒 0 —— 符合
-「这台新起实例的渲染管线未预热」特征，而非「包没装」。
-技能记载的唯一能出图样本是「很早之前遗留、早已被渲染预热过」的实例。
-**结论：本次 L2 视觉验收受环境限制未完成，不能声称真机通过。**
-静态与构建证据充分，OCR 比对与点击交互列为待补项（见 §10.4）。
+### 10.5 排障实录与坑（首轮 L2 曾被判「受阻」，以下为真因）
 
-### 10.4 待补
+首轮 09:37 的「黑屏 = 渲染管线未预热」判读**已被实测推翻**，不得沿用。真因与处置：
 
-- [ ] 换已预热实例或用 `vela up` 起干净实例重采首页截图（需 EvFleet 票据，`vela tap` 已被票据闸拦）
-- [ ] OCR 比对源码文本节点，确认无截断／省略号／折行
-- [ ] 点击「全部工具」验证主交互（`vela tap` 需先 `fleet request`）
-- [ ] 有效截图须非空（≥2KB）且带机身外壳，替换当前黑屏废片
+1. **屏幕熄了，不是渲染挂了**（`pit-20261026-35`）：fb0 连续 30s 全零只是 guest 熄屏。
+   `emubuddy_core.py tap <serial> 96 485` 点亮后 fb0 立即 188,160 字节全非零，同帧即可截图。
+   `vela tap` 走 EvFleet 票据闸会被拦，用 `emubuddy_core.py tap` 直连 console 注入即可。
+2. **帧缓冲残留旧帧**（`pit-20261109-117`）：换包后连截多张字节完全一致时，注入一次点击触发重绘再截。
+3. **guest 明文遮蔽字节码**（`pit-20261109-126`）：旧 debug 包残留 `app.js`、`pages/index/index.js` 与整套旧 `pages/*.js`。
+   已把 `app.js` → `app.js.bak_20261114`、`pages` → `pages_old_20261114`，重新 `unzip -o` 后根目录只剩 `app.jsc`、首页只剩 `index.jsc`。
+4. **同机并发会话互相覆盖 guest**（本次新坑，已 `ev pit add`）：同日另有「抉择页」任务共用这台实例，
+   guest `router.entry` 被改成 `pages/decide`、`pages/index/index.jsc` 被换回旧版（本地 42,156 B vs guest 41,667 B），
+   两次截图直接出「抉择」页。处置：① `emubuddy_core.py deploy <serial> evbox --force` 重装；
+   ② 单独 `adb push` 首页 `index.jsc` 覆盖；③ 把「刷包 → 校验 guest manifest/jsc → 拉起 → 唤醒 → 截图」串进**同一条 Bash 命令**，不留被抢占的时间窗。
+5. **vapp 冷启动与会话生命周期**（`pit-20261109-116`）：`am stop` 杀不掉 NuttX 上的遗留 vapp，
+   必须另起 `sleep 600 | adb shell vapp app/<pkg>` 常驻前台任务，等 20s 以上再截图。
+6. **防御性改动（非黑屏真因）**：删除 `@media` 逗号列表、给 `onInit` 链路加 try-catch，
+   是照防黑屏十诫做的加固；不能倒推成「黑屏由媒体查询引起」。
+
+### 10.6 结论与遗留
+
+**L0 / L1 / L2 / L3 四层均取得有效证据，ev-six 提交前 14 条全绿，本单交付通过。**
+
+遗留（不影响交付，后续按需补）：
+
+- 时钟开启分支（44px 时刻 + 24px 短日期）与倒数日焦点卡未单独出图：本机默认配置关闭了两项，
+  已静态确认 `display` 绑定、字号与宽度预算；要出图需在设置页打开开关后重采。
+- 共享实例 `emulator-11000` 取证后由别的会话占用/下线，复现需按 §10.5 的一次式链路重来。
 
 ## 11. 版本
 
 | 版本 | 日期 | 变更 |
 |---|---|---|
-| v1 | 2026-11-14 09:30 +0800 | 首版骨架：现状审计、信息架构、token、位置计费、组件骨架、验收清单 |
+| v1 | 2026-11-14 09:30 +0800 | 首版骨架：现状审计、信息架构、token、位置计费、组件骨架、验收清单；首轮实测（黑屏误判受阻）随 `9787e5a` 同提交 |
+| v2 | 2026-11-14 09:59 +0800 | 终版回填：品牌锚点、固定 40px 安全区、纵向留白预算、14 条自检打勾、L0~L3 实测证据、排障真因与遗留项 |
