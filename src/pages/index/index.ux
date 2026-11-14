@@ -17,18 +17,17 @@
       <!-- ② 内容层：默认推荐 + 用户钉选混排，每款带实时摘要。
            倒数日有数据时同一张卡切 44px 大数字，不另起焦点层，避免同内容出现两次 -->
       <div class="slot" for="{{ slots }}" onclick="openSlot($idx)" style="background-color: {{ theme.card }}">
+        <text class="slot-name" style="color: {{ theme.text }}">{{ $item.name }}</text>
         <div class="slot-hero" style="display: {{ $item.hero ? 'flex' : 'none' }}">
           <div class="hero-num-row">
             <text class="num-main" style="color: {{ theme.accent }}">{{ $item.badge }}</text>
             <text class="num-unit" style="color: {{ subColor }}">{{ $item.unit }}</text>
           </div>
-          <text class="hero-title" style="color: {{ theme.text }}">{{ $item.heroTitle }}</text>
+          <text class="hero-title" style="display: {{ $item.heroTitle ? 'flex' : 'none' }}; color: {{ theme.text }}">{{ $item.heroTitle }}</text>
         </div>
         <div class="slot-normal" style="display: {{ $item.hero ? 'none' : 'flex' }}">
-          <text class="slot-name" style="color: {{ theme.text }}">{{ $item.name }}</text>
-          <!-- 摘要按 6P 手动拆成两行，每行仍是 lines:1：长句完整可读，绝不出现残句或省略号 -->
-          <text class="slot-summary" style="display: {{ $item.line1 ? 'flex' : 'none' }}; color: {{ subColor }}">{{ $item.line1 }}</text>
-          <text class="slot-summary" style="display: {{ $item.line2 ? 'flex' : 'none' }}; color: {{ subColor }}">{{ $item.line2 }}</text>
+          <!-- 摘要只在标点边界截完整语义，lines:2 自动折行，两行合起来是完整句 -->
+          <text class="slot-summary" style="display: {{ $item.summary ? 'flex' : 'none' }}; color: {{ subColor }}">{{ $item.summary }}</text>
         </div>
       </div>
 
@@ -105,51 +104,60 @@ function resolveSubColor(bg) {
 
 /**
  * 摘要清洗：ev-six 的点税与宽度预算
- *  - tool-summaries.js 的文案带 " · "（单体 0.5P + 两侧空格 = 1.1P）→ 去掉，不改原文案
- *    （tools 页图文视图复用同一模块，不能动它的输出）；
- *  - 中文长句优先取第一个逗号前的分句；
- *  - 按 P 计费（汉字 1.0 / 拉丁数字 0.55 / 空格 0.3）裁到 6.0P：
- *    卡片内容宽 152px，24px 汉字 6 字 = 144px 才不折行；
+ *  - tool-summaries.js 的文案带 " · "（单体 0.5P + 两侧空格 = 1.1P）→ 清掉，
+ *    不改原文案（tools 页图文视图复用同一模块，不能动它的输出）；
+ *  - 宽度按 P 计费（汉字 1.0 / 拉丁数字 0.55 / 空格 0.3）：卡片内容宽 152px，
+ *    24px 汉字 6 字 = 144px 为一行；两行容量 12P；
+ *  - 只在标点边界截句，绝不按字符硬裁：宁可整段不显示，也不给「示例：距离期」
+ *    这类半截句子；单行 6P、一言 11P 交由 lines:2 自动折行，两行合起来是完整句；
  *  - 绝不压字号、绝不加省略号、绝不靠 text-overflow 截断。
  */
-function cutByP(text, maxP) {
-  var out = ""
+function pWidth(s) {
   var p = 0
-  var i = 0
-  for (; i < text.length; i++) {
-    var ch = text.charAt(i)
-    var c = text.charCodeAt(i)
-    var w = 1.0
-    if ((c >= 48 && c <= 57) || (c >= 65 && c <= 90) || (c >= 97 && c <= 122)) w = 0.55
-    else if (c === 32) w = 0.3
-    if (p + w > maxP) break
-    out += ch
-    p += w
+  for (var i = 0; i < s.length; i++) {
+    var c = s.charCodeAt(i)
+    if ((c >= 48 && c <= 57) || (c >= 65 && c <= 90) || (c >= 97 && c <= 122)) p += 0.55
+    else if (c === 32) p += 0.3
+    else p += 1.0
   }
-  return { text: out, rest: text.slice(i) }
+  return p
 }
 
-/** 去点税：tool-summaries 的 " · " 单体 0.5P + 两侧空格 = 1.1P，一律清掉 */
+/** 去点税：把 " · " 换成空格，保留词间呼吸，不改原文案 */
 function cleanSummary(text) {
-  return String(text || "").split(" · ").join("").split("·").join("")
+  return String(text || "").split(" · ").join(" ").split("·").join(" ")
 }
 
-/** 单行摘要：中文长句先取逗号前分句，再按 6P 裁 */
-function fitSummary(text) {
-  if (!text) return ""
+/**
+ * 语义截句：只在标点／空格边界累加完整分句，超预算就整段停。
+ * 与按字符硬裁的区别：结果永远是完整语义，第一分句都装不下时返回空字符串。
+ */
+function clauseFit(text, maxP) {
   var s = cleanSummary(text)
-  var comma = s.indexOf("，")
-  if (comma > 0) s = s.slice(0, comma)
-  return cutByP(s, 6.0).text
+  if (!s) return ""
+  var out = ""
+  var buf = ""
+  for (var i = 0; i < s.length; i++) {
+    var ch = s.charAt(i)
+    buf += ch
+    var isBreak = "，,。、；;：:！!？? ".indexOf(ch) >= 0
+    if (!isBreak && i !== s.length - 1) continue
+    if (pWidth(out) + pWidth(buf) > maxP) break
+    out += buf
+    buf = ""
+  }
+  if (buf && pWidth(out) + pWidth(buf) <= maxP) out += buf
+  return out.replace(/[，,、；;：:\s]+$/, "")
 }
 
-/** 长句摘要（一言）：按 6P 手动折成两行，两行合起来是完整句，不产生残句 */
-function wrapSummary(text) {
-  if (!text) return ["", ""]
-  var a = cutByP(cleanSummary(text), 6.0)
-  if (!a.rest) return [a.text, ""]
-  var b = cutByP(a.rest, 6.0)
-  return [a.text, b.text]
+/** 单行摘要：完整语义，最多 6P */
+function fitSummary(text) {
+  return clauseFit(text, 6.0)
+}
+
+/** 示例数据前缀：demo 种子带「示例：」，标题位不该让示例文案吃掉宽度 */
+function stripExamplePrefix(s) {
+  return String(s || "").replace(/^示例[:：]\s*/, "")
 }
 
 /** 把数据层槽位 + 摘要表 + 倒数日 hero 数据合并成模板直接可渲染的视图模型 */
@@ -164,18 +172,17 @@ function buildViewSlots(list, summaryMap, heroOn, hero) {
       var parts = raw.split("·")
       raw = parts[parts.length - 1].trim()
     }
-    // 一言是完整句子，允许两行；其余摘要单行
-    var lines = s.summaryKey === "quote" ? wrapSummary(raw) : [fitSummary(raw), ""]
+    // 一言是完整句子，交 lines:2 自动折行；其余摘要单行语义截句
+    var summary = s.summaryKey === "quote" ? clauseFit(raw, 11.0) : fitSummary(raw)
     out.push({
       id: s.id,
       name: s.name,
       uri: s.uri,
-      line1: lines[0],
-      line2: lines[1],
+      summary: summary,
       hero: isHero,
       badge: isHero ? hero.badge : "",
       unit: isHero ? hero.unit : "",
-      heroTitle: isHero ? fitSummary(hero.title) : ""
+      heroTitle: isHero ? fitSummary(stripExamplePrefix(hero.title)) : ""
     })
   }
   return out
@@ -316,10 +323,10 @@ export default {
     var h = 56 + (this.showTime ? 106 : 84)
     for (var i = 0; i < this.slots.length; i++) {
       var s = this.slots[i]
-      if (s.hero) h += 120
-      else if (s.line2) h += 132
-      else if (s.line1) h += 98
-      else h += 64
+      if (s.hero) h += s.heroTitle ? 158 : 124
+      else if (!s.summary) h += 64
+      else if (pWidth(s.summary) > 6.0) h += 132
+      else h += 98
     }
     h += 148
     this.needScroll = h > 442
@@ -492,7 +499,8 @@ export default {
 .slot-summary {
   font-size: 24px;
   line-height: 34px;
-  lines: 1;
+  /* 两句以内自动折行，文本已由 clauseFit 截到 11P，绝不触发省略号 */
+  lines: 2;
   width: 100%;
 }
 
