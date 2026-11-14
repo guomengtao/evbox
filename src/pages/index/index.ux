@@ -26,7 +26,9 @@
         </div>
         <div class="slot-normal" style="display: {{ $item.hero ? 'none' : 'flex' }}">
           <text class="slot-name" style="color: {{ theme.text }}">{{ $item.name }}</text>
-          <text class="slot-summary" style="display: {{ $item.summary ? 'flex' : 'none' }}; color: {{ subColor }}">{{ $item.summary }}</text>
+          <!-- 摘要按 6P 手动拆成两行，每行仍是 lines:1：长句完整可读，绝不出现残句或省略号 -->
+          <text class="slot-summary" style="display: {{ $item.line1 ? 'flex' : 'none' }}; color: {{ subColor }}">{{ $item.line1 }}</text>
+          <text class="slot-summary" style="display: {{ $item.line2 ? 'flex' : 'none' }}; color: {{ subColor }}">{{ $item.line2 }}</text>
         </div>
       </div>
 
@@ -69,9 +71,11 @@ var toolSummaries = require("./modules/tool-summaries.js")
  */
 
 var modules = {}
+// countdownHero 必须同步 init：defer 50ms 会让 onShow 时 loadCountdownHero 还没定义，
+// 倒数日大数字分支永远不触发（v3 首轮实测踩到）。init 只挂函数、不读 storage，无性能代价。
 var moduleNames = [
   { key: "clock" },
-  { key: "countdownHero", defer: true }
+  { key: "countdownHero" }
 ]
 
 function loadModule(key, mod) {
@@ -108,24 +112,44 @@ function resolveSubColor(bg) {
  *    卡片内容宽 152px，24px 汉字 6 字 = 144px 才不折行；
  *  - 绝不压字号、绝不加省略号、绝不靠 text-overflow 截断。
  */
-function fitSummary(text) {
-  if (!text) return ""
-  var s = String(text).split(" · ").join("").split("·").join("")
-  var comma = s.indexOf("，")
-  if (comma > 0) s = s.slice(0, comma)
+function cutByP(text, maxP) {
   var out = ""
   var p = 0
-  for (var i = 0; i < s.length; i++) {
-    var ch = s.charAt(i)
-    var c = s.charCodeAt(i)
+  var i = 0
+  for (; i < text.length; i++) {
+    var ch = text.charAt(i)
+    var c = text.charCodeAt(i)
     var w = 1.0
     if ((c >= 48 && c <= 57) || (c >= 65 && c <= 90) || (c >= 97 && c <= 122)) w = 0.55
     else if (c === 32) w = 0.3
-    if (p + w > 6.0) break
+    if (p + w > maxP) break
     out += ch
     p += w
   }
-  return out
+  return { text: out, rest: text.slice(i) }
+}
+
+/** 去点税：tool-summaries 的 " · " 单体 0.5P + 两侧空格 = 1.1P，一律清掉 */
+function cleanSummary(text) {
+  return String(text || "").split(" · ").join("").split("·").join("")
+}
+
+/** 单行摘要：中文长句先取逗号前分句，再按 6P 裁 */
+function fitSummary(text) {
+  if (!text) return ""
+  var s = cleanSummary(text)
+  var comma = s.indexOf("，")
+  if (comma > 0) s = s.slice(0, comma)
+  return cutByP(s, 6.0).text
+}
+
+/** 长句摘要（一言）：按 6P 手动折成两行，两行合起来是完整句，不产生残句 */
+function wrapSummary(text) {
+  if (!text) return ["", ""]
+  var a = cutByP(cleanSummary(text), 6.0)
+  if (!a.rest) return [a.text, ""]
+  var b = cutByP(a.rest, 6.0)
+  return [a.text, b.text]
 }
 
 /** 把数据层槽位 + 摘要表 + 倒数日 hero 数据合并成模板直接可渲染的视图模型 */
@@ -134,13 +158,20 @@ function buildViewSlots(list, summaryMap, heroOn, hero) {
   for (var i = 0; i < list.length; i++) {
     var s = list[i]
     var isHero = !!(heroOn && s.id === "countdown" && hero.badge)
-    var summary = ""
-    if (s.summaryKey && summaryMap[s.summaryKey]) summary = fitSummary(summaryMap[s.summaryKey])
+    var raw = (s.summaryKey && summaryMap[s.summaryKey]) ? summaryMap[s.summaryKey] : ""
+    // 倒数日的摘要是「标题 · 还有 N 天」，首页更该给值而不是标题：取点号后段
+    if (s.summaryKey === "countdown" && raw.indexOf("·") >= 0) {
+      var parts = raw.split("·")
+      raw = parts[parts.length - 1].trim()
+    }
+    // 一言是完整句子，允许两行；其余摘要单行
+    var lines = s.summaryKey === "quote" ? wrapSummary(raw) : [fitSummary(raw), ""]
     out.push({
       id: s.id,
       name: s.name,
       uri: s.uri,
-      summary: summary,
+      line1: lines[0],
+      line2: lines[1],
       hero: isHero,
       badge: isHero ? hero.badge : "",
       unit: isHero ? hero.unit : "",
@@ -209,6 +240,10 @@ export default {
     if (self.hintTimer) clearTimeout(self.hintTimer)
     self.hintTimer = setTimeout(function() {
       self.hintTimer = null
+      // 模块同步 init 后这里必然有 loadCountdownHero；再取一次保证 hero 数据落定
+      if (self.loadCountdownHero && typeof self.loadCountdownHero === 'function') {
+        self.loadCountdownHero()
+      }
       self.mergeSlots()
     }, 350)
     if (self.settleTimer) clearTimeout(self.settleTimer)
@@ -280,8 +315,10 @@ export default {
   updateScrollHint() {
     var h = 56 + (this.showTime ? 106 : 84)
     for (var i = 0; i < this.slots.length; i++) {
-      if (this.slots[i].hero) h += 120
-      else if (this.slots[i].summary) h += 98
+      var s = this.slots[i]
+      if (s.hero) h += 120
+      else if (s.line2) h += 132
+      else if (s.line1) h += 98
       else h += 64
     }
     h += 148
