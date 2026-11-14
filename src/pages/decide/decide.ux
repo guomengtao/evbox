@@ -223,7 +223,8 @@ var lastBeatAt = 0
 var spinStart = 0
 var pending = null
 var pageAlive = true
-var BTN_SPIN = ["抽取中", "抽取中。", "抽取中。。", "抽取中。。。"]
+// 抽取期按钮只有一个状态：整段不变，不跟动画帧跳（2026-11-15 Tom 反馈：一起跳太乱）
+var BTN_BUSY = "抽取中"
 
 // 结果数 → 行位：1 个用中行、2 个用上+下行、3 个铺满，
 // 三行块重心恒在舞台中心，且不依赖任何条件渲染节点。
@@ -496,9 +497,8 @@ export default {
     }
     if (this.view === "combo") {
       // 组合抽取共享按钮锁与 loading；槽级逐帧动画仍属 P2
-      var step = Math.floor(el / 200)
-      this.btnText = BTN_SPIN[step % 4]
-      this.statusText = SPIN_TIPS[step % 4]
+      // 与抉择页同一条纪律：按钮整段静止，dots 只在状态行、400ms 一档
+      this.statusText = SPIN_TIPS[Math.floor(el / 400) % 4]
       return
     }
     this.renderSpinFrame(el)
@@ -765,7 +765,7 @@ export default {
     this.lineHot4 = f.h4
     this.busy = true
     this.phase = "spinning"
-    this.btnText = BTN_SPIN[0]
+    this.btnText = BTN_BUSY
     this.statusText = SPIN_TIPS[0]
     this.prevText = ""
     this.midText = ""
@@ -787,8 +787,9 @@ export default {
     this.lineHot2 = f.h2
     this.lineHot3 = f.h3
     this.lineHot4 = f.h4
-    this.btnText = BTN_SPIN[f.step % 4]
-    this.statusText = SPIN_TIPS[f.step % 4]
+    // 按钮**不跟着动画跳**：整段抽取期固定「抽取中」，只在按下和揭晓两处换一次状态。
+    // loading 点只走到状态行，且用 400ms 独立节奏——不跟 70ms 的动画帧同频。
+    this.statusText = SPIN_TIPS[Math.floor(el / 400) % 4]
     if (this.compassOn) {
       this.needleSrc = needlePath(f.step)
     }
@@ -1184,7 +1185,7 @@ export default {
     this.hasResult = false
     this.busy = true
     this.phase = "spinning"
-    this.btnText = BTN_SPIN[0]
+    this.btnText = BTN_BUSY
     this.statusText = SPIN_TIPS[0]
     this.vibrate("short")
   },
