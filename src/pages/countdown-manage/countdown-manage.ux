@@ -1,6 +1,16 @@
+<!--
+  倒数日列表页（Ev倒数日 版 · ev-six 重排）
+
+  设计依据 docs/pages/core/countdown.md：
+    一行一条，两行文字 —— 28px 标题 + 30px 数字（附 24px 单位）。
+    天数用条目自己的分类色（经 adaptColor 提亮/压暗），标题与其余文字走主题色；
+    颜色归用户、方向归单位（「天后」= 未来，「天前」= 过去），不写「还有/已经」占宽度。
+  规范约束：字号只有 44/30/28/24 四档；禁折行、禁省略号、禁 · 分隔符、禁箭头与文字徽标；
+          条件块一律用 display 绑定（if 会重建节点导致列表跳位）。
+-->
 <template>
   <div class="page" style="background-color: {{ theme.bg }}">
-    <div class="header">
+    <div class="back-header">
       <div class="back-btn-wrapper" onclick="goBack" style="background-color: {{ theme.card }}">
         <image class="back-btn-icon" src="/common/icons/{{ iconTheme }}/icon_back.png"></image>
       </div>
@@ -8,126 +18,37 @@
       <div class="header-placeholder"></div>
     </div>
 
-    <div class="toolbar" if="{{ list.length > 0 }}">
-      <text class="toolbar-count" style="color: {{ theme.textSecondary }}">{{ list.length }}个</text>
-      <text class="toolbar-sort" onclick="toggleSort" style="color: {{ theme.accent }}">{{ sortRecent ? '最近' : '名称' }}</text>
-      <input class="toolbar-clear" type="button" value="{{ clearAllConfirm ? '确认' : '清空' }}" onclick="clearAll"
-             style="background-color: {{ clearAllConfirm ? theme.deleteText : theme.deleteBg }}; color: {{ clearAllConfirm ? theme.text : theme.deleteText }}" />
-    </div>
-
-    <scroll class="list-scroll" scroll-y="{{true}}">
-      <div class="list-grid">
-        <div for="{{ list }}" class="countdown-row" onclick="openEdit($idx)" style="background-color: {{ theme.card }}">
-          <!-- 置顶态用左侧色条表达（ev-six v5 禁徽标：不再用「已钉」小标签） -->
-          <div class="row-accent" if="{{ $item.pinnedHome }}" style="background-color: {{ theme.accent }}"></div>
-          <div class="row-left">
-            <div class="row-badge" style="background-color: {{ $item.daysLeft >= 0 ? theme.accent : theme.textMuted }}">
-              <text class="badge-num" style="color: {{ theme.bg }}">{{ $item.badgeText }}</text>
+    <scroll class="cd-scroll" scroll-y="true">
+      <div class="cd-list">
+        <div class="cd-row" for="{{ list }}" onclick="openEdit($item.id)" style="background-color: {{ theme.card }}">
+          <!-- 左侧分类色条：4px 竖条替代色块图标，不占横向文案预算 -->
+          <div class="cd-bar" style="background-color: {{ $item.daysColor }}"></div>
+          <div class="cd-body">
+            <text class="cd-title" style="color: {{ $item.titleColor }}">{{ $item.titleFit }}</text>
+            <div class="cd-num-row">
+              <text class="cd-num" style="color: {{ $item.daysColor }}">{{ $item.numText }}</text>
+              <text class="cd-unit" style="color: {{ $item.daysColor }}; display: {{ $item.unitText ? 'flex' : 'none' }}">{{ $item.unitText }}</text>
             </div>
-            <div class="row-info">
-              <div class="row-title-line">
-                <text class="row-name" style="color: {{ theme.text }}">{{ $item.title }}</text>
-              </div>
-              <div class="row-sub-line">
-                <text class="row-date" style="color: {{ theme.textSecondary }}">{{ $item.dateText }}</text>
-                <text class="row-repeat" if="{{ $item.repeat !== 'none' }}" style="color: {{ theme.accent }}">{{ $item.repeatText }}</text>
-              </div>
-              <text class="row-days" if="{{ $item.enabled !== false }}" style="color: {{ $item.daysLeft >= 0 ? theme.accent : theme.deleteText }}">{{ $item.daysText }}</text>
-              <text class="row-days" if="{{ $item.enabled === false }}" style="color: {{ theme.textMuted }}">已停用</text>
+            <!-- 进度细条：只对「一次性 + 倒数」的条目出现，重复与正计时没有可参照终点 -->
+            <div class="cd-track" style="background-color: {{ theme.borderLight }}; display: {{ $item.showBar ? 'flex' : 'none' }}">
+              <div class="cd-fill" style="width: {{ $item.barPx }}px; background-color: {{ $item.daysColor }}"></div>
             </div>
           </div>
         </div>
       </div>
-      <text if="{{ list.length === 0 }}" class="empty-text" style="color: {{ theme.textMuted }}">暂无倒数日，点击下方按钮添加</text>
+
+      <div class="cd-empty" style="display: {{ list.length ? 'none' : 'flex' }}">
+        <text class="cd-empty-t" style="color: {{ theme.textSecondary }}">还没有倒数日</text>
+        <text class="cd-empty-s" style="color: {{ theme.textMuted }}">点下方添加一个</text>
+      </div>
     </scroll>
 
-    <!-- 2026-10-02 按用户反馈：「添加」按钮从标题栏移到列表下方固定区，
-         胶囊屏上标题栏太窄，按钮会被截断贴边。
-         2026-10-26：固定条补底色，否则列表滚到底时行内容会从按钮背后透出来 -->
-    <div class="bottom-bar" style="background-color: {{ theme.bg }}">
-      <input class="add-btn" type="button" value="+ 添加倒数日" onclick="startAdd"
-             style="background-color: {{ theme.accent }}; color: {{ theme.bg }}" />
-    </div>
-
-    <!-- 编辑器：公历/农历 + 年月日 + 重复规则 -->
-    <div class="editor-mask" if="{{ showEditor }}" onclick="closeEditor">
-      <div class="editor-card" onclick="stopBubble" style="background-color: {{ theme.card }}">
-        <text class="editor-title" style="color: {{ theme.accent }}">{{ editorIsEdit ? '编辑倒数日' : '新建倒数日' }}</text>
-        <div class="editor-name-row" onclick="editName" style="background-color: {{ theme.cardLight }}">
-          <text class="editor-name" style="color: {{ theme.text }}">{{ editorTitle }}</text>
-          <text class="editor-name-hint" style="color: {{ theme.textMuted }}">改名</text>
-        </div>
-
-        <!-- 2026-10-26 行内三颗操作按钮下沉到这里：胶囊屏上它们把正文挤成 0 宽，
-             且 10Pro 上正文被截断。状态用底色表达，标签固定不跳动 -->
-        <div class="editor-acts" if="{{ editorIsEdit }}">
-          <input class="ea-chip" type="button" value="置顶" onclick="toggleEditorPin"
-                 style="background-color: {{ editorPinned ? theme.accent : theme.btnSecondary }}; color: {{ editorPinned ? theme.bg : theme.btnSecondaryText }}" />
-          <input class="ea-chip" type="button" value="启用" onclick="toggleEditorEnable"
-                 style="background-color: {{ editorEnabled ? theme.accent : theme.btnSecondary }}; color: {{ editorEnabled ? theme.bg : theme.btnSecondaryText }}" />
-          <input class="ea-chip ea-del" type="button" value="{{ deleteConfirm ? '确认删除' : '删除' }}" onclick="deleteFromEditor"
-                 style="background-color: {{ deleteConfirm ? theme.deleteText : theme.deleteBg }}; color: {{ deleteConfirm ? theme.text : theme.deleteText }}" />
-        </div>
-
-        <div class="seg-row">
-          <div class="seg-chip" onclick="setCalendar('solar')"
-               style="border-color: {{ editorCalendar === 'solar' ? theme.accent : theme.border }}; background-color: {{ editorCalendar === 'solar' ? theme.cardLight : 'transparent' }}">
-            <text class="seg-text" style="color: {{ editorCalendar === 'solar' ? theme.accent : theme.textSecondary }}">公历</text>
-          </div>
-          <div class="seg-chip" onclick="setCalendar('lunar')"
-               style="border-color: {{ editorCalendar === 'lunar' ? theme.accent : theme.border }}; background-color: {{ editorCalendar === 'lunar' ? theme.cardLight : 'transparent' }}">
-            <text class="seg-text" style="color: {{ editorCalendar === 'lunar' ? theme.accent : theme.textSecondary }}">农历</text>
-          </div>
-        </div>
-
-        <scroll class="editor-body" scroll-y="{{true}}">
-          <div class="step-row">
-            <text class="step-label" style="color: {{ theme.textSecondary }}">年</text>
-            <input class="step-btn" type="button" value="−" onclick="stepYear(-1)" style="background-color: {{ theme.border }}; color: {{ theme.text }}" />
-            <text class="step-value" style="color: {{ theme.text }}">{{ editorYear }}</text>
-            <input class="step-btn" type="button" value="＋" onclick="stepYear(1)" style="background-color: {{ theme.border }}; color: {{ theme.text }}" />
-          </div>
-
-          <div class="step-row">
-            <text class="step-label" style="color: {{ theme.textSecondary }}">月</text>
-            <input class="step-btn" type="button" value="−" onclick="stepMonth(-1)" style="background-color: {{ theme.border }}; color: {{ theme.text }}" />
-            <text class="step-value" style="color: {{ theme.text }}">{{ monthText }}</text>
-            <input class="step-btn" type="button" value="＋" onclick="stepMonth(1)" style="background-color: {{ theme.border }}; color: {{ theme.text }}" />
-          </div>
-
-          <div class="step-row">
-            <text class="step-label" style="color: {{ theme.textSecondary }}">日</text>
-            <input class="step-btn" type="button" value="−" onclick="stepDay(-1)" style="background-color: {{ theme.border }}; color: {{ theme.text }}" />
-            <text class="step-value" style="color: {{ theme.text }}">{{ dayText }}</text>
-            <input class="step-btn" type="button" value="＋" onclick="stepDay(1)" style="background-color: {{ theme.border }}; color: {{ theme.text }}" />
-          </div>
-
-          <div class="leap-row" if="{{ showLeapChip }}">
-            <div class="seg-chip" onclick="toggleLeap"
-                 style="border-color: {{ editorIsLeap ? theme.accent : theme.border }}; background-color: {{ editorIsLeap ? theme.cardLight : 'transparent' }}">
-              <text class="seg-text" style="color: {{ editorIsLeap ? theme.accent : theme.textSecondary }}">{{ leapChipLabel }}</text>
-            </div>
-          </div>
-
-          <div class="preview-box" style="background-color: {{ theme.cardLight }}">
-            <text class="preview-main" style="color: {{ theme.accent }}">{{ previewMain }}</text>
-            <text class="preview-sub" style="color: {{ theme.textSecondary }}">{{ previewSub }}</text>
-          </div>
-
-          <text class="block-label" style="color: {{ theme.textSecondary }}">重复</text>
-          <div class="repeat-row">
-            <div for="{{ repeatOptions }}" class="repeat-chip" onclick="setRepeat($item.key)"
-                 style="border-color: {{ editorRepeat === $item.key ? theme.accent : theme.border }}; background-color: {{ editorRepeat === $item.key ? theme.cardLight : 'transparent' }}">
-              <text class="repeat-text" style="color: {{ editorRepeat === $item.key ? theme.accent : theme.textSecondary }}">{{ $item.label }}</text>
-            </div>
-          </div>
-          <text class="editor-tip" style="color: {{ theme.textMuted }}">每年 + 农历 可推算农历生日与节日</text>
-        </scroll>
-
-        <div class="editor-btns">
-          <input class="btn-cancel" type="button" value="取消" onclick="closeEditor" style="background-color: {{ theme.btnSecondary }}; color: {{ theme.btnSecondaryText }}" />
-          <input class="btn-save" type="button" value="保存" onclick="saveEditor" style="background-color: {{ theme.accent }}; color: {{ theme.bg }}" />
-        </div>
+    <div class="bottom-bar">
+      <div class="add-btn" onclick="startAdd" style="background-color: {{ theme.accent }}">
+        <text class="add-t" style="color: {{ theme.bg }}">添加</text>
+      </div>
+      <div class="sort-btn" onclick="toggleSort" style="background-color: {{ theme.cardLight }}">
+        <text class="sort-t" style="color: {{ theme.text }}">{{ sortRecent ? '按时间' : '按名称' }}</text>
       </div>
     </div>
   </div>
@@ -135,17 +56,23 @@
 
 <script>
 import router from "@system.router"
-import prompt from "@system.prompt"
+var storage = require("@system.storage")
 const store = require("../../data/store.js")
 const countdown = require("../../data/countdown.js")
-const lunar = require("../../lib/lunar.js")
+const textFit = require("../../common/text-fit.js")
 
-var MIN_YEAR = 1900
-var MAX_YEAR = 2100
+var EDIT_ID_KEY = "cd_edit_id"
+var SORT_KEY = "cd_sort_name"
+
+// 标题列宽度：行宽 168 − 色条 4 − 间隙 8 − 右内边距 8 = 148px；28px 汉字 1P = 28px
+var TITLE_MAX_P = 5.2
+// 进度轨道宽度：148px，留 1px 余量防溢出
+var TRACK_W = 147
 
 export default {
   private: {
     iconTheme: "dark",
+    isLight: false,
     theme: {
       bg: '#1a1a2e',
       card: '#16213e',
@@ -155,444 +82,101 @@ export default {
       textSecondary: '#888899',
       textMuted: '#555566',
       border: '#0f3460',
-      borderLight: '#2a2a5a',
-      keyBg: '#1a1a3e',
-      keyBorder: '#2a2a5a',
-      btnSecondary: '#333355',
-      btnSecondaryText: '#a0a0b0',
-      deleteBg: '#2a1a3e',
-      deleteText: '#e08080'
+      borderLight: '#2a2a5a'
     },
-    rawList: [],
     list: [],
-    sortRecent: true,
-    clearAllConfirm: false,
-    deleteConfirm: false,
-    deleteTimer: null,
-    clearTimer: null,
-
-    // 编辑器
-    showEditor: false,
-    editorIsEdit: false,
-    editorId: "",
-    editorTitle: "",
-    editorCalendar: "solar",
-    editorYear: 2026,
-    editorMonth: 1,
-    editorDay: 1,
-    editorIsLeap: false,
-    editorRepeat: "none",
-    editorCreated: 0,
-    editorPinned: false,
-    editorEnabled: true,
-    monthText: "",
-    dayText: "",
-    showLeapChip: false,
-    leapChipLabel: "闰月",
-    previewMain: "",
-    previewSub: "",
-    repeatOptions: [
-      { key: "none", label: "不重复" },
-      { key: "weekly", label: "每周" },
-      { key: "monthly", label: "每月" },
-      { key: "yearly", label: "每年" }
-    ]
+    sortRecent: true
   },
 
   onInit() {
-    var self = this
-    store.getTheme(function(t, themeName) {
-      self.theme = t
-      self.updateIconSrc(themeName)
-    })
-    this.loadList()
+    this.applyTheme()
+    this.loadSortThenRead()
   },
 
   onShow() {
+    // 从编辑页返回必须重排：新增、改名、改日期、删除都要立刻可见
+    this.applyTheme()
+    this.loadSortThenRead()
+  },
+
+  applyTheme() {
     var self = this
     store.getTheme(function(t, themeName) {
       self.theme = t
-      self.updateIconSrc(themeName)
+      self.isLight = (themeName === 'light' || themeName === 'warm')
+      self.iconTheme = self.isLight ? 'light' : 'dark'
+      self.readList()
     })
-    this.loadList()
-    this.checkInputResult()
   },
 
-  updateIconSrc(themeName) {
-    this.iconTheme = (themeName === 'light' || themeName === 'warm') ? 'light' : 'dark'
+  loadSortThenRead() {
+    var self = this
+    storage.get({
+      key: SORT_KEY,
+      success: function(v) {
+        self.sortRecent = (v !== "1")
+        self.readList()
+      },
+      fail: function() {
+        self.sortRecent = true
+        self.readList()
+      }
+    })
   },
 
-  // ---------------------------------------------------------------- 列表
-
-  loadList() {
+  readList() {
     var self = this
     countdown.loadList(function(items) {
-      self.rawList = countdown.sortList(items, self.sortRecent ? "recent" : "name")
-      self.list = countdown.decorateList(self.rawList)
-    })
-  },
-
-  persist(callback) {
-    var self = this
-    countdown.saveList(this.rawList, function() {
-      self.loadList()
-      if (callback) callback()
+      var sorted = countdown.sortList(items, self.sortRecent ? "recent" : "name")
+      var out = []
+      for (var i = 0; i < sorted.length; i++) {
+        var d = countdown.decorateItem(sorted[i])
+        d.titleFit = textFit.clampP(d.title, TITLE_MAX_P)
+        // 停用（首页不显示）仍是列表里的条目，只是不上首页 —— 用次级色降权，不写标签
+        d.titleColor = d.enabled ? self.theme.text : self.theme.textSecondary
+        d.daysColor = d.enabled ? countdown.adaptColor(d.color, self.isLight) : self.theme.textMuted
+        d.showBar = (d.progressPct >= 0)
+        d.barPx = d.showBar ? Math.max(6, Math.round(TRACK_W * d.progressPct / 100)) : 0
+        out.push(d)
+      }
+      self.list = out
     })
   },
 
   toggleSort() {
+    var self = this
     this.sortRecent = !this.sortRecent
-    this.rawList = countdown.sortList(this.rawList, this.sortRecent ? "recent" : "name")
-    this.list = countdown.decorateList(this.rawList)
+    storage.set({
+      key: SORT_KEY,
+      value: this.sortRecent ? "0" : "1",
+      success: function() { self.readList() },
+      fail: function() { self.readList() }
+    })
   },
-
-  // 点行 = 直接进编辑（旧版是先进改名输入法，看日期也得先过一遍键盘，2026-10-26 改）
-  openEdit(idx) {
-    var item = this.rawList[idx]
-    if (!item) return
-    this.openEditor(item, item.title)
-  },
-
-  toggleEditorPin() {
-    this.editorPinned = !this.editorPinned
-  },
-
-  toggleEditorEnable() {
-    this.editorEnabled = !(this.editorEnabled !== false)
-  },
-
-  deleteFromEditor() {
-    var self = this
-    if (this.deleteConfirm) {
-      clearTimeout(this.deleteTimer)
-      this.deleteConfirm = false
-      var idx = -1
-      for (var i = 0; i < this.rawList.length; i++) {
-        if (this.rawList[i].id === this.editorId) {
-          idx = i
-          break
-        }
-      }
-      if (idx >= 0) this.rawList = countdown.removeAt(this.rawList, idx)
-      this.showEditor = false
-      this.persist(function() {
-        prompt.showToast({ message: "已删除" })
-      })
-      return
-    }
-    this.deleteConfirm = true
-    clearTimeout(this.deleteTimer)
-    this.deleteTimer = setTimeout(function() {
-      self.deleteConfirm = false
-    }, 3000)
-  },
-
-  clearAll() {
-    var self = this
-    if (this.clearAllConfirm) {
-      this.rawList = []
-      clearTimeout(this.clearTimer)
-      this.clearAllConfirm = false
-      this.persist()
-      return
-    }
-    this.clearAllConfirm = true
-    clearTimeout(this.clearTimer)
-    this.clearTimer = setTimeout(function() {
-      self.clearAllConfirm = false
-    }, 3000)
-  },
-
-  // ---------------------------------------------------------------- 中文输入法（名称）
 
   startAdd() {
-    var storage = require("@system.storage")
-    storage.set({ key: "chinese_input_title", value: "添加倒数日", success: function() {} })
-    storage.set({ key: "chinese_input_placeholder", value: "输入名称", success: function() {} })
-    storage.set({ key: "chinese_input_value", value: "", success: function() {} })
-    storage.set({ key: "chinese_input_maxlen", value: "12", success: function() {} })
-    storage.set({ key: "chinese_input_return_key", value: "countdown_add_title", success: function() {
-      router.push({ uri: "/pages/chinese-input" })
-    }})
-  },
-
-  // 编辑器内改名：index = -1 表示"只改当前编辑器里的标题"
-  editName() {
-    var storage = require("@system.storage")
-    storage.set({ key: "chinese_input_title", value: "编辑名称", success: function() {} })
-    storage.set({ key: "chinese_input_placeholder", value: "输入名称", success: function() {} })
-    storage.set({ key: "chinese_input_value", value: this.editorTitle, success: function() {} })
-    storage.set({ key: "chinese_input_maxlen", value: "12", success: function() {} })
-    storage.set({ key: "chinese_input_return_key", value: "countdown_edit_title", success: function() {
-      storage.set({ key: "countdown_edit_index", value: "-1", success: function() {
-        router.push({ uri: "/pages/chinese-input" })
-      }})
-    }})
-  },
-
-  checkInputResult() {
-    var self = this
-    var storage = require("@system.storage")
-
-    storage.get({
-      key: "countdown_add_title",
-      success: function(data) {
-        if (data !== undefined && data !== null && data !== "") {
-          var title = data.trim()
-          storage.delete({ key: "countdown_add_title", fail: function() {} })
-          if (title) self.openEditor(null, title)
-        }
+    storage.set({
+      key: EDIT_ID_KEY,
+      value: "",
+      success: function() {
+        router.push({ uri: "/pages/countdown-edit" })
       },
-      fail: function() {}
+      fail: function() {
+        router.push({ uri: "/pages/countdown-edit" })
+      }
     })
+  },
 
-    storage.get({
-      key: "countdown_edit_title",
-      success: function(data) {
-        if (data !== undefined && data !== null && data !== "") {
-          var title = data.trim()
-          storage.delete({ key: "countdown_edit_title", fail: function() {} })
-          storage.get({
-            key: "countdown_edit_index",
-            success: function(idxData) {
-              storage.delete({ key: "countdown_edit_index", fail: function() {} })
-              var idx = parseInt(idxData)
-              if (isNaN(idx)) idx = -1
-              if (idx >= 0 && idx < self.rawList.length) {
-                self.openEditor(self.rawList[idx], title)
-              } else if (self.showEditor) {
-                self.editorTitle = title
-              }
-            },
-            fail: function() {}
-          })
-        }
+  openEdit(id) {
+    storage.set({
+      key: EDIT_ID_KEY,
+      value: String(id),
+      success: function() {
+        router.push({ uri: "/pages/countdown-edit" })
       },
-      fail: function() {}
-    })
-  },
-
-  // ---------------------------------------------------------------- 编辑器
-
-  openEditor(item, title) {
-    var now = new Date()
-    if (item) {
-      this.editorIsEdit = true
-      this.editorId = item.id
-      this.editorTitle = title || item.title
-      this.editorCalendar = item.calendar === "lunar" ? "lunar" : "solar"
-      this.editorRepeat = item.repeat || "none"
-      this.editorCreated = item.created || 0
-      this.editorPinned = item.pinnedHome === true
-      this.editorEnabled = item.enabled !== false
-      if (this.editorCalendar === "lunar" && item.lunar) {
-        this.editorYear = this.currentLunarYear()
-        if (item.repeat === "none") {
-          // 一次性农历日期：把基准公历日反推成农历年，保持"那一年"的语义
-          var b0 = countdown.parseKey(item.date)
-          var bl = b0 ? lunar.solarToLunar(b0.year, b0.month, b0.day) : null
-          if (bl) this.editorYear = bl.year
-        }
-        this.editorMonth = item.lunar.month
-        this.editorDay = item.lunar.day
-        this.editorIsLeap = item.lunar.isLeap === true
-      } else {
-        var b = countdown.parseKey(item.date)
-        this.editorYear = b ? b.year : now.getFullYear()
-        this.editorMonth = b ? b.month : now.getMonth() + 1
-        this.editorDay = b ? b.day : now.getDate()
-        this.editorIsLeap = false
+      fail: function() {
+        router.push({ uri: "/pages/countdown-edit" })
       }
-    } else {
-      this.editorIsEdit = false
-      this.editorId = ""
-      this.editorTitle = title || ""
-      this.editorCalendar = "solar"
-      this.editorYear = now.getFullYear()
-      this.editorMonth = now.getMonth() + 1
-      this.editorDay = now.getDate()
-      this.editorIsLeap = false
-      this.editorRepeat = "none"
-      this.editorCreated = 0
-      this.editorPinned = false
-      this.editorEnabled = true
-    }
-    this.normalizeEditorDate()
-    this.deleteConfirm = false
-    clearTimeout(this.deleteTimer)
-    this.showEditor = true
-  },
-
-  currentLunarYear() {
-    var now = new Date()
-    var l = lunar.solarToLunar(now.getFullYear(), now.getMonth() + 1, now.getDate())
-    return l ? l.year : now.getFullYear()
-  },
-
-  closeEditor() {
-    clearTimeout(this.deleteTimer)
-    this.deleteConfirm = false
-    this.showEditor = false
-  },
-
-  stopBubble() {},
-
-  maxDayOf(year, month, isLeap) {
-    if (this.editorCalendar === "lunar") {
-      return countdown.lunarMonthMaxDay(year, month, isLeap)
-    }
-    return lunar.solarMonthDays(year, month)
-  },
-
-  normalizeEditorDate() {
-    if (this.editorYear < MIN_YEAR) this.editorYear = MIN_YEAR
-    if (this.editorYear > MAX_YEAR) this.editorYear = MAX_YEAR
-    if (this.editorMonth < 1) this.editorMonth = 12
-    if (this.editorMonth > 12) this.editorMonth = 1
-    var leap = lunar.leapMonth(this.editorYear)
-    if (this.editorCalendar !== "lunar" || leap !== this.editorMonth) this.editorIsLeap = false
-    var maxDay = this.maxDayOf(this.editorYear, this.editorMonth, this.editorIsLeap)
-    if (this.editorDay < 1) this.editorDay = maxDay
-    if (this.editorDay > maxDay) this.editorDay = maxDay
-    this.refreshEditorText()
-  },
-
-  refreshEditorText() {
-    if (this.editorCalendar === "lunar") {
-      this.monthText = lunar.monthText(this.editorMonth, this.editorIsLeap)
-      this.dayText = lunar.dayText(this.editorDay)
-    } else {
-      this.monthText = this.editorMonth + "月"
-      this.dayText = this.editorDay + "日"
-    }
-    var leap = lunar.leapMonth(this.editorYear)
-    this.showLeapChip = this.editorCalendar === "lunar" && leap === this.editorMonth
-    this.leapChipLabel = "闰" + lunar.monthText(this.editorMonth, false)
-    this.updatePreview()
-  },
-
-  updatePreview() {
-    var y = this.editorYear
-    var m = this.editorMonth
-    var d = this.editorDay
-    if (this.editorCalendar === "lunar") {
-      var s = lunar.lunarToSolar(y, m, d, this.editorIsLeap)
-      var main = "农历" + lunar.formatLunar({ month: m, day: d, isLeap: this.editorIsLeap })
-      if (s) {
-        var sl = lunar.solarToLunar(s.year, s.month, s.day)
-        var fest = lunar.lunarFestival(sl) || lunar.solarFestival(s.month, s.day)
-        this.previewMain = main
-        this.previewSub = "公历 " + countdown.toKey(s.year, s.month, s.day) + (fest ? " · " + fest : "")
-      } else {
-        this.previewMain = main
-        this.previewSub = "超出可换算范围"
-      }
-    } else {
-      var l = lunar.solarToLunar(y, m, d)
-      var fest2 = lunar.solarFestival(m, d) || (l ? lunar.lunarFestival(l) : "")
-      this.previewMain = "公历 " + countdown.toKey(y, m, d)
-      this.previewSub = (l ? lunar.formatLunarWithPrefix(l) : "") + (fest2 ? " · " + fest2 : "")
-    }
-  },
-
-  setCalendar(kind) {
-    if (kind === this.editorCalendar) return
-    var y = this.editorYear
-    var m = this.editorMonth
-    var d = this.editorDay
-    if (kind === "lunar") {
-      var l = lunar.solarToLunar(y, m, d)
-      if (l) {
-        this.editorYear = l.year
-        this.editorMonth = l.month
-        this.editorDay = l.day
-        this.editorIsLeap = l.isLeap
-      }
-    } else {
-      var s = lunar.lunarToSolar(y, m, d, this.editorIsLeap)
-      if (s) {
-        this.editorYear = s.year
-        this.editorMonth = s.month
-        this.editorDay = s.day
-      }
-      this.editorIsLeap = false
-    }
-    this.editorCalendar = kind
-    this.normalizeEditorDate()
-  },
-
-  stepYear(delta) {
-    var y = this.editorYear + delta
-    if (y < MIN_YEAR) y = MIN_YEAR
-    if (y > MAX_YEAR) y = MAX_YEAR
-    this.editorYear = y
-    this.normalizeEditorDate()
-  },
-
-  stepMonth(delta) {
-    var m = this.editorMonth + delta
-    if (m < 1) m = 12
-    if (m > 12) m = 1
-    this.editorMonth = m
-    this.normalizeEditorDate()
-  },
-
-  stepDay(delta) {
-    var maxDay = this.maxDayOf(this.editorYear, this.editorMonth, this.editorIsLeap)
-    var d = this.editorDay + delta
-    if (d < 1) d = maxDay
-    if (d > maxDay) d = 1
-    this.editorDay = d
-    this.normalizeEditorDate()
-  },
-
-  toggleLeap() {
-    this.editorIsLeap = !this.editorIsLeap
-    this.normalizeEditorDate()
-  },
-
-  setRepeat(key) {
-    this.editorRepeat = key
-  },
-
-  saveEditor() {
-    var title = (this.editorTitle || "").trim()
-    if (!title) {
-      prompt.showToast({ message: "请先输入名称" })
-      return
-    }
-    var item = countdown.createItem({
-      id: this.editorId,
-      title: title,
-      calendar: this.editorCalendar,
-      year: this.editorYear,
-      month: this.editorMonth,
-      day: this.editorDay,
-      isLeap: this.editorIsLeap,
-      repeat: this.editorRepeat,
-      created: this.editorCreated,
-      pinnedHome: this.editorPinned,
-      enabled: this.editorEnabled
-    })
-    if (!item) {
-      prompt.showToast({ message: "日期无效，请调整后再保存" })
-      return
-    }
-
-    var replaced = false
-    for (var i = 0; i < this.rawList.length; i++) {
-      if (this.rawList[i].id === item.id) {
-        this.rawList[i] = item
-        replaced = true
-        break
-      }
-    }
-    if (!replaced) this.rawList.push(item)
-
-    this.rawList = countdown.sortList(this.rawList, this.sortRecent ? "recent" : "name")
-    this.showEditor = false
-    this.persist(function() {
-      prompt.showToast({ message: replaced ? "已保存" : "已添加" })
     })
   },
 
@@ -603,718 +187,179 @@ export default {
 </script>
 
 <style>
-@import '../../common/header.css';
-
 .page {
-  flex: 1;
+  flex-direction: column;
   width: 100%;
   height: 100%;
-  flex-direction: column;
-  padding: 30px 16px 30px 16px;
+  padding: 44px 12px 12px 12px;
 }
 
-.add-btn {
-  /* 2026-10-02 从标题栏移到底部固定条后改为通栏，原 80px 窄按钮在底部显得局促 */
-  width: 100%;
-  height: 52px;
-  border-radius: 26px;
-  font-size: 28px;
-  text-align: center;
-  line-height: 52px;
-  flex-shrink: 0;
-}
-
-/* 底部固定操作条 */
-.bottom-bar {
-  width: 100%;
-  flex-direction: row;
-  flex-shrink: 0;
-  padding: 10px 0 14px 0;
-}
-
-.toolbar {
+.back-header {
   flex-direction: row;
   width: 100%;
   align-items: center;
-  justify-content: space-between;
-  height: 40px;
-  padding: 0 8px;
   margin-bottom: 8px;
   flex-shrink: 0;
 }
 
-.toolbar-count {
-  font-size: 24px;
-  line-height: 32px;
-  flex-shrink: 0;
-}
-
-.toolbar-sort {
-  font-size: 24px;
-  line-height: 32px;
-  padding: 0 8px;
-  flex-shrink: 0;
-}
-
-.toolbar-clear {
-  width: 78px;
+.back-btn-wrapper {
+  width: 48px;
   height: 40px;
-  border-radius: 20px;
-  font-size: 24px;
+  border-radius: 10px;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.back-btn-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.header-title {
+  flex: 1;
+  font-size: 30px;
+  font-weight: bold;
   text-align: center;
   line-height: 40px;
+  lines: 1;
 }
 
-.list-scroll {
+.header-placeholder {
+  width: 48px;
+  height: 40px;
+  flex-shrink: 0;
+}
+
+.cd-scroll {
   flex: 1;
   flex-direction: column;
 }
 
-.list-grid {
+.cd-list {
   flex-direction: column;
   width: 100%;
 }
 
-/* 置顶态：左侧 4px 色条（替代旧的「已钉」小徽标，ev-six v5 禁徽标） */
-.row-accent {
+.cd-row {
+  flex-direction: row;
+  width: 100%;
+  border-radius: 12px;
+  margin-bottom: 8px;
+  padding: 8px 8px 8px 0;
+  align-items: stretch;
+}
+
+.cd-bar {
   width: 4px;
-  height: 44px;
   border-radius: 2px;
   margin-right: 8px;
   flex-shrink: 0;
 }
 
-.countdown-row {
-  flex-direction: row;
-  width: 100%;
-  align-items: center;
-  border-radius: 12px;
-  padding: 10px 12px;
-  margin-bottom: 8px;
-}
-
-.row-left {
-  flex-direction: row;
-  align-items: center;
-  flex: 1;
-  min-width: 0;
-}
-
-.row-badge {
-  min-width: 52px;
-  height: 52px;
-  border-radius: 26px;
-  padding: 0 10px;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  margin-right: 10px;
-}
-
-.badge-num {
-  font-size: 24px;
-  font-weight: bold;
-  text-align: center;
-}
-
-.row-info {
+.cd-body {
   flex: 1;
   flex-direction: column;
-  min-width: 0;
+  justify-content: center;
 }
 
-.row-title-line {
-  flex-direction: row;
-  width: 100%;
-  align-items: center;
-}
-
-.row-name {
-  font-size: 28px;
-  line-height: 34px;
-  lines: 2;
-  min-width: 0;
-  text-overflow: ellipsis;
-  flex-shrink: 1;
-}
-
-.row-sub-line {
-  flex-direction: row;
-  width: 100%;
-  align-items: center;
-  margin-top: 2px;
-}
-
-.row-date {
-  font-size: 24px;
-  line-height: 32px;
-  flex-shrink: 1;
-  lines: 1;
-  min-width: 0;
-  text-overflow: ellipsis;
-}
-
-.row-repeat {
-  font-size: 24px;
-  line-height: 32px;
-  margin-left: 8px;
-  flex-shrink: 0;
-}
-
-.row-days {
-  font-size: 24px;
-  line-height: 32px;
-  margin-top: 2px;
-  lines: 1;
-  text-overflow: ellipsis;
-}
-
-/* 操作按钮已下沉到编辑页（见 .editor-acts），行内不再有按钮 */
-.editor-acts {
-  flex-direction: row;
-  width: 100%;
-  flex-wrap: wrap;
-  margin-bottom: 8px;
-  flex-shrink: 0;
-}
-
-.ea-chip {
-  height: 44px;
-  border-radius: 22px;
-  font-size: 24px;
-  text-align: center;
-  line-height: 44px;
-  padding: 0 16px;
-  margin-right: 8px;
-  margin-bottom: 4px;
-}
-
-.empty-text {
+.cd-title {
   font-size: 28px;
   line-height: 36px;
-  text-align: center;
-  margin-top: 60px;
-}
-
-/* ---------------- 编辑器 ---------------- */
-
-.editor-mask {
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.45);
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
-
-.editor-card {
-  width: 92%;
-  height: 88%;
-  border-radius: 16px;
-  padding: 14px 14px 10px 14px;
-  flex-direction: column;
-}
-
-.editor-title {
-  font-size: 28px;
-  font-weight: bold;
-  text-align: center;
-  line-height: 36px;
-  margin-bottom: 8px;
-  flex-shrink: 0;
-}
-
-.editor-name-row {
-  flex-direction: row;
-  width: 100%;
-  align-items: center;
-  justify-content: space-between;
-  border-radius: 10px;
-  padding: 10px 12px;
-  margin-bottom: 8px;
-  flex-shrink: 0;
-}
-
-.editor-name {
-  font-size: 26px;
-  line-height: 34px;
   lines: 1;
-  min-width: 0;
-  text-overflow: ellipsis;
-  flex: 1;
-}
-
-.editor-name-hint {
-  font-size: 24px;
-  line-height: 32px;
-  margin-left: 8px;
-  flex-shrink: 0;
-}
-
-.seg-row {
-  flex-direction: row;
   width: 100%;
-  justify-content: center;
-  margin-bottom: 6px;
-  flex-shrink: 0;
 }
 
-.seg-chip {
-  padding: 6px 18px;
-  border-radius: 18px;
-  border-width: 1px;
-  border-style: solid;
-  margin: 0 5px;
-}
-
-.seg-text {
-  font-size: 24px;
-  line-height: 30px;
-}
-
-.editor-body {
-  flex: 1;
-  flex-direction: column;
-}
-
-.step-row {
+.cd-num-row {
   flex-direction: row;
-  width: 100%;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 8px;
-}
-
-.step-label {
-  font-size: 24px;
-  line-height: 32px;
-  width: 36px;
-  text-align: center;
-}
-
-.step-btn {
-  width: 56px;
-  height: 40px;
-  border-radius: 20px;
-  font-size: 28px;
-  font-weight: bold;
-  text-align: center;
-  line-height: 40px;
-  flex-shrink: 0;
-}
-
-.step-value {
-  font-size: 28px;
-  font-weight: bold;
-  line-height: 40px;
-  width: 120px;
-  text-align: center;
-}
-
-.leap-row {
-  flex-direction: row;
-  width: 100%;
-  justify-content: center;
-  margin-bottom: 8px;
-}
-
-.preview-box {
-  border-radius: 10px;
-  padding: 10px;
-  align-items: center;
-  margin-bottom: 10px;
-}
-
-.preview-main {
-  font-size: 26px;
-  font-weight: bold;
-  line-height: 34px;
-  text-align: center;
-}
-
-.preview-sub {
-  font-size: 24px;
-  line-height: 32px;
-  text-align: center;
+  align-items: flex-end;
   margin-top: 2px;
 }
 
-.block-label {
+.cd-num {
+  font-size: 30px;
+  font-weight: bold;
+  line-height: 38px;
+  lines: 1;
+}
+
+.cd-unit {
   font-size: 24px;
-  line-height: 32px;
+  line-height: 38px;
   margin-left: 4px;
-  margin-bottom: 6px;
+  lines: 1;
 }
 
-.repeat-row {
-  flex-direction: row;
+/* 进度条：4px 细条，只做「走了多远」的定性提示，不抢数字的主角位置 */
+.cd-track {
   width: 100%;
-  flex-wrap: wrap;
-  justify-content: center;
+  height: 4px;
+  border-radius: 2px;
+  margin-top: 6px;
+  flex-direction: row;
 }
 
-.repeat-chip {
-  padding: 6px 16px;
-  border-radius: 18px;
-  border-width: 1px;
-  border-style: solid;
-  margin: 0 5px 8px 5px;
+.cd-fill {
+  height: 4px;
+  border-radius: 2px;
 }
 
-.repeat-text {
-  font-size: 24px;
-  line-height: 30px;
+.cd-empty {
+  flex-direction: column;
+  width: 100%;
+  padding-top: 60px;
+  align-items: center;
 }
 
-.editor-tip {
+.cd-empty-t {
+  font-size: 28px;
+  line-height: 36px;
+  lines: 1;
+}
+
+.cd-empty-s {
   font-size: 24px;
   line-height: 32px;
-  text-align: center;
-  margin-bottom: 6px;
+  margin-top: 8px;
+  lines: 1;
 }
 
-.editor-btns {
+/* 底部操作行：主按钮 + 排序切换，落在 490 屏最稳定的低风险热区 */
+.bottom-bar {
   flex-direction: row;
   width: 100%;
-  justify-content: space-between;
+  height: 56px;
   flex-shrink: 0;
-  margin-top: 6px;
+  margin-top: 8px;
 }
 
-.btn-cancel {
-  width: 46%;
-  height: 48px;
-  border-radius: 24px;
-  font-size: 26px;
-  text-align: center;
-  line-height: 48px;
+.add-btn {
+  flex: 1;
+  height: 56px;
+  border-radius: 12px;
+  justify-content: center;
+  align-items: center;
+  margin-right: 8px;
 }
 
-.btn-save {
-  width: 46%;
-  height: 48px;
-  border-radius: 24px;
-  font-size: 26px;
-  font-weight: bold;
-  text-align: center;
-  line-height: 48px;
+.add-t {
+  font-size: 28px;
+  line-height: 36px;
+  lines: 1;
 }
 
-@media (shape: capsule), (shape: pill-shaped) {
-  /* 2026-10-26 ev-six v5 口径重写：字号只用 44/30/28/24 四档、24px 为绝对下限；
-     旧版此处把行内文字压到 20/18/16px，是「戴着看不清」的直接原因 */
-  .page {
-    padding: 28px 8px 14px 8px;
-  }
-
-  .add-btn {
-    width: 100%;
-    height: 52px;
-    border-radius: 26px;
-    font-size: 28px;
-    line-height: 52px;
-  }
-
-  .toolbar {
-    height: 44px;
-    padding: 0 4px;
-    margin-bottom: 6px;
-  }
-
-  .toolbar-count {
-    font-size: 24px;
-    line-height: 32px;
-  }
-
-  .toolbar-sort {
-    font-size: 24px;
-    line-height: 32px;
-  }
-
-  .toolbar-clear {
-    width: 68px;
-    height: 44px;
-    border-radius: 22px;
-    font-size: 24px;
-    line-height: 44px;
-  }
-
-  .countdown-row {
-    padding: 10px 10px;
-    margin-bottom: 8px;
-  }
-
-  .row-accent {
-    height: 40px;
-    margin-right: 6px;
-  }
-
-  /* 胶囊屏：徽标让位给正文（156px 正文宽里 46+8 的徽标太贵，
-     天数已由「还有 N 天」表达，不丢信息） */
-  .row-badge {
-    display: none;
-  }
-
-  .row-name {
-    font-size: 28px;
-    line-height: 34px;
-  }
-
-  .row-date {
-    font-size: 24px;
-    line-height: 30px;
-  }
-
-  .row-repeat {
-    display: none;
-  }
-
-  .row-days {
-    font-size: 24px;
-    line-height: 30px;
-  }
-
-  .empty-text {
-    font-size: 24px;
-    line-height: 32px;
-    margin-top: 40px;
-  }
-
-  /* 编辑器 */
-  .editor-mask {
-    padding: 10px;
-  }
-
-  .editor-card {
-    width: 96%;
-    height: 94%;
-    border-radius: 12px;
-    padding: 10px 10px 8px 10px;
-  }
-
-  .editor-title {
-    font-size: 28px;
-    line-height: 34px;
-    margin-bottom: 6px;
-  }
-
-  .editor-name-row {
-    padding: 8px 10px;
-    margin-bottom: 6px;
-  }
-
-  .editor-name {
-    font-size: 24px;
-    line-height: 32px;
-  }
-
-  .editor-name-hint {
-    font-size: 24px;
-    line-height: 32px;
-  }
-
-  .editor-acts {
-    margin-bottom: 6px;
-  }
-
-  .ea-chip {
-    height: 40px;
-    border-radius: 20px;
-    font-size: 24px;
-    line-height: 40px;
-    padding: 0 12px;
-    margin-right: 6px;
-  }
-
-  .seg-chip {
-    padding: 4px 14px;
-    margin: 0 4px;
-  }
-
-  .seg-text {
-    font-size: 24px;
-    line-height: 30px;
-  }
-
-  .step-row {
-    margin-bottom: 6px;
-  }
-
-  .step-label {
-    font-size: 24px;
-    line-height: 30px;
-    width: 32px;
-  }
-
-  .step-btn {
-    width: 48px;
-    height: 44px;
-    border-radius: 22px;
-    font-size: 24px;
-    line-height: 44px;
-  }
-
-  .step-value {
-    font-size: 28px;
-    line-height: 44px;
-    width: 96px;
-  }
-
-  .preview-box {
-    padding: 8px;
-    margin-bottom: 8px;
-  }
-
-  .preview-main {
-    font-size: 24px;
-    line-height: 30px;
-  }
-
-  .preview-sub {
-    font-size: 24px;
-    line-height: 30px;
-  }
-
-  .block-label {
-    font-size: 24px;
-    line-height: 30px;
-  }
-
-  .repeat-chip {
-    padding: 4px 12px;
-    margin: 0 4px 6px 4px;
-  }
-
-  .repeat-text {
-    font-size: 24px;
-    line-height: 30px;
-  }
-
-  .editor-tip {
-    font-size: 24px;
-    line-height: 30px;
-  }
-
-  .btn-cancel {
-    height: 44px;
-    border-radius: 22px;
-    font-size: 24px;
-    line-height: 44px;
-  }
-
-  .btn-save {
-    height: 44px;
-    border-radius: 22px;
-    font-size: 24px;
-    line-height: 44px;
-  }
+.sort-btn {
+  width: 76px;
+  height: 56px;
+  border-radius: 12px;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
 }
 
-@media (shape: rect), (shape: rectangle) {
-  /* 2026-10-26 手环 10Pro（336x480）版式：换版式不换比例 —— 多出来的 144px 宽
-     换成「一行放两项信息」，纵向不再堆三行；同时修掉旧版把 .add-btn 压成 90px 宽
-     导致「+ 添加倒数日」被裁出屏的 bug */
-  .page {
-    padding: 24px 20px 16px 20px;
-  }
-
-  .add-btn {
-    width: 100%;
-    height: 56px;
-    border-radius: 28px;
-    font-size: 28px;
-    line-height: 56px;
-  }
-
-  .toolbar {
-    height: 48px;
-    padding: 0 6px;
-    margin-bottom: 8px;
-  }
-
-  .toolbar-count {
-    font-size: 24px;
-    line-height: 32px;
-  }
-
-  .toolbar-sort {
-    font-size: 24px;
-    line-height: 32px;
-  }
-
-  .toolbar-clear {
-    width: 84px;
-    height: 44px;
-    border-radius: 22px;
-    font-size: 24px;
-    line-height: 44px;
-  }
-
-  .countdown-row {
-    padding: 12px 14px;
-    margin-bottom: 10px;
-  }
-
-  .row-accent {
-    height: 52px;
-    margin-right: 10px;
-  }
-
-  .row-badge {
-    min-width: 56px;
-    height: 56px;
-    border-radius: 28px;
-    padding: 0 10px;
-    margin-right: 12px;
-  }
-
-  .badge-num {
-    font-size: 28px;
-  }
-
-  /* 三行整宽：日期串「公历 2026-10-26」在 24px 下约 190px，
-     并排给 52% 只会截成「公...」，实测后改回整宽 */
-
-  .row-name {
-    font-size: 30px;
-    line-height: 38px;
-  }
-
-  .row-date {
-    font-size: 24px;
-    line-height: 32px;
-  }
-
-  .row-repeat {
-    font-size: 24px;
-    line-height: 32px;
-  }
-
-  .empty-text {
-    font-size: 28px;
-    line-height: 36px;
-  }
-
-  .editor-card {
-    width: 94%;
-  }
-
-  .editor-name {
-    font-size: 28px;
-    line-height: 36px;
-  }
-
-  .ea-chip {
-    height: 48px;
-    border-radius: 24px;
-    font-size: 24px;
-    line-height: 48px;
-    padding: 0 20px;
-  }
+.sort-t {
+  font-size: 24px;
+  line-height: 32px;
+  lines: 1;
 }
-
 </style>

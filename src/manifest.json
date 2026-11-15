@@ -1,8 +1,8 @@
 {
   "package": "com.application.watch.evbox",
   "name": "Ev工具箱",
-  "versionName": "1.0.73",
-  "versionCode": 74,
+  "versionName": "1.0.81",
+  "versionCode": 82,
   "minPlatformVersion": 1050,
   "icon": "/logo.png",
   "deviceTypeList": [
@@ -56,7 +56,7 @@
     "entry": "pages/index",
     "_groups": {
       "核心主流程": "welcome, index, tools",
-      "实用工具": "countdown-manage, lunar-calendar, calculator, daily-quote, answer-book, qrcode-generator, vibration-lab, vibration-lab-v2, chinese-input",
+      "实用工具": "countdown-manage, countdown-edit, lunar-calendar, calculator, daily-quote, answer-book, qrcode-generator, vibration-lab, vibration-lab-v2, chinese-input",
       "设置与系统": "settings, homepage-settings, pinned-pages, sync-chat, backup-restore, activation, device-info, template-picker",
       "实验室工具": "device-id-diagnosis, black-screen-check",
       "其他": "donate"
@@ -81,6 +81,11 @@
         "component": "countdown-manage",
         "group": "实用工具",
         "name_cn": "倒数日管理"
+      },
+      "pages/countdown-edit": {
+        "component": "countdown-edit",
+        "group": "实用工具",
+        "name_cn": "倒数日编辑"
       },
       "pages/lunar-calendar": {
         "component": "lunar-calendar",

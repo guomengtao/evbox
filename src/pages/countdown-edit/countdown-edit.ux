@@ -1,0 +1,749 @@
+<!--
+  倒数日编辑页（新建 / 编辑，Ev倒数日 版 · ev-six 重排）
+
+  一页写全一条倒数日：名称 / 倒数·正计时 / 日期（公历或农历）/ 重复 / 颜色 / 首页显示。
+  规范约束：字号只用 24（标签·单位）与 28（值·按钮）两档、预览数字用 30；
+          禁折行、禁省略号、禁 · 分隔符、禁箭头与文字徽标；条件块用 display 绑定；
+          页面可滚动（内容约 560px > 490 屏，滚动是正常态，不做压缩硬塞）。
+  交互约定：名称走全项目唯一的中文输入页（chinese_input_return_key = cd_edit_name），
+          本页不内嵌输入法组件 —— 多一个宿主就多一份崩溃面。
+-->
+<template>
+  <scroll class="page" scroll-y="true" style="background-color: {{ theme.bg }}">
+    <div class="back-header">
+      <div class="back-btn-wrapper" onclick="goBack" style="background-color: {{ theme.card }}">
+        <image class="back-btn-icon" src="/common/icons/{{ iconTheme }}/icon_back.png"></image>
+      </div>
+      <text class="header-title" style="color: {{ theme.text }}">{{ pageTitle }}</text>
+      <div class="header-placeholder"></div>
+    </div>
+
+    <!-- 名称 -->
+    <div class="row-tap" onclick="editName" style="background-color: {{ theme.card }}">
+      <text class="row-label" style="color: {{ theme.textSecondary }}">名称</text>
+      <text class="row-value" style="color: {{ nameText ? theme.text : theme.textMuted }}">{{ nameText || '点此输入' }}</text>
+    </div>
+
+    <!-- 模式：倒数 / 正计时（点一下切换，值在右侧） -->
+    <div class="row-tap" onclick="toggleMode" style="background-color: {{ theme.card }}">
+      <text class="row-label" style="color: {{ theme.textSecondary }}">模式</text>
+      <text class="row-value" style="color: {{ theme.accent }}">{{ modeText }}</text>
+    </div>
+
+    <!-- 日期：公历 / 农历 -->
+    <div class="row-tap" onclick="toggleCalendar" style="background-color: {{ theme.card }}">
+      <text class="row-label" style="color: {{ theme.textSecondary }}">日期</text>
+      <text class="row-value" style="color: {{ theme.accent }}">{{ calendarText }}</text>
+    </div>
+
+    <div class="picker-head">
+      <text class="picker-unit pk-year" style="color: {{ theme.textMuted }}">年</text>
+      <text class="picker-unit pk-mid" style="color: {{ theme.textMuted }}">月</text>
+      <text class="picker-unit pk-mid" style="color: {{ theme.textMuted }}">日</text>
+    </div>
+    <div class="picker-row" style="background-color: {{ theme.card }}">
+      <picker class="date-picker pk-year" type="text" range="{{ yearStrs }}" selected="{{ yIdx }}" onchange="onYearChange"></picker>
+      <picker class="date-picker pk-mid" type="text" range="{{ monthStrs }}" selected="{{ mIdx }}" onchange="onMonthChange"></picker>
+      <picker class="date-picker pk-mid" type="text" range="{{ dayStrs }}" selected="{{ dIdx }}" onchange="onDayChange"></picker>
+    </div>
+
+    <!-- 闰月开关：只在该农历年确有闰月、且闰的正是所选的这个月时出现 -->
+    <div class="row-tap leap-row" onclick="toggleLeap" style="background-color: {{ theme.card }}; display: {{ showLeap ? 'flex' : 'none' }}">
+      <text class="row-label" style="color: {{ theme.textSecondary }}">闰月</text>
+      <text class="row-value" style="color: {{ isLeap ? theme.accent : theme.textMuted }}">{{ isLeap ? '闰' : '不闰' }}</text>
+    </div>
+
+    <!-- 预览：这一条到底显示成什么（数字 30px 是主角，方向由单位承担） -->
+    <div class="preview-row">
+      <text class="preview-num" style="color: {{ previewColor }}">{{ previewNum }}</text>
+      <text class="preview-unit" style="color: {{ previewColor }}; display: {{ previewUnit ? 'flex' : 'none' }}">{{ previewUnit }}</text>
+    </div>
+    <text class="preview-date" style="color: {{ theme.textMuted }}">{{ previewDate }}</text>
+
+    <!-- 重复：点一下轮换 不重复 → 每周 → 每月 → 每年 -->
+    <div class="row-tap" onclick="cycleRepeat" style="background-color: {{ theme.card }}">
+      <text class="row-label" style="color: {{ theme.textSecondary }}">重复</text>
+      <text class="row-value" style="color: {{ repeatText === '不重复' ? theme.text : theme.accent }}">{{ repeatText }}</text>
+    </div>
+
+    <!-- 颜色：6 个固定色，选中态用格子淡底表达（Vela 的 border 分属性不可靠） -->
+    <div class="color-row">
+      <div class="color-cell" for="{{ colorList }}" onclick="pickColor($idx)" style="background-color: {{ $item.cellBg }}">
+        <div class="color-dot" style="background-color: {{ $item.hex }}"></div>
+      </div>
+    </div>
+
+    <!-- 首页显示 + 钉首页：编辑态才出现（新条目默认上首页、默认不钉） -->
+    <div class="row-tap" onclick="toggleEnabled" style="background-color: {{ theme.card }}; display: {{ editId ? 'flex' : 'none' }}">
+      <text class="row-label" style="color: {{ theme.textSecondary }}">首页显示</text>
+      <text class="row-value" style="color: {{ enabled ? theme.accent : theme.textMuted }}">{{ enabled ? '开' : '关' }}</text>
+    </div>
+    <div class="row-tap" onclick="togglePin" style="background-color: {{ theme.card }}; display: {{ editId ? 'flex' : 'none' }}">
+      <text class="row-label" style="color: {{ theme.textSecondary }}">钉到首页</text>
+      <text class="row-value" style="color: {{ pinned ? theme.accent : theme.textMuted }}">{{ pinned ? '开' : '关' }}</text>
+    </div>
+
+    <div class="action-row">
+      <div class="save-btn" onclick="doSave" style="background-color: {{ canSave ? theme.accent : theme.cardLight }}">
+        <text class="save-t" style="color: {{ canSave ? theme.bg : theme.textMuted }}">保存</text>
+      </div>
+      <div class="del-btn" onclick="doDelete" style="background-color: {{ delConfirm ? theme.deleteText : theme.cardLight }}; display: {{ editId ? 'flex' : 'none' }}">
+        <text class="save-t" style="color: {{ delConfirm ? theme.bg : theme.deleteText }}">{{ delConfirm ? '确认删除' : '删除' }}</text>
+      </div>
+    </div>
+    <div class="bottom-pad"></div>
+  </scroll>
+</template>
+
+<script>
+import router from "@system.router"
+var storage = require("@system.storage")
+const store = require("../../data/store.js")
+const countdown = require("../../data/countdown.js")
+const lunar = require("../../lib/lunar.js")
+
+var EDIT_ID_KEY = "cd_edit_id"
+var NAME_KEY = "cd_edit_name"
+var DELAY_MS = 5000
+
+var Y_MIN = 1970
+var Y_MAX = 2050
+
+export default {
+  private: {
+    iconTheme: "dark",
+    isLight: false,
+    theme: {
+      bg: '#1a1a2e',
+      card: '#16213e',
+      cardLight: '#0f3460',
+      accent: '#7ec8e3',
+      text: '#ffffff',
+      textSecondary: '#888899',
+      textMuted: '#555566',
+      border: '#0f3460',
+      borderLight: '#2a2a5a',
+      deleteText: '#e08080'
+    },
+    pageTitle: "添加",
+    editId: "",
+    title: "",
+    nameText: "",
+    mode: "down",
+    calendar: "solar",
+    year: 2026,
+    month: 1,
+    day: 1,
+    isLeap: false,
+    repeat: "none",
+    color: "",
+    enabled: true,
+    pinned: false,
+    created: 0,
+    createdAt: 0,
+    yIdx: 0,
+    mIdx: 0,
+    dIdx: 0,
+    yearStrs: [],
+    monthStrs: [],
+    monthKeys: [],
+    dayStrs: [],
+    showLeap: false,
+    previewNum: "--",
+    previewUnit: "",
+    previewColor: "#7ec8e3",
+    previewDate: "",
+    canSave: false,
+    delConfirm: false,
+    delTimer: null,
+    colorList: [],
+    repeatKeys: ["none", "weekly", "monthly", "yearly"],
+    repeatText: "不重复",
+    modeText: "倒数",
+    calendarText: "公历"
+  },
+
+  onInit() {
+    this.applyTheme()
+    this.loadTarget()
+  },
+
+  onShow() {
+    // 从中文输入页回来：读回填名称
+    var self = this
+    storage.get({
+      key: NAME_KEY,
+      success: function(v) {
+        if (v !== undefined && v !== null && String(v) !== "") {
+          self.title = String(v)
+          self.nameText = String(v)
+          storage.delete({ key: NAME_KEY, success: function() {}, fail: function() {} })
+          self.refreshPreview()
+        }
+      },
+      fail: function() {}
+    })
+  },
+
+  applyTheme() {
+    var self = this
+    store.getTheme(function(t, themeName) {
+      self.theme = t
+      self.isLight = (themeName === 'light' || themeName === 'warm')
+      self.iconTheme = self.isLight ? 'light' : 'dark'
+      self.buildColors()
+      self.refreshPreview()
+    })
+  },
+
+  buildColors() {
+    var out = []
+    for (var i = 0; i < countdown.COLORS.length; i++) {
+      var c = countdown.COLORS[i]
+      out.push({
+        hex: c.hex,
+        cellBg: this.color === c.hex ? countdown.tintColor(c.hex, 0.35) : "rgba(0,0,0,0)"
+      })
+    }
+    this.colorList = out
+  },
+
+  loadTarget() {
+    var self = this
+    storage.get({
+      key: EDIT_ID_KEY,
+      success: function(id) {
+        var target = id ? String(id) : ""
+        if (!target) {
+          self.initNew()
+          return
+        }
+        countdown.loadList(function(items) {
+          var idx = countdown.findIndexById(items, target)
+          if (idx < 0) {
+            self.initNew()
+            return
+          }
+          self.fillFrom(items[idx])
+        })
+      },
+      fail: function() {
+        self.initNew()
+      }
+    })
+  },
+
+  initNew() {
+    var t = new Date()
+    this.editId = ""
+    this.pageTitle = "添加"
+    this.title = ""
+    this.nameText = ""
+    this.mode = "down"
+    this.calendar = "solar"
+    this.year = t.getFullYear()
+    this.month = t.getMonth() + 1
+    this.day = t.getDate()
+    this.isLeap = false
+    this.repeat = "none"
+    this.color = ""
+    this.enabled = true
+    this.pinned = false
+    this.created = t.getTime()
+    this.createdAt = t.getTime()
+    this.buildRanges()
+    this.syncTexts()
+    this.refreshPreview()
+  },
+
+  fillFrom(item) {
+    this.editId = String(item.id)
+    this.pageTitle = "编辑"
+    this.title = item.title
+    this.nameText = item.title
+    this.mode = item.mode === "up" ? "up" : "down"
+    this.calendar = item.calendar === "lunar" ? "lunar" : "solar"
+    this.repeat = item.repeat || "none"
+    this.color = item.color || ""
+    this.enabled = item.enabled !== false
+    this.pinned = item.pinnedHome === true
+    this.created = item.created || new Date().getTime()
+    this.createdAt = item.createdAt || new Date().getTime()
+    this.isLeap = !!(item.lunar && item.lunar.isLeap)
+
+    if (this.calendar === "lunar" && item.lunar) {
+      var cur = lunar.solarToLunar(new Date().getFullYear(), new Date().getMonth() + 1, new Date().getDate())
+      this.year = cur ? cur.year : new Date().getFullYear()
+      this.month = item.lunar.month
+      this.day = item.lunar.day
+    } else {
+      var p = countdown.parseKey(item.date)
+      if (p) {
+        this.year = p.year
+        this.month = p.month
+        this.day = p.day
+      }
+    }
+    this.buildRanges()
+    this.syncTexts()
+    this.refreshPreview()
+  },
+
+  // ---------------------------------------------------------------- 下拉列
+
+  buildRanges() {
+    var i
+    var ys = []
+    for (i = Y_MIN; i <= Y_MAX; i++) ys.push(String(i))
+    this.yearStrs = ys
+
+    if (this.calendar === "lunar") {
+      // 农历年列与公历年列同值域：农历与公历年份差不超过 1，用同一组数字不必换算
+      this.yIdx = this.clampIdx(this.year - Y_MIN, ys.length)
+      this.buildLunarMonths()
+    } else {
+      this.yIdx = this.clampIdx(this.year - Y_MIN, ys.length)
+      var ms = []
+      for (i = 1; i <= 12; i++) ms.push(String(i))
+      this.monthStrs = ms
+      this.monthKeys = null
+      this.mIdx = this.clampIdx(this.month - 1, ms.length)
+      this.buildSolarDays()
+    }
+    this.showLeap = this.calendar === "lunar" && lunar.leapMonth(this.year) === this.month
+  },
+
+  clampIdx(v, len) {
+    if (v < 0) return 0
+    if (v > len - 1) return len - 1
+    return v
+  },
+
+  // 农历月列：闰年多一项「闰X」，故用 monthKeys 与显示串严格同下标反查
+  buildLunarMonths() {
+    var keys = []
+    var strs = []
+    var leap = lunar.leapMonth(this.year)
+    for (var m = 1; m <= 12; m++) {
+      keys.push({ month: m, isLeap: false })
+      strs.push(String(m))
+      if (leap === m) {
+        keys.push({ month: m, isLeap: true })
+        strs.push("闰" + m)
+      }
+    }
+    this.monthKeys = keys
+    this.monthStrs = strs
+    var idx = 0
+    for (var k = 0; k < keys.length; k++) {
+      if (keys[k].month === this.month && keys[k].isLeap === this.isLeap) { idx = k; break }
+    }
+    this.mIdx = this.clampIdx(idx, keys.length)
+    this.buildLunarDays()
+  },
+
+  buildSolarDays() {
+    var mx = lunar.solarMonthDays(this.year, this.month)
+    if (this.day > mx) this.day = mx
+    var ds = []
+    for (var d = 1; d <= mx; d++) ds.push(String(d))
+    this.dayStrs = ds
+    this.dIdx = this.clampIdx(this.day - 1, ds.length)
+  },
+
+  buildLunarDays() {
+    var mx = countdown.lunarMonthMaxDay(this.year, this.month, this.isLeap)
+    if (this.day > mx) this.day = mx
+    var ds = []
+    for (var d = 1; d <= mx; d++) ds.push(String(d))
+    this.dayStrs = ds
+    this.dIdx = this.clampIdx(this.day - 1, ds.length)
+  },
+
+  onYearChange(e) {
+    this.yIdx = e.newSelected
+    this.year = Y_MIN + e.newSelected
+    this.buildRanges()
+    this.refreshPreview()
+  },
+
+  onMonthChange(e) {
+    this.mIdx = e.newSelected
+    if (this.monthKeys) {
+      var k = this.monthKeys[e.newSelected]
+      this.month = k.month
+      this.isLeap = k.isLeap
+    } else {
+      this.month = e.newSelected + 1
+    }
+    if (this.calendar === "lunar") this.buildLunarDays()
+    else this.buildSolarDays()
+    this.refreshPreview()
+  },
+
+  onDayChange(e) {
+    this.dIdx = e.newSelected
+    this.day = e.newSelected + 1
+    this.refreshPreview()
+  },
+
+  // ---------------------------------------------------------------- 交互
+
+  toggleMode() {
+    this.mode = this.mode === "up" ? "down" : "up"
+    this.syncTexts()
+    this.refreshPreview()
+  },
+
+  toggleCalendar() {
+    this.calendar = this.calendar === "lunar" ? "solar" : "lunar"
+    this.isLeap = false
+    this.buildRanges()
+    this.syncTexts()
+    this.refreshPreview()
+  },
+
+  toggleLeap() {
+    this.isLeap = !this.isLeap
+    this.buildLunarMonths()
+    this.refreshPreview()
+  },
+
+  cycleRepeat() {
+    var i = this.repeatKeys.indexOf(this.repeat)
+    if (i < 0) i = 0
+    this.repeat = this.repeatKeys[(i + 1) % this.repeatKeys.length]
+    this.syncTexts()
+    this.refreshPreview()
+  },
+
+  pickColor(idx) {
+    var c = countdown.COLORS[idx]
+    if (!c) return
+    this.color = (this.color === c.hex) ? "" : c.hex
+    this.buildColors()
+    this.refreshPreview()
+  },
+
+  toggleEnabled() {
+    this.enabled = !this.enabled
+  },
+
+  togglePin() {
+    this.pinned = !this.pinned
+  },
+
+  editName() {
+    storage.set({ key: "chinese_input_title", value: "倒数日名称", success: function() {} })
+    storage.set({ key: "chinese_input_placeholder", value: "输入名称", success: function() {} })
+    storage.set({ key: "chinese_input_value", value: this.title, success: function() {} })
+    storage.set({ key: "chinese_input_maxlen", value: "12", success: function() {} })
+    storage.set({
+      key: "chinese_input_return_key",
+      value: NAME_KEY,
+      success: function() {
+        router.push({ uri: "/pages/chinese-input" })
+      },
+      fail: function() {
+        router.push({ uri: "/pages/chinese-input" })
+      }
+    })
+  },
+
+  syncTexts() {
+    this.modeText = this.mode === "up" ? "正计时" : "倒数"
+    this.calendarText = this.calendar === "lunar" ? "农历" : "公历"
+    this.repeatText = countdown.REPEAT_LABELS[this.repeat] || "不重复"
+  },
+
+  // ---------------------------------------------------------------- 预览与保存
+
+  buildDraft() {
+    return countdown.createItem({
+      id: this.editId || "",
+      title: this.title || "未命名",
+      calendar: this.calendar,
+      year: this.year,
+      month: this.month,
+      day: this.day,
+      isLeap: this.isLeap,
+      mode: this.mode,
+      repeat: this.repeat,
+      color: this.color,
+      enabled: this.enabled,
+      pinnedHome: this.pinned,
+      created: this.created,
+      createdAt: this.createdAt
+    })
+  },
+
+  refreshPreview() {
+    var draft = this.buildDraft()
+    if (!draft) {
+      this.previewNum = "--"
+      this.previewUnit = ""
+      this.previewDate = ""
+      this.canSave = false
+      return
+    }
+    var d = countdown.decorateItem(draft)
+    this.previewNum = d.numText
+    this.previewUnit = d.unitText
+    this.previewColor = countdown.adaptColor(d.color, this.isLight)
+    this.previewDate = d.dateText
+    this.canSave = !!this.title
+    this.buildColors()
+  },
+
+  doSave() {
+    if (!this.title) return
+    var item = this.buildDraft()
+    if (!item) return
+    countdown.loadList(function(items) {
+      var next = countdown.upsert(items, item)
+      // 钉首页互斥：钉了新的就把别的摘掉，保证首页大数字只有一个来源
+      if (item.pinnedHome) next = countdown.setPinned(next, item.id)
+      countdown.saveList(next, function() {
+        router.back()
+      })
+    })
+  },
+
+  doDelete() {
+    var self = this
+    if (!this.editId) return
+    if (!this.delConfirm) {
+      this.delConfirm = true
+      this.delTimer = setTimeout(function() {
+        self.delConfirm = false
+      }, DELAY_MS)
+      return
+    }
+    clearTimeout(this.delTimer)
+    this.delConfirm = false
+    countdown.loadList(function(items) {
+      var next = countdown.removeById(items, self.editId)
+      countdown.saveList(next, function() {
+        router.back()
+      })
+    })
+  },
+
+  goBack() {
+    clearTimeout(this.delTimer)
+    router.back()
+  }
+}
+</script>
+
+<style>
+.page {
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  padding: 44px 12px 0 12px;
+}
+
+.back-header {
+  flex-direction: row;
+  width: 100%;
+  align-items: center;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.back-btn-wrapper {
+  width: 48px;
+  height: 40px;
+  border-radius: 10px;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.back-btn-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.header-title {
+  flex: 1;
+  font-size: 30px;
+  font-weight: bold;
+  text-align: center;
+  line-height: 40px;
+  lines: 1;
+}
+
+.header-placeholder {
+  width: 48px;
+  height: 40px;
+  flex-shrink: 0;
+}
+
+/* 通用可点行：左标签 24px、右值 28px，一行一意，不折行 */
+.row-tap {
+  flex-direction: row;
+  width: 100%;
+  height: 52px;
+  border-radius: 12px;
+  padding: 0 8px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.row-label {
+  font-size: 24px;
+  line-height: 32px;
+  lines: 1;
+}
+
+.row-value {
+  font-size: 28px;
+  line-height: 36px;
+  lines: 1;
+}
+
+.leap-row {
+  margin-top: 0;
+}
+
+.picker-head {
+  flex-direction: row;
+  width: 100%;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.picker-unit {
+  font-size: 24px;
+  line-height: 24px;
+  text-align: center;
+}
+
+.pk-year {
+  width: 60px;
+}
+
+.pk-mid {
+  width: 44px;
+}
+
+.picker-row {
+  flex-direction: row;
+  width: 100%;
+  height: 96px;
+  border-radius: 12px;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+/* 年列较宽（4 位数），月日列窄（1-2 位） */
+.date-picker {
+  height: 96px;
+  font-size: 24px;
+  selected-color: #7ec8e3;
+}
+
+.preview-row {
+  flex-direction: row;
+  width: 100%;
+  align-items: flex-end;
+  justify-content: center;
+  height: 44px;
+  flex-shrink: 0;
+}
+
+.preview-num {
+  font-size: 30px;
+  font-weight: bold;
+  line-height: 38px;
+  lines: 1;
+}
+
+.preview-unit {
+  font-size: 24px;
+  line-height: 38px;
+  margin-left: 4px;
+  lines: 1;
+}
+
+.preview-date {
+  width: 100%;
+  text-align: center;
+  font-size: 24px;
+  line-height: 30px;
+  lines: 1;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+/* 颜色行：6 个格子等分 168px，格子内圆点 24px */
+.color-row {
+  flex-direction: row;
+  width: 100%;
+  height: 52px;
+  border-radius: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.color-cell {
+  width: 26px;
+  height: 44px;
+  border-radius: 8px;
+  justify-content: center;
+  align-items: center;
+}
+
+.color-dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 12px;
+}
+
+.action-row {
+  flex-direction: row;
+  width: 100%;
+  height: 52px;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.save-btn {
+  flex: 1;
+  height: 52px;
+  border-radius: 12px;
+  justify-content: center;
+  align-items: center;
+  margin-right: 8px;
+}
+
+.del-btn {
+  width: 96px;
+  height: 52px;
+  border-radius: 12px;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.save-t {
+  font-size: 28px;
+  line-height: 36px;
+  lines: 1;
+}
+
+.bottom-pad {
+  width: 100%;
+  height: 16px;
+  flex-shrink: 0;
+}
+</style>
