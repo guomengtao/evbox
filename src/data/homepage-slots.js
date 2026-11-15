@@ -23,6 +23,8 @@ var MAX_TOTAL = 6
 
 var DEFAULT_SLOTS = [
   { id: "countdown", name: "倒数日", uri: "/pages/countdown-manage", summaryKey: "countdown" },
+  // 2026-11-15 Tom 要求：把「抉择」放到首页，方便真机直接进工具测试
+  { id: "decide", name: "抉择", uri: "/pages/decide" },
   { id: "lunar", name: "农历", uri: "/pages/lunar-calendar", summaryKey: "lunar" },
   { id: "quote", name: "一言", uri: "/pages/daily-quote", summaryKey: "quote" }
 ]

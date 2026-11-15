@@ -87,11 +87,15 @@
       </div>
     </div>
 
-    <!-- 卡组列表：先选类，再选组 -->
-    <div class="view" style="display: {{ view === 'decks' ? 'flex' : 'none' }}">
+    <!-- 卡组列表：先选类，再选组。
+         真机 1.0.84/1.0.85 两次复核仍空白（标题出来、内容不动不响）→ 定论是
+         display:none 子树：真机 JSC 对隐藏子树不建立绑定，切回 flex 时取的是
+         首帧快照，行永远画不出来、也点不到（模拟器宽容，故反复漏检）。
+         这里改用本文件已验证的「绝对定位覆盖」：永远在布局里，靠 top 移出屏幕。 -->
+    <div class="view" style="position: absolute; left: 0; top: {{ view === 'decks' ? '0' : '490px' }}; width: 100%; height: 408px; flex-direction: column; background-color: {{ theme.bg }}">
       <!-- 固定行槽：真机 JSC 对 for 数组的后续赋值不重绘（§7.8），
            数组列表在真机上会整片空白。改为 13 个常驻行，空槽高 0 自然收起。 -->
-      <scroll class="list-scroll" scroll-y="true" style="display: {{ catIndex < 0 ? 'flex' : 'none' }}">
+      <scroll class="list-scroll" scroll-y="true" style="position: absolute; left: 0; width: 100%; height: 408px; top: {{ catIndex < 0 ? '0' : '490px' }}">
         <div class="list-row" onclick="pickCatRow(0)"
              style="background-color: {{ theme.card }}; height: {{ cat0 ? '52px' : '0' }}; margin-bottom: {{ cat0 ? '8px' : '0' }}">
           <text class="list-text" style="color: {{ theme.text }}">{{ cat0 }}</text>
@@ -145,7 +149,7 @@
           <text class="list-text" style="color: {{ theme.text }}">{{ cat12 }}</text>
         </div>
       </scroll>
-      <scroll class="list-scroll" scroll-y="true" style="display: {{ catIndex < 0 ? 'none' : 'flex' }}">
+      <scroll class="list-scroll" scroll-y="true" style="position: absolute; left: 0; width: 100%; height: 408px; top: {{ catIndex < 0 ? '490px' : '0' }}">
         <div class="list-row" onclick="selectDeckRow(0)"
              style="background-color: {{ theme.card }}; height: {{ deck0 ? '52px' : '0' }}; margin-bottom: {{ deck0 ? '8px' : '0' }}">
           <text class="list-text" style="color: {{ theme.text }}">{{ deck0 }}</text>
@@ -1682,6 +1686,8 @@ export default {
   flex-direction: column;
   width: 100%;
   height: 100%;
+  /* 卡组浮层用绝对定位挂在本层，必须有定位上下文 */
+  position: relative;
   padding: 32px 12px 16px 12px;
 }
 
