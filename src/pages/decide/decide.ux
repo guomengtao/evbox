@@ -263,6 +263,64 @@
       </scroll>
     </div>
 
+    <!-- 分组结果（P2 A1）：常驻浮层，绝对定位靠 top 移出屏幕，不用 display 三元建子树。
+         6 组 × (组名 24px + 4 行成员 28px) 全常驻，空槽高度归零自然收起；
+         组名与成员靠纵向排版 + 底色卡片区分，不用冒号／斜杠／分隔点（ev-six §9.4）。 -->
+    <div class="overlay" style="position: absolute; left: 0; top: {{ view === 'groups' ? '74px' : '540px' }}; width: 100%; height: 408px; flex-direction: column; background-color: {{ theme.bg }}">
+      <text class="grp-title" style="color: {{ theme.text }}">{{ grpTitle }}</text>
+      <scroll class="grp-scroll" scroll-y="true">
+        <div class="grp-card" style="background-color: {{ theme.card }}; height: {{ grp0Name ? '156px' : '0' }}">
+          <text class="grp-name" style="color: {{ theme.textSecondary }}">{{ grp0Name }}</text>
+          <text class="grp-member" style="height: {{ grp0A ? '30px' : '0' }}; color: {{ theme.text }}">{{ grp0A }}</text>
+          <text class="grp-member" style="height: {{ grp0B ? '30px' : '0' }}; color: {{ theme.text }}">{{ grp0B }}</text>
+          <text class="grp-member" style="height: {{ grp0C ? '30px' : '0' }}; color: {{ theme.text }}">{{ grp0C }}</text>
+          <text class="grp-member" style="height: {{ grp0D ? '30px' : '0' }}; color: {{ theme.text }}">{{ grp0D }}</text>
+        </div>
+        <div class="grp-card" style="background-color: {{ theme.card }}; height: {{ grp1Name ? '156px' : '0' }}">
+          <text class="grp-name" style="color: {{ theme.textSecondary }}">{{ grp1Name }}</text>
+          <text class="grp-member" style="height: {{ grp1A ? '30px' : '0' }}; color: {{ theme.text }}">{{ grp1A }}</text>
+          <text class="grp-member" style="height: {{ grp1B ? '30px' : '0' }}; color: {{ theme.text }}">{{ grp1B }}</text>
+          <text class="grp-member" style="height: {{ grp1C ? '30px' : '0' }}; color: {{ theme.text }}">{{ grp1C }}</text>
+          <text class="grp-member" style="height: {{ grp1D ? '30px' : '0' }}; color: {{ theme.text }}">{{ grp1D }}</text>
+        </div>
+        <div class="grp-card" style="background-color: {{ theme.card }}; height: {{ grp2Name ? '156px' : '0' }}">
+          <text class="grp-name" style="color: {{ theme.textSecondary }}">{{ grp2Name }}</text>
+          <text class="grp-member" style="height: {{ grp2A ? '30px' : '0' }}; color: {{ theme.text }}">{{ grp2A }}</text>
+          <text class="grp-member" style="height: {{ grp2B ? '30px' : '0' }}; color: {{ theme.text }}">{{ grp2B }}</text>
+          <text class="grp-member" style="height: {{ grp2C ? '30px' : '0' }}; color: {{ theme.text }}">{{ grp2C }}</text>
+          <text class="grp-member" style="height: {{ grp2D ? '30px' : '0' }}; color: {{ theme.text }}">{{ grp2D }}</text>
+        </div>
+        <div class="grp-card" style="background-color: {{ theme.card }}; height: {{ grp3Name ? '156px' : '0' }}">
+          <text class="grp-name" style="color: {{ theme.textSecondary }}">{{ grp3Name }}</text>
+          <text class="grp-member" style="height: {{ grp3A ? '30px' : '0' }}; color: {{ theme.text }}">{{ grp3A }}</text>
+          <text class="grp-member" style="height: {{ grp3B ? '30px' : '0' }}; color: {{ theme.text }}">{{ grp3B }}</text>
+          <text class="grp-member" style="height: {{ grp3C ? '30px' : '0' }}; color: {{ theme.text }}">{{ grp3C }}</text>
+          <text class="grp-member" style="height: {{ grp3D ? '30px' : '0' }}; color: {{ theme.text }}">{{ grp3D }}</text>
+        </div>
+        <div class="grp-card" style="background-color: {{ theme.card }}; height: {{ grp4Name ? '156px' : '0' }}">
+          <text class="grp-name" style="color: {{ theme.textSecondary }}">{{ grp4Name }}</text>
+          <text class="grp-member" style="height: {{ grp4A ? '30px' : '0' }}; color: {{ theme.text }}">{{ grp4A }}</text>
+          <text class="grp-member" style="height: {{ grp4B ? '30px' : '0' }}; color: {{ theme.text }}">{{ grp4B }}</text>
+          <text class="grp-member" style="height: {{ grp4C ? '30px' : '0' }}; color: {{ theme.text }}">{{ grp4C }}</text>
+          <text class="grp-member" style="height: {{ grp4D ? '30px' : '0' }}; color: {{ theme.text }}">{{ grp4D }}</text>
+        </div>
+        <div class="grp-card" style="background-color: {{ theme.card }}; height: {{ grp5Name ? '156px' : '0' }}">
+          <text class="grp-name" style="color: {{ theme.textSecondary }}">{{ grp5Name }}</text>
+          <text class="grp-member" style="height: {{ grp5A ? '30px' : '0' }}; color: {{ theme.text }}">{{ grp5A }}</text>
+          <text class="grp-member" style="height: {{ grp5B ? '30px' : '0' }}; color: {{ theme.text }}">{{ grp5B }}</text>
+          <text class="grp-member" style="height: {{ grp5C ? '30px' : '0' }}; color: {{ theme.text }}">{{ grp5C }}</text>
+          <text class="grp-member" style="height: {{ grp5D ? '30px' : '0' }}; color: {{ theme.text }}">{{ grp5D }}</text>
+        </div>
+      </scroll>
+      <text class="grp-odd" style="color: {{ theme.textSecondary }}">{{ grpOddText }}</text>
+      <div class="main-btn" onclick="drawPartitionAgain" style="background-color: {{ theme.accent }}">
+        <text class="main-btn-text" style="color: {{ theme.bg }}">再分一次</text>
+      </div>
+      <div class="sub-row" onclick="closeGroups" style="background-color: {{ theme.card }}">
+        <text class="sub-text" style="color: {{ theme.text }}">返回卡组</text>
+      </div>
+    </div>
+
     <!-- 自定义卡组：逐项添加，保存即抽 -->
     <div class="view" style="display: {{ view === 'custom' ? 'flex' : 'none' }}">
       <text class="edit-tip" style="color: {{ theme.textSecondary }}">已加选项</text>
@@ -320,6 +378,59 @@ import router from "@system.router"
 const store = require("../../data/store.js")
 var preset = require("../../data/decks/preset-decks.json")
 var food = require("../../data/decks/preset-food.json")
+
+var crypto = require("../../lib/crypto.js")
+
+// ===== P2 抽取引擎（2026-11-15 · evtask-D-evevbox-261115-a7z2hd）=====
+// drawRule 完整字段对象：全部字段可选，缺省 = P0/P1 旧行为，88 组老卡组零配置向后兼容。
+// 与 mode（数据源二级抽取）、groupMode（抽出的人怎么组队）严格区分，见方案 §3.7.4。
+var DEFAULT_RULE = {
+  resultMode: "single", pickCount: 1, replace: true,
+  groupSize: 2, groupMode: "partial", groupLabels: [], slots: []
+}
+var CN_NUM = ["一", "二", "三", "四", "五", "六"]
+
+function normalizeRule(deck) {
+  var d = deck || {}
+  var raw = d.drawRule || {}
+  var pick = (typeof raw.pickCount === "number" && raw.pickCount > 0) ? Math.floor(raw.pickCount) : 1
+  var mode = raw.resultMode || (pick > 1 ? "multi" : DEFAULT_RULE.resultMode)
+  var size = (typeof raw.groupSize === "number" && raw.groupSize > 0) ? Math.floor(raw.groupSize) : 2
+  var labels = []
+  if (raw.groupLabels && raw.groupLabels.length) {
+    for (var i = 0; i < raw.groupLabels.length; i++) labels.push(String(raw.groupLabels[i]))
+  }
+  var slots = []
+  if (raw.slots && raw.slots.length) {
+    for (var j = 0; j < raw.slots.length; j++) slots.push(raw.slots[j])
+  }
+  return {
+    resultMode: mode,
+    pickCount: pick,
+    replace: raw.replace !== false,
+    groupSize: size,
+    groupMode: raw.groupMode === "full" ? "full" : DEFAULT_RULE.groupMode,
+    groupLabels: labels,
+    slots: slots
+  }
+}
+
+// 全覆盖分组：洗牌后按 groupSize 顺序切片，每个成员恰好出现一次、组内不重复。
+// 余数单独记为 odd（结果页提示「有N人落单」），不丢弃也不重复；
+// 最多 6 组、每组最多 4 行，受 ev-six 一屏文字预算约束（§9.3）。
+function partitionGroups(items, size, labels, shuffled) {
+  var pool = (shuffled || items || []).slice(0)
+  var groups = []
+  var used = 0
+  while (pool.length > 0 && groups.length < 6) {
+    var take = Math.min(size, pool.length)
+    var members = pool.splice(0, take)
+    var label = labels[groups.length] || ("第" + (CN_NUM[groups.length] || (groups.length + 1)) + "组")
+    groups.push({ label: label, members: members })
+    used = used + take
+  }
+  return { groups: groups, used: used, odd: pool.length }
+}
 
 var CUSTOM_DECK_KEY = "decide_custom_deck"
 var DRAFT_KEY = "decide_draft_items"
@@ -635,7 +746,41 @@ export default {
     slotNextText: "",
     slotSpinIndex: 0,
     slotStep: 0,
-    slotTotal: 12
+    slotTotal: 12,
+    rule: normalizeRule(null),
+    partitionOn: false,
+    grpTitle: "分好组了",
+    grpOddText: "",
+    grp0Name: "",
+    grp0A: "",
+    grp0B: "",
+    grp0C: "",
+    grp0D: "",
+    grp1Name: "",
+    grp1A: "",
+    grp1B: "",
+    grp1C: "",
+    grp1D: "",
+    grp2Name: "",
+    grp2A: "",
+    grp2B: "",
+    grp2C: "",
+    grp2D: "",
+    grp3Name: "",
+    grp3A: "",
+    grp3B: "",
+    grp3C: "",
+    grp3D: "",
+    grp4Name: "",
+    grp4A: "",
+    grp4B: "",
+    grp4C: "",
+    grp4D: "",
+    grp5Name: "",
+    grp5A: "",
+    grp5B: "",
+    grp5C: "",
+    grp5D: "",
   },
 
   onInit() {
@@ -826,9 +971,12 @@ export default {
     }
     this.stopSpin()
     this.currentDeck = deck
+    this.rule = normalizeRule(deck)
+    this.partitionOn = this.rule.resultMode === "partition" && deck.items.length >= 2
     this.deckTitle = deck.title
     this.items = deck.items.slice(0)
-    this.pickCount = 1
+    this.pickCount = this.partitionOn ? Math.min(this.rule.groupSize, deck.items.length) : this.rule.pickCount
+    this.grpOddText = ""
     this.phase = "idle"
     this.hasResult = false
     this.resultText = ""
@@ -876,9 +1024,9 @@ export default {
       var flip = this.currentDeck && this.currentDeck.anim === "flip" && this.items.length === 2 && this.pickCount === 1
       this.animKind = flip ? "flip" : "wheel"
     }
-    this.pickRowOn = !ok && this.items.length >= 3
+    this.pickRowOn = !ok && !this.partitionOn && this.items.length >= 3
     this.pickText = PICK_LABEL[this.pickCount - 1] || "抽一个"
-    this.statusText = ok ? "点盘面抽取" : "点下面抽取"
+    this.statusText = ok ? "点盘面抽取" : (this.partitionOn ? "点下面分组" : "点下面抽取")
   },
 
   // 刻度角度量化到 15 度帧，保证指针必然精确指向某个标签中心
@@ -996,18 +1144,16 @@ export default {
   },
 
   // 单次内强制不重复，replace 固定 false
+  // 随机源统一走 src/lib/crypto.js（宿主熵优先、xorshift 混合熵、Math.random 末级兜底）。
+  // 单次内强制不重复沿用 P1 正确性前提：洗牌取前 k 个，drawRule.replace 只作字段解析，
+  // 跨轮次 allowRepeat 属 P3，未实现前不改变「抽 k 个必然不同」的行为。
   pickIndices() {
     var pool = []
     for (var i = 0; i < this.items.length; i++) {
       pool.push(i)
     }
-    for (var j = pool.length - 1; j > 0; j--) {
-      var t = Math.floor(Math.random() * (j + 1))
-      var tmp = pool[j]
-      pool[j] = pool[t]
-      pool[t] = tmp
-    }
-    return pool.slice(0, Math.min(this.pickCount, pool.length))
+    var sh = crypto.shuffle(pool)
+    return sh.slice(0, Math.min(this.pickCount, sh.length))
   },
 
   changePick() {
@@ -1062,7 +1208,12 @@ export default {
     for (var i = 0; i < count; i++) {
       lines.push(this.items[idxs[i]])
     }
-    pending = { idxs: idxs, lines: lines, text: count === 1 ? lines[0] : "", count: count }
+    var groups = null
+    if (this.partitionOn) {
+      // 结果先定后演：分组在起帧一次性抽定，动画过程只演不重抽
+      groups = partitionGroups(this.items, this.rule.groupSize, this.rule.groupLabels, crypto.shuffle(this.items.slice(0)))
+    }
+    pending = { idxs: idxs, lines: lines, text: count === 1 ? lines[0] : "", count: count, groups: groups }
     spinStart = Date.now()
     var f = frameAt(0, count, lines, this.items)
     // 两条异步保险放在赋值块之前（只碰模块级变量，不写 this）
@@ -1130,6 +1281,23 @@ export default {
       this.statusText = "已出结果"
       return
     }
+    // 分组结果：先算成局部数组，再在下面同一个连续赋值块里一次性写入，
+    // 不调用任何会写 this 的方法（真机 JSC 跨方法批次丢失，§7.8）。
+    var g = p.groups
+    var gn = ["", "", "", "", "", ""]
+    var gm = []
+    var oddText = ""
+    var keepView = this.view
+    for (var gi = 0; gi < 6; gi++) { gm.push(["", "", "", ""]) }
+    if (g) {
+      for (var gj = 0; gj < g.groups.length && gj < 6; gj++) {
+        gn[gj] = g.groups[gj].label
+        for (var gk = 0; gk < g.groups[gj].members.length && gk < 4; gk++) {
+          gm[gj][gk] = g.groups[gj].members[gk]
+        }
+      }
+      if (g.odd > 0) { oddText = "有" + g.odd + "人落单" }
+    }
     // 多结果落位与过程帧一致（1 个走 44px 大字，2 个上+下，3 个铺满）
     var rl = ["", "", "", ""]
     if (p.count === 2) {
@@ -1172,11 +1340,44 @@ export default {
     this.resultIndex = p.idxs[0]
     this.spinIndex = p.idxs[0]
     this.multiOn = p.count > 1
+    this.grpTitle = g ? "分好组了" : this.grpTitle
+    this.grpOddText = oddText
+    this.grp0Name = gn[0]
+    this.grp0A = gm[0][0]
+    this.grp0B = gm[0][1]
+    this.grp0C = gm[0][2]
+    this.grp0D = gm[0][3]
+    this.grp1Name = gn[1]
+    this.grp1A = gm[1][0]
+    this.grp1B = gm[1][1]
+    this.grp1C = gm[1][2]
+    this.grp1D = gm[1][3]
+    this.grp2Name = gn[2]
+    this.grp2A = gm[2][0]
+    this.grp2B = gm[2][1]
+    this.grp2C = gm[2][2]
+    this.grp2D = gm[2][3]
+    this.grp3Name = gn[3]
+    this.grp3A = gm[3][0]
+    this.grp3B = gm[3][1]
+    this.grp3C = gm[3][2]
+    this.grp3D = gm[3][3]
+    this.grp4Name = gn[4]
+    this.grp4A = gm[4][0]
+    this.grp4B = gm[4][1]
+    this.grp4C = gm[4][2]
+    this.grp4D = gm[4][3]
+    this.grp5Name = gn[5]
+    this.grp5A = gm[5][0]
+    this.grp5B = gm[5][1]
+    this.grp5C = gm[5][2]
+    this.grp5D = gm[5][3]
     this.hasResult = true
     this.busy = false
     this.phase = "done"
     this.btnText = "再抽一次"
-    this.statusText = "已出结果"
+    this.statusText = g ? "已分好组" : "已出结果"
+    this.view = g ? "groups" : keepView
     pending = null
     spinStart = 0
     this.vibrate("long")
@@ -1794,7 +1995,37 @@ export default {
     })
   },
 
+  // 分组结果页：回主屏重抽（动画仍可见），结果语义与主屏完全一致
+  drawPartitionAgain() {
+    this.view = "main"
+    this.pageTitle = "抉择"
+    this.phase = "idle"
+    this.hasResult = false
+    this.busy = false
+    this.btnText = PICK_LABEL[0]
+    this.statusText = "点下面分组"
+    pending = null
+    spinStart = 0
+    this.draw()
+  },
+
+  closeGroups() {
+    this.view = "main"
+    this.pageTitle = "抉择"
+    this.phase = "idle"
+    this.hasResult = false
+    this.busy = false
+    this.btnText = PICK_LABEL[0]
+    this.statusText = "点下面抽取"
+    pending = null
+    spinStart = 0
+  },
+
   goBack() {
+    if (this.view === "groups") {
+      this.closeGroups()
+      return
+    }
     if (this.view === "combo") {
       this.stopSpin()
       this.phase = "idle"
@@ -2249,8 +2480,8 @@ export default {
     margin-right: 6px;
   }
   .hdr-pill-t {
-    font-size: 34px;
-    line-height: 42px;
+    font-size: 30px;
+    line-height: 40px;
   }
 }
 
@@ -2273,5 +2504,61 @@ export default {
   .stage {
     height: 126px;
   }
+}
+
+/* 分组结果卡（P2 A1）：常驻浮层，空槽高度归零，不切 display / 不用 if / 不用 for 数组 */
+.overlay {
+  flex-direction: column;
+  width: 100%;
+  height: 408px;
+}
+
+.grp-title {
+  width: 100%;
+  font-size: 30px;
+  line-height: 40px;
+  text-align: center;
+  lines: 1;
+  margin-bottom: 8px;
+}
+
+.grp-scroll {
+  flex-direction: column;
+  width: 100%;
+  flex: 1;
+}
+
+.grp-card {
+  flex-direction: column;
+  width: 100%;
+  border-radius: 12px;
+  padding: 4px 8px;
+  justify-content: center;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.grp-name {
+  width: 100%;
+  font-size: 24px;
+  line-height: 34px;
+  text-align: center;
+  lines: 1;
+}
+
+.grp-member {
+  width: 100%;
+  font-size: 28px;
+  line-height: 30px;
+  text-align: center;
+  lines: 1;
+}
+
+.grp-odd {
+  width: 100%;
+  font-size: 24px;
+  line-height: 34px;
+  text-align: center;
+  lines: 1;
 }
 </style>

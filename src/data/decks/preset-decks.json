@@ -8,6 +8,12 @@
     "forbiddenSymbols": [">", "|", "-", "/"],
     "note": "点税：中点及其两侧空格计 1.1P，等同禁用。箭头与徽标同样禁用。"
   },
+  "drawRuleSchema": {
+    "note": "P2 完整 drawRule 字段对象。全部字段可选，省略即 P0/P1 旧行为；88 组老卡组零配置向后兼容。resultMode 省略时按 pickCount 推断。",
+    "defaults": {"resultMode": "single", "pickCount": 1, "replace": true, "groupSize": 2, "groupMode": "partial", "groupLabels": [], "slots": []},
+    "resultMode": ["single", "multi", "partition", "combo"],
+    "groupMode": ["partial", "full"]
+  },
   "total": 88,
   "categories": ["二元决断", "方位与顺序", "学科与学习", "时间数字概率", "果蔬饮品零食", "餐饮", "日常行动", "娱乐内容", "社交点名分组", "运动健康", "颜色心情玄学", "空白模板"],
   "decks": [
@@ -87,8 +93,8 @@
     {"id":"H07","title":"唱不唱","cat":"娱乐内容","items":["唱歌","不唱歌"],"anim":"flip"},
 
     {"id":"I01","title":"谁请客","cat":"社交点名分组","desc":"姓名类占位，首次使用引导替换为真实姓名","items":["我","你","AA","轮换"],"anim":"dice"},
-    {"id":"I02","title":"值日点名","cat":"社交点名分组","items":["甲","乙","丙","丁","戊","己"],"anim":"dice"},
-    {"id":"I03","title":"分组四选一","cat":"社交点名分组","items":["A组","B组","C组","D组"],"anim":"dice"},
+    {"id":"I02","title":"值日点名","cat":"社交点名分组","items":["甲","乙","丙","丁","戊","己"],"anim":"dice","drawRule":{"resultMode":"multi","pickCount":2,"replace":false}},
+    {"id":"I03","title":"分组四选一","cat":"社交点名分组","items":["A组","B组","C组","D组"],"anim":"dice","drawRule":{"resultMode":"partition","groupSize":2,"groupMode":"full","groupLabels":["第一组","第二组"]}},
     {"id":"I04","title":"发言顺序","cat":"社交点名分组","items":["1","2","3","4","5","6","7","8"],"anim":"marquee"},
     {"id":"I05","title":"谁先开始","cat":"社交点名分组","items":["我","你","抽签"],"anim":"dice"},
     {"id":"I06","title":"真心话冒险","cat":"社交点名分组","items":["真心话","大冒险"],"anim":"flip"},
@@ -109,6 +115,6 @@
     {"id":"L01","title":"空白二元","cat":"空白模板","desc":"占位模板，首次使用引导替换后转我的卡组","items":["选项一","选项二"],"anim":"flip"},
     {"id":"L02","title":"空白多项","cat":"空白模板","items":["一","二","三","四","五"],"anim":"dice"},
     {"id":"L03","title":"名单模板","cat":"空白模板","items":["甲","乙","丙","丁","戊","己","庚","辛","壬","癸"],"anim":"wheel"},
-    {"id":"L04","title":"分组模板","cat":"空白模板","desc":"3 组 4 位占位","items":["一","二","三","四","五","六","七","八","九","十","十一","十二"],"anim":"wheel"}
+    {"id":"L04","title":"分组模板","cat":"空白模板","desc":"3 组 4 位占位","items":["一","二","三","四","五","六","七","八","九","十","十一","十二"],"anim":"wheel","drawRule":{"resultMode":"partition","groupSize":4,"groupMode":"full","groupLabels":["第一组","第二组","第三组"]}}
   ]
 }

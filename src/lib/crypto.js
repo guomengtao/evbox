@@ -423,6 +423,102 @@ function fmtCode18(code) {
     code.substring(16, 18);
 }
 
+/* ===== 随机源 · 2026-11-15 P2（evtask-D-evevbox-261115-a7z2hd）=====
+ * 用途：帮助抉择抽取引擎从 Math.random() 切到本模块，提升不可预测性。
+ * 优先链：宿主 crypto.getRandomValues → 时间/计数混合熵 xorshift32 → Math.random() 兜底。
+ * 全链路 try/catch + isFinite 守卫：任一环不可用都绝不导致「抽不出结果」。
+ * 不在 manifest 声明 system.crypto，也不静态 require 系统模块：快应用 JSC 环境下
+ * 未声明 feature 的 require 会在打包期报错，因此只探测宿主全局对象。
+ * setSeed / withSeed 提供确定性 PRNG，用于同种子回归自测与简化动画结果一致性验证。
+ */
+var _seedOn = false
+var _seedState = 1
+var _mixState = 0x9e3779b9
+var _callCount = 0
+
+function seededRandom() {
+  var x = _seedState | 0
+  if (x === 0) x = 0x6d2b79f5
+  x ^= x << 13
+  x ^= x >>> 17
+  x ^= x << 5
+  _seedState = x | 0
+  return (_seedState >>> 0) / 4294967296
+}
+
+function random() {
+  if (_seedOn) {
+    return seededRandom()
+  }
+  _callCount = (_callCount + 1) | 0
+  try {
+    var g = null
+    if (typeof globalThis !== "undefined") { g = globalThis }
+    else if (typeof global !== "undefined") { g = global }
+    var c = g && (g.crypto || g.msCrypto)
+    if (c && typeof c.getRandomValues === "function" && typeof Uint32Array === "function") {
+      var arr = new Uint32Array(1)
+      c.getRandomValues(arr)
+      var v0 = (arr[0] >>> 0) / 4294967296
+      if (isFinite(v0) && v0 >= 0 && v0 < 1) return v0
+    }
+  } catch (e) {}
+  // 混合熵 xorshift32：Date.now 提供毫秒熵，调用计数与上一次状态打破同毫秒碰撞
+  var t = (Date.now() ^ (_callCount * 2654435761) ^ (_mixState >>> 0)) | 0
+  if (t === 0) t = 0x9e3779b9
+  var x = t
+  x ^= x << 13
+  x ^= x >>> 17
+  x ^= x << 5
+  _mixState = x | 0
+  var v = (_mixState >>> 0) / 4294967296
+  if (!isFinite(v) || v < 0 || v >= 1) {
+    return Math.random()
+  }
+  return v
+}
+
+function randomInt(n) {
+  if (!(n > 0)) return 0
+  var i = Math.floor(random() * n)
+  if (!isFinite(i) || i < 0) return 0
+  return i >= n ? n - 1 : i
+}
+
+function shuffle(arr) {
+  var out = (arr || []).slice(0)
+  for (var j = out.length - 1; j > 0; j--) {
+    var t = randomInt(j + 1)
+    var tmp = out[j]
+    out[j] = out[t]
+    out[t] = tmp
+  }
+  return out
+}
+
+function setSeed(seed) {
+  var s = Number(seed)
+  if (!isFinite(s)) s = 1
+  _seedOn = true
+  _seedState = (s | 0) || 1
+}
+
+function clearSeed() {
+  _seedOn = false
+}
+
+function withSeed(seed, fn) {
+  var wasOn = _seedOn
+  var wasState = _seedState
+  setSeed(seed)
+  try {
+    return fn()
+  } finally {
+    _seedOn = wasOn
+    _seedState = wasState
+  }
+}
+
 module.exports = {
   GLOBAL_MASTER_SALT: GLOBAL_MASTER_SALT,
   generateChecksum1: generateChecksum1,
@@ -437,5 +533,11 @@ module.exports = {
   decryptActivationCode: decryptActivationCode,
   fmtCode18: fmtCode18,
   computeProductSalt: computeProductSalt,
-  computeFixedSalt: computeFixedSalt
+  computeFixedSalt: computeFixedSalt,
+  random: random,
+  randomInt: randomInt,
+  shuffle: shuffle,
+  setSeed: setSeed,
+  clearSeed: clearSeed,
+  withSeed: withSeed
 };
