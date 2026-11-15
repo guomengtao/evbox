@@ -50,10 +50,12 @@
              节点从首屏一直活到揭晓，绑定依赖永不重建，绕开隐藏子树懒渲染坑。
              行位按结果数分配：1 个用中行，2 个用上+下行，3 个用满三行，整体居中。 -->
         <div class="line-box">
-          <text class="line" style="color: {{ lineHot1 ? theme.accent : theme.textSecondary }}; background-color: {{ lineHot1 ? theme.cardLight : 'transparent' }}">{{ line1 }}</text>
-          <text class="line" style="color: {{ lineHot2 ? theme.accent : theme.textSecondary }}; background-color: {{ lineHot2 ? theme.cardLight : 'transparent' }}">{{ line2 }}</text>
-          <text class="line" style="color: {{ lineHot3 ? theme.accent : theme.textSecondary }}; background-color: {{ lineHot3 ? theme.cardLight : 'transparent' }}">{{ line3 }}</text>
-          <text class="line" style="color: {{ lineHot4 ? theme.accent : theme.textSecondary }}; background-color: {{ lineHot4 ? theme.cardLight : 'transparent' }}">{{ line4 }}</text>
+          <!-- 空行高度归零：原先 4 行恒占 30px，单结果/三结果时多出一条空行，
+               真机上表现为抽取区「多占了一行」（2026-11-15 Tom 反馈）。 -->
+          <text class="line" style="height: {{ line1 ? '30px' : '0' }}; color: {{ lineHot1 ? theme.accent : theme.textSecondary }}; background-color: {{ lineHot1 ? theme.cardLight : 'transparent' }}">{{ line1 }}</text>
+          <text class="line" style="height: {{ line2 ? '30px' : '0' }}; color: {{ lineHot2 ? theme.accent : theme.textSecondary }}; background-color: {{ lineHot2 ? theme.cardLight : 'transparent' }}">{{ line2 }}</text>
+          <text class="line" style="height: {{ line3 ? '30px' : '0' }}; color: {{ lineHot3 ? theme.accent : theme.textSecondary }}; background-color: {{ lineHot3 ? theme.cardLight : 'transparent' }}">{{ line3 }}</text>
+          <text class="line" style="height: {{ line4 ? '30px' : '0' }}; color: {{ lineHot4 ? theme.accent : theme.textSecondary }}; background-color: {{ lineHot4 ? theme.cardLight : 'transparent' }}">{{ line4 }}</text>
         </div>
 
         <!-- 结果节点常驻：不再用 display 三元切显隐。
@@ -92,7 +94,9 @@
          display:none 子树：真机 JSC 对隐藏子树不建立绑定，切回 flex 时取的是
          首帧快照，行永远画不出来、也点不到（模拟器宽容，故反复漏检）。
          这里改用本文件已验证的「绝对定位覆盖」：永远在布局里，靠 top 移出屏幕。 -->
-    <div class="view" style="position: absolute; left: 0; top: {{ view === 'decks' ? '0' : '490px' }}; width: 100%; height: 408px; flex-direction: column; background-color: {{ theme.bg }}">
+    <!-- 浮层从 74px 起：避开头部的返回胶囊，否则真机上「卡组」标题被整块盖掉
+         （2026-11-15 Tom 反馈：从「二元」开始丢了标题）。 -->
+    <div class="view" style="position: absolute; left: 0; top: {{ view === 'decks' ? '74px' : '540px' }}; width: 100%; height: 408px; flex-direction: column; background-color: {{ theme.bg }}">
       <!-- 固定行槽：真机 JSC 对 for 数组的后续赋值不重绘（§7.8），
            数组列表在真机上会整片空白。改为 13 个常驻行，空槽高 0 自然收起。 -->
       <scroll class="list-scroll" scroll-y="true" style="position: absolute; left: 0; width: 100%; height: 408px; top: {{ catIndex < 0 ? '0' : '490px' }}">
@@ -692,6 +696,17 @@ export default {
       }
     }
     this.kickBeat()
+  },
+
+  // 系统返回（侧滑/返回键）默认直接 pop 页面 → 一路弹回 Ev工具箱首页。
+  // 真机反馈（2026-11-15 Tom）：在卡组页返回应回「抉择」第一页，而不是退出工具。
+  // 这里拦下系统返回，交给页面内的 goBack 分层处理；最外层才真正 pop。
+  onBackPress() {
+    if (this.view === "main") {
+      return false
+    }
+    this.goBack()
+    return true
   },
 
   onHide() {
