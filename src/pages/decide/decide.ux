@@ -42,14 +42,6 @@
             <text class="spin-text" style="color: {{ theme.textSecondary }}">{{ nextText }}</text>
           </div>
         </div>
-        <!-- 结果节点常驻：不再用 display 三元切显隐。
-             真机 JSC 对 display:none 子树不建立绑定，切回 flex 时取到的仍是初始快照，
-             表现为「容器出来了、里面一个大空」（2026-11-14 1.0.67 真机复核失败）。
-             改为绝对定位覆盖在滚动窗上，未出结果时内容为空、透明无感。 -->
-        <div class="result-box">
-          <text class="result-text" style="color: {{ theme.accent }}">{{ resultText }}</text>
-        </div>
-
         <!-- 过程 / 多结果共用行层（2026-11-14 动画）：
              抽两个：上下两行各自滚候选，先定格第一行、再定格第二行（错峰开奖）。
              抽三个：卷轴接力，一次只有一行在滚，落定一条钉住并上底色，下一行接棒。
@@ -62,6 +54,14 @@
           <text class="line" style="color: {{ lineHot2 ? theme.accent : theme.textSecondary }}; background-color: {{ lineHot2 ? theme.cardLight : 'transparent' }}">{{ line2 }}</text>
           <text class="line" style="color: {{ lineHot3 ? theme.accent : theme.textSecondary }}; background-color: {{ lineHot3 ? theme.cardLight : 'transparent' }}">{{ line3 }}</text>
           <text class="line" style="color: {{ lineHot4 ? theme.accent : theme.textSecondary }}; background-color: {{ lineHot4 ? theme.cardLight : 'transparent' }}">{{ line4 }}</text>
+        </div>
+
+        <!-- 结果节点常驻：不再用 display 三元切显隐。
+             真机 JSC 对 display:none 子树不建立绑定，切回 flex 时取到的仍是初始快照，
+             表现为「容器出来了、里面一个大空」（2026-11-14 1.0.67 真机复核失败）。
+             改为绝对定位覆盖在滚动窗上，未出结果时内容为空、透明无感。 -->
+        <div class="result-box">
+          <text class="result-text" style="color: {{ theme.accent }}">{{ resultText }}</text>
         </div>
       </div>
 
@@ -89,16 +89,142 @@
 
     <!-- 卡组列表：先选类，再选组 -->
     <div class="view" style="display: {{ view === 'decks' ? 'flex' : 'none' }}">
+      <!-- 固定行槽：真机 JSC 对 for 数组的后续赋值不重绘（§7.8），
+           数组列表在真机上会整片空白。改为 13 个常驻行，空槽高 0 自然收起。 -->
       <scroll class="list-scroll" scroll-y="true" style="display: {{ catIndex < 0 ? 'flex' : 'none' }}">
-        <div class="list-row" for="{{ catList }}" onclick="pickCat($item.idx)"
-             style="background-color: {{ theme.card }}">
-          <text class="list-text" style="color: {{ theme.text }}">{{ $item.name }}</text>
+        <div class="list-row" onclick="pickCatRow(0)"
+             style="background-color: {{ theme.card }}; height: {{ cat0 ? '52px' : '0' }}; margin-bottom: {{ cat0 ? '8px' : '0' }}">
+          <text class="list-text" style="color: {{ theme.text }}">{{ cat0 }}</text>
+        </div>
+        <div class="list-row" onclick="pickCatRow(1)"
+             style="background-color: {{ theme.card }}; height: {{ cat1 ? '52px' : '0' }}; margin-bottom: {{ cat1 ? '8px' : '0' }}">
+          <text class="list-text" style="color: {{ theme.text }}">{{ cat1 }}</text>
+        </div>
+        <div class="list-row" onclick="pickCatRow(2)"
+             style="background-color: {{ theme.card }}; height: {{ cat2 ? '52px' : '0' }}; margin-bottom: {{ cat2 ? '8px' : '0' }}">
+          <text class="list-text" style="color: {{ theme.text }}">{{ cat2 }}</text>
+        </div>
+        <div class="list-row" onclick="pickCatRow(3)"
+             style="background-color: {{ theme.card }}; height: {{ cat3 ? '52px' : '0' }}; margin-bottom: {{ cat3 ? '8px' : '0' }}">
+          <text class="list-text" style="color: {{ theme.text }}">{{ cat3 }}</text>
+        </div>
+        <div class="list-row" onclick="pickCatRow(4)"
+             style="background-color: {{ theme.card }}; height: {{ cat4 ? '52px' : '0' }}; margin-bottom: {{ cat4 ? '8px' : '0' }}">
+          <text class="list-text" style="color: {{ theme.text }}">{{ cat4 }}</text>
+        </div>
+        <div class="list-row" onclick="pickCatRow(5)"
+             style="background-color: {{ theme.card }}; height: {{ cat5 ? '52px' : '0' }}; margin-bottom: {{ cat5 ? '8px' : '0' }}">
+          <text class="list-text" style="color: {{ theme.text }}">{{ cat5 }}</text>
+        </div>
+        <div class="list-row" onclick="pickCatRow(6)"
+             style="background-color: {{ theme.card }}; height: {{ cat6 ? '52px' : '0' }}; margin-bottom: {{ cat6 ? '8px' : '0' }}">
+          <text class="list-text" style="color: {{ theme.text }}">{{ cat6 }}</text>
+        </div>
+        <div class="list-row" onclick="pickCatRow(7)"
+             style="background-color: {{ theme.card }}; height: {{ cat7 ? '52px' : '0' }}; margin-bottom: {{ cat7 ? '8px' : '0' }}">
+          <text class="list-text" style="color: {{ theme.text }}">{{ cat7 }}</text>
+        </div>
+        <div class="list-row" onclick="pickCatRow(8)"
+             style="background-color: {{ theme.card }}; height: {{ cat8 ? '52px' : '0' }}; margin-bottom: {{ cat8 ? '8px' : '0' }}">
+          <text class="list-text" style="color: {{ theme.text }}">{{ cat8 }}</text>
+        </div>
+        <div class="list-row" onclick="pickCatRow(9)"
+             style="background-color: {{ theme.card }}; height: {{ cat9 ? '52px' : '0' }}; margin-bottom: {{ cat9 ? '8px' : '0' }}">
+          <text class="list-text" style="color: {{ theme.text }}">{{ cat9 }}</text>
+        </div>
+        <div class="list-row" onclick="pickCatRow(10)"
+             style="background-color: {{ theme.card }}; height: {{ cat10 ? '52px' : '0' }}; margin-bottom: {{ cat10 ? '8px' : '0' }}">
+          <text class="list-text" style="color: {{ theme.text }}">{{ cat10 }}</text>
+        </div>
+        <div class="list-row" onclick="pickCatRow(11)"
+             style="background-color: {{ theme.card }}; height: {{ cat11 ? '52px' : '0' }}; margin-bottom: {{ cat11 ? '8px' : '0' }}">
+          <text class="list-text" style="color: {{ theme.text }}">{{ cat11 }}</text>
+        </div>
+        <div class="list-row" onclick="pickCatRow(12)"
+             style="background-color: {{ theme.card }}; height: {{ cat12 ? '52px' : '0' }}; margin-bottom: {{ cat12 ? '8px' : '0' }}">
+          <text class="list-text" style="color: {{ theme.text }}">{{ cat12 }}</text>
         </div>
       </scroll>
       <scroll class="list-scroll" scroll-y="true" style="display: {{ catIndex < 0 ? 'none' : 'flex' }}">
-        <div class="list-row" for="{{ deckList }}" onclick="selectDeck($item.deckIndex)"
-             style="background-color: {{ theme.card }}">
-          <text class="list-text" style="color: {{ theme.text }}">{{ $item.title }}</text>
+        <div class="list-row" onclick="selectDeckRow(0)"
+             style="background-color: {{ theme.card }}; height: {{ deck0 ? '52px' : '0' }}; margin-bottom: {{ deck0 ? '8px' : '0' }}">
+          <text class="list-text" style="color: {{ theme.text }}">{{ deck0 }}</text>
+        </div>
+        <div class="list-row" onclick="selectDeckRow(1)"
+             style="background-color: {{ theme.card }}; height: {{ deck1 ? '52px' : '0' }}; margin-bottom: {{ deck1 ? '8px' : '0' }}">
+          <text class="list-text" style="color: {{ theme.text }}">{{ deck1 }}</text>
+        </div>
+        <div class="list-row" onclick="selectDeckRow(2)"
+             style="background-color: {{ theme.card }}; height: {{ deck2 ? '52px' : '0' }}; margin-bottom: {{ deck2 ? '8px' : '0' }}">
+          <text class="list-text" style="color: {{ theme.text }}">{{ deck2 }}</text>
+        </div>
+        <div class="list-row" onclick="selectDeckRow(3)"
+             style="background-color: {{ theme.card }}; height: {{ deck3 ? '52px' : '0' }}; margin-bottom: {{ deck3 ? '8px' : '0' }}">
+          <text class="list-text" style="color: {{ theme.text }}">{{ deck3 }}</text>
+        </div>
+        <div class="list-row" onclick="selectDeckRow(4)"
+             style="background-color: {{ theme.card }}; height: {{ deck4 ? '52px' : '0' }}; margin-bottom: {{ deck4 ? '8px' : '0' }}">
+          <text class="list-text" style="color: {{ theme.text }}">{{ deck4 }}</text>
+        </div>
+        <div class="list-row" onclick="selectDeckRow(5)"
+             style="background-color: {{ theme.card }}; height: {{ deck5 ? '52px' : '0' }}; margin-bottom: {{ deck5 ? '8px' : '0' }}">
+          <text class="list-text" style="color: {{ theme.text }}">{{ deck5 }}</text>
+        </div>
+        <div class="list-row" onclick="selectDeckRow(6)"
+             style="background-color: {{ theme.card }}; height: {{ deck6 ? '52px' : '0' }}; margin-bottom: {{ deck6 ? '8px' : '0' }}">
+          <text class="list-text" style="color: {{ theme.text }}">{{ deck6 }}</text>
+        </div>
+        <div class="list-row" onclick="selectDeckRow(7)"
+             style="background-color: {{ theme.card }}; height: {{ deck7 ? '52px' : '0' }}; margin-bottom: {{ deck7 ? '8px' : '0' }}">
+          <text class="list-text" style="color: {{ theme.text }}">{{ deck7 }}</text>
+        </div>
+        <div class="list-row" onclick="selectDeckRow(8)"
+             style="background-color: {{ theme.card }}; height: {{ deck8 ? '52px' : '0' }}; margin-bottom: {{ deck8 ? '8px' : '0' }}">
+          <text class="list-text" style="color: {{ theme.text }}">{{ deck8 }}</text>
+        </div>
+        <div class="list-row" onclick="selectDeckRow(9)"
+             style="background-color: {{ theme.card }}; height: {{ deck9 ? '52px' : '0' }}; margin-bottom: {{ deck9 ? '8px' : '0' }}">
+          <text class="list-text" style="color: {{ theme.text }}">{{ deck9 }}</text>
+        </div>
+        <div class="list-row" onclick="selectDeckRow(10)"
+             style="background-color: {{ theme.card }}; height: {{ deck10 ? '52px' : '0' }}; margin-bottom: {{ deck10 ? '8px' : '0' }}">
+          <text class="list-text" style="color: {{ theme.text }}">{{ deck10 }}</text>
+        </div>
+        <div class="list-row" onclick="selectDeckRow(11)"
+             style="background-color: {{ theme.card }}; height: {{ deck11 ? '52px' : '0' }}; margin-bottom: {{ deck11 ? '8px' : '0' }}">
+          <text class="list-text" style="color: {{ theme.text }}">{{ deck11 }}</text>
+        </div>
+        <div class="list-row" onclick="selectDeckRow(12)"
+             style="background-color: {{ theme.card }}; height: {{ deck12 ? '52px' : '0' }}; margin-bottom: {{ deck12 ? '8px' : '0' }}">
+          <text class="list-text" style="color: {{ theme.text }}">{{ deck12 }}</text>
+        </div>
+        <div class="list-row" onclick="selectDeckRow(13)"
+             style="background-color: {{ theme.card }}; height: {{ deck13 ? '52px' : '0' }}; margin-bottom: {{ deck13 ? '8px' : '0' }}">
+          <text class="list-text" style="color: {{ theme.text }}">{{ deck13 }}</text>
+        </div>
+        <div class="list-row" onclick="selectDeckRow(14)"
+             style="background-color: {{ theme.card }}; height: {{ deck14 ? '52px' : '0' }}; margin-bottom: {{ deck14 ? '8px' : '0' }}">
+          <text class="list-text" style="color: {{ theme.text }}">{{ deck14 }}</text>
+        </div>
+        <div class="list-row" onclick="selectDeckRow(15)"
+             style="background-color: {{ theme.card }}; height: {{ deck15 ? '52px' : '0' }}; margin-bottom: {{ deck15 ? '8px' : '0' }}">
+          <text class="list-text" style="color: {{ theme.text }}">{{ deck15 }}</text>
+        </div>
+        <div class="list-row" onclick="selectDeckRow(16)"
+             style="background-color: {{ theme.card }}; height: {{ deck16 ? '52px' : '0' }}; margin-bottom: {{ deck16 ? '8px' : '0' }}">
+          <text class="list-text" style="color: {{ theme.text }}">{{ deck16 }}</text>
+        </div>
+        <div class="list-row" onclick="selectDeckRow(17)"
+             style="background-color: {{ theme.card }}; height: {{ deck17 ? '52px' : '0' }}; margin-bottom: {{ deck17 ? '8px' : '0' }}">
+          <text class="list-text" style="color: {{ theme.text }}">{{ deck17 }}</text>
+        </div>
+        <div class="list-row" onclick="selectDeckRow(18)"
+             style="background-color: {{ theme.card }}; height: {{ deck18 ? '52px' : '0' }}; margin-bottom: {{ deck18 ? '8px' : '0' }}">
+          <text class="list-text" style="color: {{ theme.text }}">{{ deck18 }}</text>
+        </div>
+        <div class="list-row" onclick="selectDeckRow(19)"
+             style="background-color: {{ theme.card }}; height: {{ deck19 ? '52px' : '0' }}; margin-bottom: {{ deck19 ? '8px' : '0' }}">
+          <text class="list-text" style="color: {{ theme.text }}">{{ deck19 }}</text>
         </div>
       </scroll>
     </div>
@@ -370,8 +496,41 @@ export default {
     btnText: "抽一个",
     statusText: "点下面抽取",
     catIndex: -1,
-    catList: [],
-    deckList: [],
+    catRows: [],
+    deckRows: [],
+    cat0: "",
+    cat1: "",
+    cat2: "",
+    cat3: "",
+    cat4: "",
+    cat5: "",
+    cat6: "",
+    cat7: "",
+    cat8: "",
+    cat9: "",
+    cat10: "",
+    cat11: "",
+    cat12: "",
+    deck0: "",
+    deck1: "",
+    deck2: "",
+    deck3: "",
+    deck4: "",
+    deck5: "",
+    deck6: "",
+    deck7: "",
+    deck8: "",
+    deck9: "",
+    deck10: "",
+    deck11: "",
+    deck12: "",
+    deck13: "",
+    deck14: "",
+    deck15: "",
+    deck16: "",
+    deck17: "",
+    deck18: "",
+    deck19: "",
     customItems: [],
     compassOn: false,
     screenShape: "",
@@ -569,7 +728,21 @@ export default {
     if (this.customDeck) {
       out.push({ idx: -2, name: "我的" })
     }
-    this.catList = out
+    // 固定行槽：for 数组在真机不重绘（§7.8），这里把名字逐个写进 cat0..cat12
+    this.catRows = out
+    this.cat0 = (out[0] && out[0].name) || ""
+    this.cat1 = (out[1] && out[1].name) || ""
+    this.cat2 = (out[2] && out[2].name) || ""
+    this.cat3 = (out[3] && out[3].name) || ""
+    this.cat4 = (out[4] && out[4].name) || ""
+    this.cat5 = (out[5] && out[5].name) || ""
+    this.cat6 = (out[6] && out[6].name) || ""
+    this.cat7 = (out[7] && out[7].name) || ""
+    this.cat8 = (out[8] && out[8].name) || ""
+    this.cat9 = (out[9] && out[9].name) || ""
+    this.cat10 = (out[10] && out[10].name) || ""
+    this.cat11 = (out[11] && out[11].name) || ""
+    this.cat12 = (out[12] && out[12].name) || ""
   },
 
   setDeck(deck) {
@@ -826,10 +999,13 @@ export default {
     this.line2 = rl[1]
     this.line3 = rl[2]
     this.line4 = rl[3]
-    this.lineHot1 = true
-    this.lineHot2 = true
-    this.lineHot3 = true
-    this.lineHot4 = true
+    // 只有真有内容的行才点亮：空行点亮会留下一条 cardLight 底条，
+    // 而 line-box 在 DOM 里排在 result-box 之后 → 空底条直接盖住 44px 结果大字
+    // （2026-11-15 真机/模拟器复现：「结果被一些线覆盖」的真因）。
+    this.lineHot1 = !!rl[0]
+    this.lineHot2 = !!rl[1]
+    this.lineHot3 = !!rl[2]
+    this.lineHot4 = !!rl[3]
     this.resultText = p.text
     this.resultLines = p.count > 1 ? p.lines.slice(0) : []
     this.resultIndices = p.idxs
@@ -1027,13 +1203,38 @@ export default {
     this.statusText = "点加一项"
   },
 
+  // 卡组列表同样走固定行槽：数组只做点击回查，显示靠 deck0..deck19
+  applyDeckRows(out) {
+    this.deckRows = out
+    this.deck0 = (out[0] && out[0].title) || ""
+    this.deck1 = (out[1] && out[1].title) || ""
+    this.deck2 = (out[2] && out[2].title) || ""
+    this.deck3 = (out[3] && out[3].title) || ""
+    this.deck4 = (out[4] && out[4].title) || ""
+    this.deck5 = (out[5] && out[5].title) || ""
+    this.deck6 = (out[6] && out[6].title) || ""
+    this.deck7 = (out[7] && out[7].title) || ""
+    this.deck8 = (out[8] && out[8].title) || ""
+    this.deck9 = (out[9] && out[9].title) || ""
+    this.deck10 = (out[10] && out[10].title) || ""
+    this.deck11 = (out[11] && out[11].title) || ""
+    this.deck12 = (out[12] && out[12].title) || ""
+    this.deck13 = (out[13] && out[13].title) || ""
+    this.deck14 = (out[14] && out[14].title) || ""
+    this.deck15 = (out[15] && out[15].title) || ""
+    this.deck16 = (out[16] && out[16].title) || ""
+    this.deck17 = (out[17] && out[17].title) || ""
+    this.deck18 = (out[18] && out[18].title) || ""
+    this.deck19 = (out[19] && out[19].title) || ""
+  },
+
   pickCat(idx) {
     if (idx === -2) {
       if (!this.customDeck) {
         return
       }
       this.catIndex = -2
-      this.deckList = [{ idx: 0, title: "我的卡组", deckIndex: -1 }]
+      this.applyDeckRows([{ idx: 0, title: "我的卡组", deckIndex: -1 }])
       return
     }
     this.catIndex = idx
@@ -1051,7 +1252,24 @@ export default {
       out.push({ idx: out.length, title: "随便吃一道", deckIndex: -3 })
       out.push({ idx: out.length, title: "搭配抽", deckIndex: -4 })
     }
-    this.deckList = out
+    this.applyDeckRows(out)
+  },
+
+  // 固定行槽的点击入口：空槽直接返回（行高 0，理论上点不到，防御一下）
+  pickCatRow(i) {
+    var r = this.catRows[i]
+    if (!r) {
+      return
+    }
+    this.pickCat(r.idx)
+  },
+
+  selectDeckRow(i) {
+    var r = this.deckRows[i]
+    if (!r) {
+      return
+    }
+    this.selectDeck(r.deckIndex)
   },
 
   selectDeck(deckIndex) {
@@ -1101,7 +1319,7 @@ export default {
     for (var i = 0; i < food.categories.length; i++) {
       out.push({ idx: i, title: food.categories[i].short, deckIndex: -10 - i })
     }
-    this.deckList = out
+    this.applyDeckRows(out)
     this.view = "decks"
     this.pageTitle = "吃什么"
   },
