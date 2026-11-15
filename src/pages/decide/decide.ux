@@ -77,7 +77,9 @@
 
       <!-- 抽取中按钮变暗 + 文案变「抽取中」：给出「有反应」的即时反馈，
            并由 phase=spinning 在 2 秒内忽略重复点击（防误触）；2 秒硬兜底必解锁。 -->
-      <div class="main-btn" onclick="draw" style="display: {{ compassOn ? 'none' : 'flex' }}; background-color: {{ busy ? theme.cardLight : theme.accent }}">
+      <!-- 罗盘页也保留底部按钮（2026-11-15 Tom：表盘页底部空着，用户不知道能点盘面）。
+           按钮与盘面点同一入口 draw，状态文案共用 btnText：抽一个 / 抽取中 / 再抽一次。 -->
+      <div class="main-btn" onclick="draw" style="background-color: {{ busy ? theme.cardLight : theme.accent }}">
         <text class="main-btn-text" style="color: {{ busy ? theme.textSecondary : theme.bg }}">{{ btnText }}</text>
       </div>
 
