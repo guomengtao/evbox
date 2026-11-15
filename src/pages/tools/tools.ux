@@ -48,7 +48,10 @@ var TOOLS = [
   { id: "answer", name: "答案", uri: "/pages/answer-book" },
   { id: "qrcode", name: "二维码", uri: "/pages/qrcode-generator" },
   { id: "vibrate", name: "震动", uri: "/pages/vibration-lab" },
-  { id: "decide", name: "抉择", uri: "/pages/decide" }
+  { id: "decide", name: "抉择", uri: "/pages/decide" },
+  { id: "decide-food", name: "吃什么", uri: "/pages/decide?deck=food" },
+  { id: "decide-combo", name: "搭配抽", uri: "/pages/decide?mode=combo" },
+  { id: "pin-decide", name: "钉抉择", uri: "pin:decide" }
 ]
 
 // 静态定位兜底：实时摘要取不到（系统接口未就绪、无数据）时用它，
@@ -61,7 +64,10 @@ var FALLBACK = {
   answer: "想问就问",
   qrcode: "生成与分享",
   vibrate: "震动试试",
-  decide: "随机抽签"
+  decide: "随机抽签",
+  "decide-food": "抽一道菜",
+  "decide-combo": "配一顿饭",
+  "pin-decide": "首页加两个"
 }
 
 export default {
@@ -137,9 +143,46 @@ export default {
     } catch (e) {}
   },
 
+  /**
+   * 2026-11-15 P2：带 URI 参数的抉择入口走「storage 回传 + 剥离 query 后 push」。
+   * 快应用框架在本仓库没有任何读取页面 query 的用例，直接把 ?deck=food 交给
+   * router.push 后无法保证页面拿得到；改为写 decide_entry_params（与 chinese-input
+   * 同款已验证协议），decide.ux 的 applyEntry() 解析它，并带 30s 时效防陈旧参数。
+   */
   openTool(uri) {
     if (!uri) return
+    if (uri.indexOf("pin:") === 0) {
+      this.pinDecide()
+      return
+    }
+    var at = uri.indexOf("?")
+    if (at >= 0 && uri.indexOf("/pages/decide") === 0) {
+      var params = uri.slice(at + 1)
+      var storage = require("@system.storage")
+      storage.set({
+        key: "decide_entry_params",
+        value: params + "&ts=" + Date.now(),
+        success: function() { router.push({ uri: "/pages/decide" }) },
+        fail: function() { router.push({ uri: "/pages/decide" }) }
+      })
+      return
+    }
     router.push({ uri: uri })
+  },
+
+  /** 钉首页一步到位：打开 showDecide 开关 + 写入两个快捷 pinned_pages，再跳已钉页面查看 */
+  pinDecide() {
+    var slotStore = require("../../data/homepage-slots.js")
+    var store = require("../../data/store.js")
+    store.getHomepageSettings(function(settings) {
+      var s = settings || {}
+      s.showDecide = true
+      store.setHomepageSettings(s, function() {
+        slotStore.pinDecideShortcuts(function() {
+          router.push({ uri: "/pages/pinned-pages" })
+        })
+      })
+    })
   },
 
   openDeviceInfo() {

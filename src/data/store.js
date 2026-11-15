@@ -611,6 +611,9 @@ module.exports = {
       showDayNavJin: true,
       showDayNavMing: true,
       showLabSection: false,
+      // 2026-11-15 P2（evtask-D-evevbox-261115-a7z2hd）：帮助抉择首页快捷入口开关。
+      // 默认关；开启只追加两个带参数的抉择快捷槽，不改变既有四个默认槽与 slotLimit 语义。
+      showDecide: false,
       timeFormat: { year: false, month: false, day: false, hour: true, minute: true, second: false }
     }
     storage.get({

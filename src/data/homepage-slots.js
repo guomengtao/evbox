@@ -29,6 +29,17 @@ var DEFAULT_SLOTS = [
   { id: "quote", name: "一言", uri: "/pages/daily-quote", summaryKey: "quote" }
 ]
 
+/**
+ * 2026-11-15 P2：帮助抉择的两个钉首页快捷入口（含 URI 参数）。
+ * 默认不进 DEFAULT_SLOTS —— 首页开关 homepage_settings.showDecide 默认关，
+ * 开启后才追加，保持「默认关、不改现有默认值语义」。
+ * 参数由 decide.ux 的 parseQuery() 解析；框架若不给 query，工具页走 storage 回传兜底。
+ */
+var DECIDE_SHORTCUTS = [
+  { id: "decide-food", name: "吃什么", uri: "/pages/decide?deck=food" },
+  { id: "decide-combo", name: "搭配抽", uri: "/pages/decide?mode=combo" }
+]
+
 /** 用户钉任意页时，尽量给它接上 tool-summaries.js 已有的实时摘要 */
 var URI_SUMMARY = {
   "/pages/countdown-manage": "countdown",
@@ -117,18 +128,67 @@ function build(defaults, pinned, cfg) {
  *   total / limit / hidden
  * })
  */
+
+/** showDecide 开启后追加快捷槽：按 uri 去重，仍受 MAX_TOTAL=6 约束 */
+function appendShortcuts(all) {
+  var seen = {}
+  for (var a = 0; a < all.length; a++) seen[all[a].uri] = true
+  for (var i = 0; i < DECIDE_SHORTCUTS.length && all.length < MAX_TOTAL; i++) {
+    var s = DECIDE_SHORTCUTS[i]
+    if (seen[s.uri]) continue
+    all.push({ id: s.id, name: s.name, uri: s.uri, summaryKey: "", source: "shortcut" })
+    seen[s.uri] = true
+  }
+  return all
+}
+
+/** 一键把两个快捷入口写入 pinned_pages（同一 key，其它页面读到的结果一致） */
+function pinDecideShortcuts(callback) {
+  pinHelper.getList(function (list) {
+    var out = list ? list.slice(0) : []
+    for (var i = 0; i < DECIDE_SHORTCUTS.length; i++) {
+      var s = DECIDE_SHORTCUTS[i]
+      var exists = false
+      for (var j = 0; j < out.length; j++) {
+        if (out[j].uri === s.uri) exists = true
+      }
+      if (!exists) out.push({ name: s.name, uri: s.uri })
+    }
+    var storage = require("@system.storage")
+    storage.set({
+      key: "pinned_pages",
+      value: JSON.stringify(out),
+      success: function() { if (callback) callback() },
+      fail: function() { if (callback) callback() }
+    })
+  })
+}
+
 function getSlots(callback) {
   readConfig(function(cfg) {
     pinHelper.getList(function(pinned) {
       var all = build(DEFAULT_SLOTS, pinned, cfg)
-      callback({
-        slots: all.slice(0, cfg.slotLimit),
-        all: all,
-        pinned: pinned || [],
-        total: all.length,
-        limit: cfg.slotLimit,
-        hidden: cfg.hidden.slice(0)
-      })
+      var done = function(list) {
+        callback({
+          slots: list.slice(0, cfg.slotLimit),
+          all: list,
+          pinned: pinned || [],
+          total: list.length,
+          limit: cfg.slotLimit,
+          hidden: cfg.hidden.slice(0)
+        })
+      }
+      // 首页开关只在这里「读」，不写 homepage_settings（那个 key 被多页全量写回，
+      // 混进槽位配置容易被覆盖式写回冲掉，见本文件头部约束）。
+      try {
+        var store = require("./store.js")
+        store.getHomepageSettings(function(settings) {
+          if (settings && settings.showDecide === true) all = appendShortcuts(all)
+          done(all)
+        })
+      } catch (e) {
+        done(all)
+      }
     })
   })
 }
@@ -184,5 +244,7 @@ module.exports = {
   setLimit: setLimit,
   removePinned: removePinned,
   getDefaults: function() { return DEFAULT_SLOTS },
+  getDecideShortcuts: function() { return DECIDE_SHORTCUTS },
+  pinDecideShortcuts: pinDecideShortcuts,
   MAX_TOTAL: MAX_TOTAL
 }
