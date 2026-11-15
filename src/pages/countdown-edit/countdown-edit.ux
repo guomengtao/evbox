@@ -9,7 +9,8 @@
           本页不内嵌输入法组件 —— 多一个宿主就多一份崩溃面。
 -->
 <template>
-  <scroll class="page" scroll-y="true" style="background-color: {{ theme.bg }}">
+  <div class="page" style="background-color: {{ theme.bg }}">
+  <scroll class="page-scroll" scroll-y="true">
     <div class="back-header">
       <div class="back-btn-wrapper" onclick="goBack" style="background-color: {{ theme.card }}">
         <image class="back-btn-icon" src="/common/icons/{{ iconTheme }}/icon_back.png"></image>
@@ -21,7 +22,7 @@
     <!-- 名称 -->
     <div class="row-tap" onclick="editName" style="background-color: {{ theme.card }}">
       <text class="row-label" style="color: {{ theme.textSecondary }}">名称</text>
-      <text class="row-value" style="color: {{ nameText ? theme.text : theme.textMuted }}">{{ nameText || '点此输入' }}</text>
+      <text class="row-value" style="color: {{ nameText ? theme.text : theme.textMuted }}">{{ nameText || '未设置' }}</text>
     </div>
 
     <!-- 模式：倒数 / 正计时（点一下切换，值在右侧） -->
@@ -83,6 +84,9 @@
       <text class="row-value" style="color: {{ pinned ? theme.accent : theme.textMuted }}">{{ pinned ? '开' : '关' }}</text>
     </div>
 
+    <div class="bottom-pad"></div>
+  </scroll>
+    <!-- 固定底栏：不随滚动。Vela 控制台没有滑动通道，放在滚动区末尾等于永远点不到 -->
     <div class="action-row">
       <div class="save-btn" onclick="doSave" style="background-color: {{ canSave ? theme.accent : theme.cardLight }}">
         <text class="save-t" style="color: {{ canSave ? theme.bg : theme.textMuted }}">保存</text>
@@ -91,8 +95,7 @@
         <text class="save-t" style="color: {{ delConfirm ? theme.bg : theme.deleteText }}">{{ delConfirm ? '确认删除' : '删除' }}</text>
       </div>
     </div>
-    <div class="bottom-pad"></div>
-  </scroll>
+  </div>
 </template>
 
 <script>
@@ -544,6 +547,13 @@ export default {
   padding: 44px 12px 0 12px;
 }
 
+/* 可滚区：占满剩余高度，底部留出固定操作栏的位置 */
+.page-scroll {
+  flex: 1;
+  width: 100%;
+  flex-direction: column;
+}
+
 .back-header {
   flex-direction: row;
   width: 100%;
@@ -714,7 +724,7 @@ export default {
   width: 100%;
   height: 52px;
   flex-shrink: 0;
-  margin-top: 4px;
+  padding-bottom: 8px;
 }
 
 .save-btn {
