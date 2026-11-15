@@ -55,6 +55,21 @@ function fitSummary(text) {
   return clauseFit(text, 6.0)
 }
 
+/**
+ * 名称按宽度硬裁（不带省略号）：只用于「名词类」短文本（倒数日标题、工具名）。
+ * 与 clauseFit 的分工：句子必须在标点边界停（否则是残句），名词只需要塞得下，
+ * 少一个字仍是完整词，多一个字就折行违规。
+ */
+function clampP(text, maxP) {
+  var s = String(text || "")
+  var out = ""
+  for (var i = 0; i < s.length; i++) {
+    if (pWidth(out + s.charAt(i)) > maxP) break
+    out += s.charAt(i)
+  }
+  return out.replace(/[，,、；;：:\s]+$/, "")
+}
+
 /** 示例数据前缀：「示例：」不该让示例文案吃掉标题位宽度 */
 function stripExamplePrefix(s) {
   return String(s || "").replace(/^示例[:：]\s*/, "")
