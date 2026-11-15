@@ -490,6 +490,23 @@ function frameAt(el, count, lines, items) {
   return { l1: l[0], l2: l[1], l3: l[2], l4: "", h1: h[0], h2: h[1], h3: h[2], h4: false, step: step }
 }
 
+// 方位词 → 真实方位角（0=正上/前，顺时针）。非方位词返回 -1。
+// 用途：卡片文案常写成「前后左右」这种口语句序，直接按索引均分会把左右画反。
+function dirAngleOf(text) {
+  var t = (text || "").replace(/\s/g, "")
+  var map = {
+    "前": 0, "上": 0, "北": 0, "前面": 0, "上边": 0, "北边": 0,
+    "右上": 45, "前右": 45, "东北": 45,
+    "右": 90, "东": 90, "右面": 90, "右边": 90, "东边": 90,
+    "右下": 135, "后右": 135, "东南": 135,
+    "后": 180, "下": 180, "南": 180, "后面": 180, "下边": 180, "南边": 180,
+    "左下": 225, "后左": 225, "西南": 225,
+    "左": 270, "西": 270, "左面": 270, "左边": 270, "西边": 270,
+    "左上": 315, "前左": 315, "西北": 315
+  }
+  return map.hasOwnProperty(t) ? map[t] : -1
+}
+
 function needlePath(frame) {
   var f = frame % FRAMES
   var s = f < 10 ? "0" + f : "" + f
@@ -871,8 +888,25 @@ export default {
     var r = cx - 30
     var labels = []
     var angles = []
+    // 方位词优先按真实方位摆位（2026-11-15 Tom：罗盘镜像了、「右」跑到左边）。
+    // 卡组文案顺序是「前后左右」这种口语句序，直接按索引均分会让左右互换；
+    // 所以先查方位表，全部命中且角度不冲突才按语义摆，否则退回按序均分。
+    var dirs = []
+    var ok = n > 0
+    for (var d = 0; d < n; d++) {
+      var da = dirAngleOf(this.items[d])
+      if (da < 0) { ok = false; break }
+      dirs.push(da)
+    }
+    if (ok) {
+      for (var u = 0; u < n; u++) {
+        for (var v = u + 1; v < n; v++) {
+          if (dirs[u] === dirs[v]) { ok = false }
+        }
+      }
+    }
     for (var i = 0; i < n; i++) {
-      var deg = (Math.round((i * 360 / n) / FRAME_STEP) * FRAME_STEP) % 360
+      var deg = ok ? dirs[i] : (Math.round((i * 360 / n) / FRAME_STEP) * FRAME_STEP) % 360
       var rad = deg * Math.PI / 180
       angles.push(deg / FRAME_STEP)
       labels.push({
@@ -1099,6 +1133,18 @@ export default {
     }
     // ↓ 揭晓帧：单方法连续赋值，不调 updateNeedle / buildWindow 等写 this 的方法
     this.needleSrc = this.compassOn ? needlePath(this.dialAngles[p.idxs[0]] || 0) : this.needleSrc
+    // 高亮必须跟着落点走：本方法刻意不调 updateNeedle，所以 hit 槽位在这里显式一并写，
+    // 否则真机上「指针停在右、字还亮着前」（2026-11-15 模拟器复现）。
+    var hi = p.idxs[0]
+    var dn = this.items.length
+    this.dial0Hit = dn > 0 && hi === 0
+    this.dial1Hit = dn > 1 && hi === 1
+    this.dial2Hit = dn > 2 && hi === 2
+    this.dial3Hit = dn > 3 && hi === 3
+    this.dial4Hit = dn > 4 && hi === 4
+    this.dial5Hit = dn > 5 && hi === 5
+    this.dial6Hit = dn > 6 && hi === 6
+    this.dial7Hit = dn > 7 && hi === 7
     this.line1 = rl[0]
     this.line2 = rl[1]
     this.line3 = rl[2]
