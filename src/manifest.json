@@ -1,8 +1,8 @@
 {
   "package": "com.application.watch.evbox",
   "name": "Ev工具箱",
-  "versionName": "1.0.88",
-  "versionCode": 89,
+  "versionName": "1.0.89",
+  "versionCode": 90,
   "minPlatformVersion": 1050,
   "icon": "/logo.png",
   "deviceTypeList": [

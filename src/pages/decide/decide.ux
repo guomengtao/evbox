@@ -19,11 +19,35 @@
       <!-- 罗盘：盘面文字固定，只换一根指针，点盘面即抽 -->
       <div class="compass-box" onclick="draw" style="display: {{ compassOn ? 'flex' : 'none' }}">
         <div class="dial" style="width: {{ dialSize }}px; height: {{ dialSize }}px; border-radius: {{ dialRadius }}px; background-color: {{ theme.card }}">
-          <div class="dial-tick" for="{{ dialLabels }}"
-               style="left: {{ $item.left }}px; top: {{ $item.top }}px; background-color: {{ $item.hit ? theme.accent : 'transparent' }}">
-            <text class="dial-tick-text" style="color: {{ $item.hit ? theme.bg : theme.text }}">{{ $item.text }}</text>
+          <!-- 8 个常驻标签槽（方位最多 8 向，实际用几个由 buildDial 决定，空槽文字为空即不显示） -->
+          <div class="dial-tick" style="left: {{ dial0Left }}px; top: {{ dial0Top }}px; background-color: {{ dial0Hit ? theme.accent : 'transparent' }}">
+            <text class="dial-tick-text" style="color: {{ dial0Hit ? theme.bg : theme.text }}">{{ dial0Text }}</text>
           </div>
-          <image class="needle" src="{{ needleSrc }}"></image>
+          <div class="dial-tick" style="left: {{ dial1Left }}px; top: {{ dial1Top }}px; background-color: {{ dial1Hit ? theme.accent : 'transparent' }}">
+            <text class="dial-tick-text" style="color: {{ dial1Hit ? theme.bg : theme.text }}">{{ dial1Text }}</text>
+          </div>
+          <div class="dial-tick" style="left: {{ dial2Left }}px; top: {{ dial2Top }}px; background-color: {{ dial2Hit ? theme.accent : 'transparent' }}">
+            <text class="dial-tick-text" style="color: {{ dial2Hit ? theme.bg : theme.text }}">{{ dial2Text }}</text>
+          </div>
+          <div class="dial-tick" style="left: {{ dial3Left }}px; top: {{ dial3Top }}px; background-color: {{ dial3Hit ? theme.accent : 'transparent' }}">
+            <text class="dial-tick-text" style="color: {{ dial3Hit ? theme.bg : theme.text }}">{{ dial3Text }}</text>
+          </div>
+          <div class="dial-tick" style="left: {{ dial4Left }}px; top: {{ dial4Top }}px; background-color: {{ dial4Hit ? theme.accent : 'transparent' }}">
+            <text class="dial-tick-text" style="color: {{ dial4Hit ? theme.bg : theme.text }}">{{ dial4Text }}</text>
+          </div>
+          <div class="dial-tick" style="left: {{ dial5Left }}px; top: {{ dial5Top }}px; background-color: {{ dial5Hit ? theme.accent : 'transparent' }}">
+            <text class="dial-tick-text" style="color: {{ dial5Hit ? theme.bg : theme.text }}">{{ dial5Text }}</text>
+          </div>
+          <div class="dial-tick" style="left: {{ dial6Left }}px; top: {{ dial6Top }}px; background-color: {{ dial6Hit ? theme.accent : 'transparent' }}">
+            <text class="dial-tick-text" style="color: {{ dial6Hit ? theme.bg : theme.text }}">{{ dial6Text }}</text>
+          </div>
+          <div class="dial-tick" style="left: {{ dial7Left }}px; top: {{ dial7Top }}px; background-color: {{ dial7Hit ? theme.accent : 'transparent' }}">
+            <text class="dial-tick-text" style="color: {{ dial7Hit ? theme.bg : theme.text }}">{{ dial7Text }}</text>
+          </div>
+          <!-- 指针帧素材是 240×240，盘面胶囊屏只有 160：width:100% 在真机上不生效，
+               图按 240 原尺寸铺开 → 圆心被推右 40px，看起来「指针不在中心、转起来乱晃」。
+               这里显式绑定 api 尺寸，圆心与盘心严格重合。 -->
+          <image class="needle" src="{{ needleSrc }}" style="left: {{ needleOff }}px; top: {{ needleOff }}px; width: {{ needleSize }}px; height: {{ needleSize }}px"></image>
         </div>
         <div class="compass-result">
           <text class="compass-result-text" style="color: {{ theme.accent }}">{{ resultText }}</text>
@@ -548,6 +572,19 @@ export default {
     dialRadius: 80,
     dialLabels: [],
     dialAngles: [],
+    // 罗盘标签改 8 个常驻槽位（2026-11-15）：for="{{ dialLabels }}" 在真机 JSC 上
+    // 首帧后重赋值不重绘 → 指针转了、高亮纹丝不动。槽位常驻、内容空/非空表达状态，
+    // 与卡组行同一个套路。dialAngles 仍是纯 JS 数组（不进 data，供帧计算用）。
+    dial0Text: "", dial0Left: 0, dial0Top: 0, dial0Hit: false,
+    dial1Text: "", dial1Left: 0, dial1Top: 0, dial1Hit: false,
+    dial2Text: "", dial2Left: 0, dial2Top: 0, dial2Hit: false,
+    dial3Text: "", dial3Left: 0, dial3Top: 0, dial3Hit: false,
+    dial4Text: "", dial4Left: 0, dial4Top: 0, dial4Hit: false,
+    dial5Text: "", dial5Left: 0, dial5Top: 0, dial5Hit: false,
+    dial6Text: "", dial6Left: 0, dial6Top: 0, dial6Hit: false,
+    dial7Text: "", dial7Left: 0, dial7Top: 0, dial7Hit: false,
+    needleSize: 131,
+    needleOff: 15,
     needleFrame: 0,
     needleSrc: "/common/icons/compass/needle_00.png",
     targetFrame: 0,
@@ -847,25 +884,71 @@ export default {
     }
     this.dialAngles = angles
     this.dialLabels = labels
+    // 指针盒按 0.82 盘径：素材针长 84px(240 基准)，原尺寸针尖 56px 会压住标签(r=50)，
+    // 收到 46px 左右，正好落在标签环内侧、不压字。
+    this.needleSize = Math.round(this.dialSize * 0.82)
+    this.needleOff = Math.round((this.dialSize - this.needleSize) / 2)
     this.updateNeedle(0, -1)
   },
 
-  // 指针不用 transform rotate，全库无该能力用例，改用预渲染帧图换 src
+  // 指针不用 transform rotate，全库无该能力用例，改用预渲染帧图换 src。
+  // 标签写进 8 个常驻槽：**必须显式逐字段赋值**——this["dial0Hit"] 这类动态键赋值
+  // 不触发数据层通知（首帧能显示是因为走的是全量渲染），真机上就会「指针转了、高亮不动」。
   updateNeedle(frame, hitIndex) {
     this.needleFrame = frame
     var s = frame < 10 ? "0" + frame : "" + frame
     this.needleSrc = "/common/icons/compass/needle_" + s + ".png"
-    var out = []
-    for (var i = 0; i < this.dialLabels.length; i++) {
-      var hit = hitIndex >= 0 ? (i === hitIndex) : (this.dialAngles[i] === frame)
-      out.push({
-        text: this.dialLabels[i].text,
-        left: this.dialLabels[i].left,
-        top: this.dialLabels[i].top,
-        hit: hit
-      })
-    }
-    this.dialLabels = out
+    var n = this.dialLabels.length
+    var ang = this.dialAngles
+    var l0 = n > 0 ? this.dialLabels[0] : null
+    var l1 = n > 1 ? this.dialLabels[1] : null
+    var l2 = n > 2 ? this.dialLabels[2] : null
+    var l3 = n > 3 ? this.dialLabels[3] : null
+    var l4 = n > 4 ? this.dialLabels[4] : null
+    var l5 = n > 5 ? this.dialLabels[5] : null
+    var l6 = n > 6 ? this.dialLabels[6] : null
+    var l7 = n > 7 ? this.dialLabels[7] : null
+    // hit 判定：显式命中优先，否则按「当前帧 == 该标签角度帧」点亮（帧量化到 15°，必然相等）
+    var h0 = n > 0 && (hitIndex >= 0 ? hitIndex === 0 : ang[0] === frame)
+    var h1 = n > 1 && (hitIndex >= 0 ? hitIndex === 1 : ang[1] === frame)
+    var h2 = n > 2 && (hitIndex >= 0 ? hitIndex === 2 : ang[2] === frame)
+    var h3 = n > 3 && (hitIndex >= 0 ? hitIndex === 3 : ang[3] === frame)
+    var h4 = n > 4 && (hitIndex >= 0 ? hitIndex === 4 : ang[4] === frame)
+    var h5 = n > 5 && (hitIndex >= 0 ? hitIndex === 5 : ang[5] === frame)
+    var h6 = n > 6 && (hitIndex >= 0 ? hitIndex === 6 : ang[6] === frame)
+    var h7 = n > 7 && (hitIndex >= 0 ? hitIndex === 7 : ang[7] === frame)
+    this.dial0Text = l0 ? l0.text : ""
+    this.dial0Left = l0 ? l0.left : 0
+    this.dial0Top = l0 ? l0.top : 0
+    this.dial0Hit = h0
+    this.dial1Text = l1 ? l1.text : ""
+    this.dial1Left = l1 ? l1.left : 0
+    this.dial1Top = l1 ? l1.top : 0
+    this.dial1Hit = h1
+    this.dial2Text = l2 ? l2.text : ""
+    this.dial2Left = l2 ? l2.left : 0
+    this.dial2Top = l2 ? l2.top : 0
+    this.dial2Hit = h2
+    this.dial3Text = l3 ? l3.text : ""
+    this.dial3Left = l3 ? l3.left : 0
+    this.dial3Top = l3 ? l3.top : 0
+    this.dial3Hit = h3
+    this.dial4Text = l4 ? l4.text : ""
+    this.dial4Left = l4 ? l4.left : 0
+    this.dial4Top = l4 ? l4.top : 0
+    this.dial4Hit = h4
+    this.dial5Text = l5 ? l5.text : ""
+    this.dial5Left = l5 ? l5.left : 0
+    this.dial5Top = l5 ? l5.top : 0
+    this.dial5Hit = h5
+    this.dial6Text = l6 ? l6.text : ""
+    this.dial6Left = l6 ? l6.left : 0
+    this.dial6Top = l6 ? l6.top : 0
+    this.dial6Hit = h6
+    this.dial7Text = l7 ? l7.text : ""
+    this.dial7Left = l7 ? l7.left : 0
+    this.dial7Top = l7 ? l7.top : 0
+    this.dial7Hit = h7
   },
 
   // 单次内强制不重复，replace 固定 false
