@@ -942,15 +942,25 @@ export default {
     var l5 = n > 5 ? this.dialLabels[5] : null
     var l6 = n > 6 ? this.dialLabels[6] : null
     var l7 = n > 7 ? this.dialLabels[7] : null
-    // hit 判定：显式命中优先，否则按「当前帧 == 该标签角度帧」点亮（帧量化到 15°，必然相等）
-    var h0 = n > 0 && (hitIndex >= 0 ? hitIndex === 0 : ang[0] === frame)
-    var h1 = n > 1 && (hitIndex >= 0 ? hitIndex === 1 : ang[1] === frame)
-    var h2 = n > 2 && (hitIndex >= 0 ? hitIndex === 2 : ang[2] === frame)
-    var h3 = n > 3 && (hitIndex >= 0 ? hitIndex === 3 : ang[3] === frame)
-    var h4 = n > 4 && (hitIndex >= 0 ? hitIndex === 4 : ang[4] === frame)
-    var h5 = n > 5 && (hitIndex >= 0 ? hitIndex === 5 : ang[5] === frame)
-    var h6 = n > 6 && (hitIndex >= 0 ? hitIndex === 6 : ang[6] === frame)
-    var h7 = n > 7 && (hitIndex >= 0 ? hitIndex === 7 : ang[7] === frame)
+    // hit 判定：显式命中优先；否则取「与当前指针角度最近的那个标签」——
+    // 只判相等的话，指针走在两个标签之间时没有命中项，上一次的高亮会一直挂着，
+    // 看起来还是「不跟针」（2026-11-15 模拟器中间帧实测）。
+    var best = -1
+    if (hitIndex < 0 && n > 0) {
+      var bestD = 999
+      for (var bi = 0; bi < n; bi++) {
+        var diff = Math.abs(((ang[bi] - frame + 36) % 24) - 12)
+        if (diff < bestD) { bestD = diff; best = bi }
+      }
+    }
+    var h0 = n > 0 && (hitIndex >= 0 ? hitIndex === 0 : best === 0)
+    var h1 = n > 1 && (hitIndex >= 0 ? hitIndex === 1 : best === 1)
+    var h2 = n > 2 && (hitIndex >= 0 ? hitIndex === 2 : best === 2)
+    var h3 = n > 3 && (hitIndex >= 0 ? hitIndex === 3 : best === 3)
+    var h4 = n > 4 && (hitIndex >= 0 ? hitIndex === 4 : best === 4)
+    var h5 = n > 5 && (hitIndex >= 0 ? hitIndex === 5 : best === 5)
+    var h6 = n > 6 && (hitIndex >= 0 ? hitIndex === 6 : best === 6)
+    var h7 = n > 7 && (hitIndex >= 0 ? hitIndex === 7 : best === 7)
     this.dial0Text = l0 ? l0.text : ""
     this.dial0Left = l0 ? l0.left : 0
     this.dial0Top = l0 ? l0.top : 0
