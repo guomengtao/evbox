@@ -1725,6 +1725,8 @@ export default {
   flex-direction: column;
   width: 100%;
   flex: 1;
+  /* 同上：首帧 display:none 的子树，切 flex 时 flex:1 拿不到父高度 → 给死高度兜底 */
+  height: 408px;
 }
 
 .deck-head {
@@ -2014,10 +2016,14 @@ export default {
   lines: 1;
 }
 
+/* 真机 1.0.84 复核失败（2026-11-15，Tom 反馈「标题出来了、下面一片空、点不动」）：
+   本子树首帧是 display:none，切到 flex 时滚窗拿不到父级 flex 高度，
+   <scroll> 视口量成 0 → 行都在、但看不见也点不到（模拟器宽容，故漏检）。
+   这里改显式像素高度，不再依赖任何父级 flex 链。屏 490，顶部返回胶囊占 ~74。 */
 .list-scroll {
   flex-direction: column;
   width: 100%;
-  flex: 1;
+  height: 408px;
 }
 
 .list-row {
