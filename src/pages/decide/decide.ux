@@ -126,7 +126,7 @@
     <div class="view" style="position: absolute; left: 0; top: {{ view === 'decks' ? '74px' : '540px' }}; width: 100%; height: 408px; flex-direction: column; background-color: {{ theme.bg }}">
       <!-- 固定行槽：真机 JSC 对 for 数组的后续赋值不重绘（§7.8），
            数组列表在真机上会整片空白。改为 13 个常驻行，空槽高 0 自然收起。 -->
-      <scroll class="list-scroll" scroll-y="true" style="position: absolute; left: 0; width: 100%; height: 408px; top: {{ catIndex < 0 ? '0' : '490px' }}">
+      <scroll id="catList" class="list-scroll" scroll-y="true" style="position: absolute; left: 0; width: 100%; height: 408px; top: {{ catIndex < 0 ? '0' : '490px' }}">
         <div class="list-row" onclick="pickCatRow(0)"
              style="background-color: {{ theme.card }}; height: {{ cat0 ? '52px' : '0' }}; margin-bottom: {{ cat0 ? '8px' : '0' }}">
           <text class="list-text" style="color: {{ theme.text }}">{{ cat0 }}</text>
@@ -196,7 +196,7 @@
           <text class="list-text" style="color: {{ theme.text }}">{{ cat16 }}</text>
         </div>
       </scroll>
-      <scroll class="list-scroll" scroll-y="true" style="position: absolute; left: 0; width: 100%; height: 408px; top: {{ catIndex < 0 ? '490px' : '0' }}">
+      <scroll id="deckList" class="list-scroll" scroll-y="true" style="position: absolute; left: 0; width: 100%; height: 408px; top: {{ catIndex < 0 ? '490px' : '0' }}">
         <div class="list-row" onclick="selectDeckRow(0)"
              style="background-color: {{ theme.card }}; height: {{ deck0 ? '52px' : '0' }}; margin-bottom: {{ deck0 ? '8px' : '0' }}">
           <text class="list-text" style="color: {{ theme.text }}">{{ deck0 }}</text>
@@ -1362,6 +1362,7 @@ export default {
     this.cat14 = (out[14] && out[14].name) || ""
     this.cat15 = (out[15] && out[15].name) || ""
     this.cat16 = (out[16] && out[16].name) || ""
+    this.resetListScroll("catList")
   },
 
   setDeck(deck) {
@@ -1999,6 +2000,28 @@ export default {
     this.deck17 = (out[17] && out[17].title) || ""
     this.deck18 = (out[18] && out[18].title) || ""
     this.deck19 = (out[19] && out[19].title) || ""
+    // 列表内容一换就回顶部（2026-11-15 Tom）：点列表靠下的条目时其实已切换，
+    // 但滚动位置还停在下半屏，看着像「没反应」。放在这个唯一出口里，一次覆盖全部入口。
+    this.resetListScroll("deckList")
+  },
+
+  // 滚动复位：属性 scroll-top 不可靠（改了同值不触发），走 $element + scrollTo，
+  // 与易微课程表 pages/index/modules/gesture.js 同一写法；再补一次异步兜底，
+  // 防「数据刚换、节点还没排版」时 scrollTo 被后续布局覆盖。
+  resetListScroll(id) {
+    var self = this
+    var fire = function () {
+      try {
+        var el = self.$element(id)
+        if (el && el.scrollTo) {
+          el.scrollTo({ top: 0 })
+        }
+      } catch (e) {}
+    }
+    fire()
+    setTimeout(function () {
+      fire()
+    }, 24)
   },
 
   pickCat(idx) {

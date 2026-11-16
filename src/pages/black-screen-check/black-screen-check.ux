@@ -67,6 +67,16 @@ import router from "@system.router"
 const store = require("../../data/store.js")
 
 export default {
+  // 系统返回（侧滑 / 返回键）统一自己接管：Vela 默认会把整页栈弹掉、直接回到
+  // Ev工具箱首页，与「返回上一层」的预期不符（2026-11-15 Tom 反馈）。
+  // 各页头部返回按钮本来就是 router.back()，这里与之保持一致。
+  onBackPress() {
+    try {
+      router.back()
+    } catch (e) {}
+    return true
+  },
+
   private: {
     iconTheme: "dark",
     testedItems: {
