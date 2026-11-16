@@ -835,6 +835,13 @@ function needlePath(frame) {
 var COMPASS_LIMIT_CIRCLE = 8
 var COMPASS_LIMIT_PILL = 4
 
+// 点击回查表放模块级：真机 JSC 下 this.<数组> 的赋值不可靠（同一方法里只提交最后一批，
+// 数组常常写不进去），表现为「行显示正常但点了没反应」——2026-11-16 模拟器实测：
+// cat0..cat16 字符串槽全部正确渲染，而 this.catRows[i] 读到 undefined，pickCatRow 直接 return。
+// 模块级 var 不经数据层代理，读写都可靠。
+var CAT_ROWS = []
+var DECK_ROWS = []
+
 // 分类屏显短名：原名五到六字超过 168px 容器，按 ev-six 删字不缩字号
 var CAT_SHORT = ["二元", "方位", "学科", "数字", "果蔬", "餐饮", "日常", "娱乐", "社交", "运动", "心情", "模板"]
 
@@ -1344,7 +1351,7 @@ export default {
     out.push({ idx: -9, name: "搜索" })
     out.push({ idx: -11, name: "更多" })
     // 固定行槽：for 数组在真机不重绘（§7.8），逐个写进 cat0..cat16
-    this.catRows = out
+    CAT_ROWS = out
     this.cat0 = (out[0] && out[0].name) || ""
     this.cat1 = (out[1] && out[1].name) || ""
     this.cat2 = (out[2] && out[2].name) || ""
@@ -1979,7 +1986,7 @@ export default {
 
   // 卡组列表同样走固定行槽：数组只做点击回查，显示靠 deck0..deck19
   applyDeckRows(out) {
-    this.deckRows = out
+    DECK_ROWS = out
     this.deck0 = (out[0] && out[0].title) || ""
     this.deck1 = (out[1] && out[1].title) || ""
     this.deck2 = (out[2] && out[2].title) || ""
@@ -2071,7 +2078,7 @@ export default {
 
   // 固定行槽的点击入口：空槽直接返回（行高 0，理论上点不到，防御一下）
   pickCatRow(i) {
-    var r = this.catRows[i]
+    var r = CAT_ROWS[i]
     if (!r) {
       return
     }
@@ -2079,7 +2086,7 @@ export default {
   },
 
   selectDeckRow(i) {
-    var r = this.deckRows[i]
+    var r = DECK_ROWS[i]
     if (!r) {
       return
     }
@@ -2957,7 +2964,7 @@ export default {
   },
 
   addSlotFromChoice(i) {
-    var r = this.deckRows[i]
+    var r = DECK_ROWS[i]
     if (!r || !r.addRef) {
       return
     }
